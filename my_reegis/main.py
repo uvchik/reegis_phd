@@ -25,6 +25,7 @@ from oemof.tools import logger
 import reegis_tools.config as cfg
 import deflex
 import berlin_hp
+import my_reegis
 
 
 def stopwatch():
@@ -61,7 +62,7 @@ def compute(sc, nodes=None, dump_graph=False):
         sc.name, stopwatch()))
     sc.create_model()
 
-    logging.info("Solve the optimisation model ({0}: {1}".format(
+    logging.info("Solve the optimisation model ({0}): {1}".format(
         sc.name, stopwatch()))
     sc.solve()
 
@@ -116,9 +117,10 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
     scenario_path = os.path.join(cfg.get('paths', 'scenario'), str(year))
     sc_de.location = os.path.join(scenario_path, '{0}_csv'.format(name))
 
+    # Create scenario files if they do exist or creation is forced
     if create_scenario or not os.path.isfile(sc_de.location):
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
-        berlin_hp.embedded_model.create_reduced_scenario(year, sim_type)
+        my_reegis.embedded_model.create_reduced_scenario(year, sim_type)
 
     sc_de = load_scenario(sc_de)
     nodes_de = sc_de.create_nodes()
@@ -150,7 +152,7 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
     sc.add_nodes(nodes)
     sc.name = '{0}_{1}_{2}'.format('berlin_hp', year, sim_type)
 
-    p = berlin_hp.embedded_model.connect_electricity_buses('DE01', 'BE', sc.es)
+    p = my_reegis.embedded_model.connect_electricity_buses('DE01', 'BE', sc.es)
 
     compute(load_scenario(sc), nodes=p)
 
