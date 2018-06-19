@@ -171,7 +171,7 @@ def start_all(create_scenario=True):
 
     for year in [2014, 2013, 2012]:
         # deflex and embedded
-        for t in ['de22']:
+        for t in ['de21', 'de22']:
             try:
                 deflex_main(year, sim_type=t, create_scenario=create_scenario)
                 embedded_main(
