@@ -71,12 +71,6 @@ def compute(sc, nodes=None, dump_graph=False):
     logging.info("Dump file to {0}".format(out_file))
     sc.dump_es(out_file)
 
-    # Copy used xls-file to results to avoid confusion if the file is change
-    # afterwards by another program or test.
-    src = os.path.join(scenario_path, '{0}.xls'.format(sc.name))
-    dst = os.path.join(results_path, '{0}.xls'.format(sc.name))
-    copyfile(src, dst)
-
     logging.info("All done. {0} finished without errors: {0}".format(
         sc.name, stopwatch()))
 
@@ -92,6 +86,11 @@ def deflex_main(year, sim_type='de21', create_scenario=True):
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
         deflex.basic_scenario.create_basic_scenario(year, rmap=sim_type)
 
+    os.makedirs(os.path.join(scenario_path, 'results'), exist_ok=True)
+    src = os.path.join(scenario_path, '{0}.xls'.format(sc.name))
+    dst = os.path.join(scenario_path, 'results', '{0}.xls'.format(sc.name))
+    copyfile(src, dst)
+
     compute(load_scenario(sc))
 
 
@@ -105,6 +104,11 @@ def berlin_hp_main(year, sim_type='single', create_scenario=True):
     if create_scenario or not os.path.isfile(sc.location):
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
         berlin_hp.basic_scenario.create_basic_scenario(year)
+
+    os.makedirs(os.path.join(scenario_path, 'results'), exist_ok=True)
+    src = os.path.join(scenario_path, '{0}.xls'.format(sc.name))
+    dst = os.path.join(scenario_path, 'results', '{0}.xls'.format(sc.name))
+    copyfile(src, dst)
 
     compute(load_scenario(sc))
 
