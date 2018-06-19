@@ -123,6 +123,11 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
     sc_de = load_scenario(sc_de)
     nodes_de = sc_de.create_nodes()
 
+    os.makedirs(os.path.join(scenario_path, 'results'), exist_ok=True)
+    src = os.path.join(scenario_path, '{0}.xls'.format(sc_de.name))
+    dst = os.path.join(scenario_path, 'results', '{0}.xls'.format(sc_de.name))
+    copyfile(src, dst)
+
     # berlin_hp
     cfg.tmp_set('init', 'map', 'single')
     name = '{0}_{1}_{2}'.format('berlin_hp', year, cfg.get('init', 'map'))
@@ -136,6 +141,11 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
 
     sc = load_scenario(sc)
     nodes = sc.create_nodes(nodes_de)
+
+    src = os.path.join(scenario_path, '{0}.xls'.format(sc.name))
+    dst = os.path.join(
+        scenario_path, 'results', '{0}_embedded.xls'.format(sc.name))
+    copyfile(src, dst)
 
     sc.add_nodes(nodes)
     sc.name = '{0}_{1}_{2}'.format('berlin_hp', year, sim_type)
@@ -161,10 +171,11 @@ def start_all(create_scenario=True):
 
     for year in [2014, 2013, 2012]:
         # deflex and embedded
-        for t in ['de21', 'de22']:
+        for t in ['de22']:
             try:
                 deflex_main(year, sim_type=t, create_scenario=create_scenario)
-                embedded_main(year)
+                embedded_main(
+                    year, sim_type=t, create_scenario=create_scenario)
             except Exception as e:
                 checker = log_exception(e)
 
