@@ -49,10 +49,12 @@ def compute(sc, nodes=None, dump_graph=False):
         sc.add_nodes2solph()
 
     scenario_path = os.path.dirname(sc.location)
+    results_path = os.path.join(scenario_path, 'results')
+    os.makedirs(results_path, exist_ok=True)
 
+    # Save energySystem to '.graphml' file if dump_graph is True
     if dump_graph is True:
-        # Save energySystem to '.graphml' file.
-        sc.plot_nodes(filename=os.path.join(scenario_path, sc.name),
+        sc.plot_nodes(filename=os.path.join(results_path, sc.name),
                       remove_nodes_with_substrings=['bus_cs'])
 
     logging.info("Create the concrete model for {0}: {1}".format(
@@ -64,14 +66,14 @@ def compute(sc, nodes=None, dump_graph=False):
     sc.solve()
 
     logging.info("Solved. Dump results: {0}".format(stopwatch()))
-    out_file = os.path.join(scenario_path, 'results', sc.name + '.esys')
+    out_file = os.path.join(results_path, sc.name + '.esys')
     logging.info("Dump file to {0}".format(out_file))
     sc.dump_es(out_file)
 
     # Copy used xls-file to results to avoid confusion if the file is change
     # afterwards by another program or test.
     src = os.path.join(scenario_path, '{0}.xls'.format(sc.name))
-    dst = os.path.join(scenario_path, 'results', '{0}.xls'.format(sc.name))
+    dst = os.path.join(results_path, '{0}.xls'.format(sc.name))
     copyfile(src, dst)
 
     logging.info("All done. {0} finished without errors: {0}".format(
