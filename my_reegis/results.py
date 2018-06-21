@@ -6,7 +6,6 @@ import reegis_tools.geometries
 import pprint as pp
 from oemof.tools import logger
 from oemof import solph as solph
-import reegis_tools.config as cfg
 from datetime import datetime
 from oemof import outputlib
 from oemof.outputlib import analyzer
@@ -17,6 +16,7 @@ import matplotlib.patheffects as path_effects
 import matplotlib.patches as patches
 import math
 from matplotlib.colors import LinearSegmentedColormap
+import reegis_tools.config as cfg
 
 
 def shape_legend(node, rm_list, reverse=False, **kwargs):
@@ -217,6 +217,7 @@ def analyse_bus(year, rmap, cat, region):
     results = load_results(year, rmap, cat)
     print(results.keys())
     bus_elec = outputlib.views.node(results, 'bus_elec_{0}'.format(region))
+
     # bus_elec = powerlines2export_import(bus_elec)
     print(bus_elec['sequences'].sum())
     plot_bus(bus_elec, 'bus_elec_{0}'.format(region),
@@ -436,9 +437,9 @@ def plot_bus(node, node_label, rm_list=None):
     if rm_list is None:
         rm_list = []
 
-    plot_slice = oev.plot.slice_df(my_node,
-                                   date_from=datetime(2014, 5, 31),
-                                   date_to=datetime(2014, 6, 8))
+    plot_slice = oev.plot.slice_df(my_node,)
+                                   # date_from=datetime(2014, 5, 31),
+                                   # date_to=datetime(2014, 6, 8))
 
     # pprint.pprint(get_cdict(my_node))
 
@@ -573,38 +574,96 @@ def ee_analyser(results, ee_type):
     return df.sum(axis=1)
 
 
-def new_analyser(results, wind, solar, ax):
+def results_iterator(results):
+    r = results['Main']
+    p = results['Param']
+
+    sorted_results = pd.DataFrame()
+    for i in r.keys():
+        # find source flows
+        if isinstance(i[0], solph.Source):
+            column_name = i[0].label.split('_')[1]
+            try:
+                sorted_results[column_name] += r[i]['sequences']['flow']
+            except KeyError:
+                sorted_results[column_name] = r[i]['sequences']['flow']
+
+        # find storage discharge
+        if isinstance(i[0], solph.components.GenericStorage):
+            if i[1] is not None:
+                column_name = i[0].label.split('_')[1] + '_discharge'
+                try:
+                    sorted_results[column_name] += r[i]['sequences']['flow']
+                except KeyError:
+                    sorted_results[column_name] = r[i]['sequences']['flow']
+
+        # find elec_demand
+        if isinstance(i[1], solph.Sink):
+            column_name = '_'.join(i[1].label.split('_')[:2])
+            try:
+                sorted_results[column_name] += r[i]['sequences']['flow']
+            except KeyError:
+                sorted_results[column_name] = r[i]['sequences']['flow']
+
+    return sorted_results.sort_index(axis=1)
+
+
+def new_analyser(results, demand):
     analysis = analyzer.Analysis(
         results['Main'], results['Param'],
         iterator=analyzer.FlowNodeIterator)
-    lcoe = analyzer.LCOEAnalyzerCHP()
-    demand = analyzer.FlowFilterSubstring('demand_elec', position=1)
+    lcoe = analyzer.LCOEAnalyzerCHP(demand)
     analysis.add_analyzer(lcoe)
-    analysis.add_analyzer(demand)
     analysis.analyze()
-
-    df = pd.concat(demand.result, axis=1)
-    df.columns = df.columns.droplevel(-1)
-    demand = df.sum(axis=1)
-    residual = demand - wind - solar
-    residual.reset_index(drop=True, inplace=True)
-    demand.reset_index(drop=True, inplace=True)
-    # ax = demand.plot()
-    ax = demand.plot(ax=ax, color='g', legend=True)
     df = pd.DataFrame.from_dict(lcoe.result)
+    df.reset_index(drop=True, inplace=True)
+    df.name = 'value (right)'
+    return df
+
+
+def analyse_plot(cost_values, multiregion, demand_elec, demand_distr):
+    in_list = ['trsf_pp_nuclear', 'trsf_pp_lignite', 'trsf_pp_hard_coal',
+               'trsf_pp_natural_gas', 'trsf_pp_other', 'trsf_pp_bioenergy',
+               'trsf_chp_other', 'trsf_chp_lignite', 'trsf_chp_natural_gas',
+               'trsf_chp_oil', 'trsf_chp_bioenergy', 'trsf_chp_hard_coal',
+               'phe_storage']
+    my_cdict = get_cdict_df(multiregion['in'])
+    my_cdict.update(get_cdict_df(multiregion['out']))
+    # print(my_cdict)
+
+    oplot = oev.plot.io_plot(df_in=multiregion['in'],
+                             df_out=multiregion['out'],
+                             smooth=True, inorder=in_list, cdict=my_cdict)
+
+    # ax = demand.plot()
+    ax = demand_elec.reset_index(drop=True).plot(
+        ax=oplot['ax'], color='g', legend=True)
+
+    # ax = demand.plot()
+    ax = demand_distr.reset_index(drop=True).plot(
+        ax=ax, color='m', legend=True)
+
     # df.to_excel('/home/uwe/lcoe.xls')
 
     my_cols = pd.MultiIndex(levels=[[], [], []], labels=[[], [], []],
                             names=[u'type', u'src', u'region'])
     ana_df = pd.DataFrame(columns=my_cols)
 
-    for c in df.columns:
+    for c in cost_values.columns:
         cn = c.split('_')
-        ana_df[(cn[1], cn[3], cn[2])] = df[c]
+        ana_df[(cn[1], cn[3], cn[2])] = cost_values[c]
     ana_df = ana_df.groupby(level=[0, 1], axis=1).sum()
-    ana_df.reset_index(drop=True).plot()
-    df.reset_index(drop=True, inplace=True)
-    df.sum(axis=1).plot(ax=ax, secondary_y=True, legend=True, color='#7cfff0')
+    # ana_df[('chp', 'chp')] = ana_df['chp'].sum(axis=1)
+
+    ana_x = ana_df.reset_index(drop=True).plot()
+    ana_x .set_xlim(3000, 3200)
+
+    cost_values.reset_index(drop=True, inplace=True)
+    cost_values.name = 'cost_value (right)'
+    ax2 = cost_values.sum(axis=1).plot(
+        ax=ax, secondary_y=True, legend=True, color='#7cfff0')
+    ax2.set_ylim(0, 20)
+    # ax2.set_xlim(3000, 3200)
     plt.show()
 
 
@@ -616,10 +675,22 @@ def reshape_multiregion_df():
     del res[('in', 'import')]
 
     volatile_sources = ['source_geothermal', 'source_hydro', 'source_solar',
-                        'source_wind']
+                        'source_wind', 'phe_storage']
+
     for src in volatile_sources:
         res[('out', 'demand_elec')] -= res[('in', src)]
         del res[('in', src)]
+
+    chp_trsf = [x for x in res['in'].columns if 'chp' in x]
+
+    for chp in chp_trsf:
+        res[('out', 'demand_elec')] -= res[('in', chp)]
+        del res[('in', chp)]
+
+    additional_demand = ['phe_storage', 'losses']
+    for add in additional_demand:
+        res[('out', 'demand_elec')] += res[('out', add)]
+        del res[('out', add)]
 
     for c in res.columns:
         if res[c].sum() < 0.0001:
@@ -630,40 +701,30 @@ def reshape_multiregion_df():
     return res
 
 
+def analyse_system_costs(plot=False):
+    all_res = load_all_results(2014, 'de21', 'deflex')
+    multi_res = reshape_multiregion_df()
+    c_values = new_analyser(all_res, multi_res[('out', 'demand_elec')])
+
+    if plot is True:
+        sorted_flows = results_iterator(all_res)
+        analyse_plot(c_values, multi_res, sorted_flows['demand_elec'],
+                     sorted_flows['demand_distr'])
+
+    return c_values.sum(axis=1)
+
+
 if __name__ == "__main__":
     logger.define_logging()
-    # import pprint
-    # # analyse_bus(2014, 'single', 'friedrichshagen', 'BE')
-    # # exit(0)
-    # # res = load_all_results(2014, 'de21', 'deflex')
-    # # print(res.keys())
-    # # print(res['Meta'])
-    # # exit(0)
-    multi_res = reshape_multiregion_df()
-    print(multi_res['in'].columns)
+    cfg.init(paths=[os.path.dirname(berlin_hp.__file__)])
+    # analyse_system_costs(plot=True)
 
-    in_list = ['trsf_pp_nuclear', 'trsf_pp_lignite', 'trsf_pp_hard_coal',
-               'trsf_pp_natural_gas', 'trsf_pp_other', 'trsf_pp_bioenergy',
-               'trsf_chp_other', 'trsf_chp_lignite', 'trsf_chp_natural_gas',
-               'trsf_chp_oil', 'trsf_chp_bioenergy', 'trsf_chp_hard_coal',
-               'phe_storage']
-    my_cdict = get_cdict_df(multi_res['in'])
-    my_cdict.update(get_cdict_df(multi_res['out']))
-    print(my_cdict)
-
-    oplot = oev.plot.io_plot(df_in=multi_res['in'], df_out=multi_res['out'],
-                             smooth=True, inorder=in_list, cdict=my_cdict)
-
-    all_res = load_all_results(2014, 'de21', 'deflex')
-    wind = ee_analyser(all_res, 'wind')
-    solar = ee_analyser(all_res, 'solar')
-    new_analyser(all_res, wind, solar, oplot['ax'])
-    plt.show()
+    analyse_bus(2014, 'single', 'friedrichshagen', 'FHG')
     exit(0)
-    all_res = load_all_results(2014, 'de21', 'deflex')
-    wind = ee_analyser(all_res, 'wind')
-    solar = ee_analyser(all_res, 'solar')
-    new_analyser(all_res, wind, solar)
+    # all_res = load_all_results(2014, 'de21', 'deflex')
+    # wind = ee_analyser(all_res, 'wind')
+    # solar = ee_analyser(all_res, 'solar')
+    # new_analyser(all_res, wind, solar)
     # print(bl['bus_elec_DE07'])
     exit(0)
     # system = load_es(2014, 'de21', 'deflex')
