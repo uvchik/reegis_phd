@@ -20,12 +20,15 @@ from shutil import copyfile
 
 # oemof packages
 from oemof.tools import logger
+from oemof import solph
 
 # internal modules
 import reegis_tools.config as cfg
+import reegis_tools.scenario_tools
 import deflex
 import berlin_hp
 import my_reegis
+from my_reegis import results as sys_results
 
 
 def stopwatch():
@@ -34,21 +37,7 @@ def stopwatch():
     return str(datetime.now() - stopwatch.start)[:-7]
 
 
-def load_scenario(sc):
-    logging.info("Read scenario {0}: {1}".format(sc.name, stopwatch()))
-    sc.load_csv(sc.location)
-
-    sc.check_table('time_series')
-
-    return sc
-
-
-def compute(sc, nodes=None, dump_graph=False):
-    if nodes is not None:
-        sc.add_nodes(nodes)
-    else:
-        sc.add_nodes2solph()
-
+def compute(sc, dump_graph=False):
     scenario_path = os.path.dirname(sc.location)
     results_path = os.path.join(scenario_path, 'results')
     os.makedirs(results_path, exist_ok=True)
@@ -91,7 +80,15 @@ def deflex_main(year, sim_type='de21', create_scenario=True):
     dst = os.path.join(scenario_path, 'results', '{0}.xls'.format(sc.name))
     copyfile(src, dst)
 
-    compute(load_scenario(sc))
+    # Load scenario from csv-file
+    logging.info("Read scenario {0}: {1}".format(sc.name, stopwatch()))
+    sc.load_csv().check_table('time_series')
+
+    # Create nodes and add them to the EnergySystem
+    sc.table2es()
+
+    # Create concrete model, solve it and dump the results
+    compute(sc)
 
 
 def berlin_hp_main(year, sim_type='single', create_scenario=True):
@@ -101,7 +98,7 @@ def berlin_hp_main(year, sim_type='single', create_scenario=True):
     scenario_path = os.path.join(cfg.get('paths', 'scenario'), str(year))
     sc.location = os.path.join(scenario_path, '{0}_csv'.format(name))
 
-    if create_scenario or not os.path.isfile(sc.location):
+    if create_scenario or not os.path.isdir(sc.location):
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
         berlin_hp.basic_scenario.create_basic_scenario(year)
 
@@ -110,7 +107,15 @@ def berlin_hp_main(year, sim_type='single', create_scenario=True):
     dst = os.path.join(scenario_path, 'results', '{0}.xls'.format(sc.name))
     copyfile(src, dst)
 
-    compute(load_scenario(sc))
+    # Load scenario from csv-file
+    logging.info("Read scenario {0}: {1}".format(sc.name, stopwatch()))
+    sc.load_csv().check_table('time_series')
+
+    # Create nodes and add them to the EnergySystem
+    sc.table2es()
+
+    # Create concrete model, solve it and dump the results
+    compute(sc)
 
 
 def embedded_main(year, sim_type='de21', create_scenario=True):
@@ -122,11 +127,13 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
     sc_de.location = os.path.join(scenario_path, '{0}_csv'.format(name))
 
     # Create scenario files if they do exist or creation is forced
-    if create_scenario or not os.path.isfile(sc_de.location):
+    if create_scenario or not os.path.isdir(sc_de.location):
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
         my_reegis.embedded_model.create_reduced_scenario(year, sim_type)
 
-    sc_de = load_scenario(sc_de)
+    # Load scenario from csv-file
+    logging.info("Read scenario {0}: {1}".format(sc_de.name, stopwatch()))
+    sc_de.load_csv().check_table('time_series')
     nodes_de = sc_de.create_nodes()
 
     os.makedirs(os.path.join(scenario_path, 'results'), exist_ok=True)
@@ -141,11 +148,14 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
     scenario_path = os.path.join(cfg.get('paths', 'scenario'), str(year))
     sc.location = os.path.join(scenario_path, '{0}_csv'.format(name))
 
-    if create_scenario or not os.path.isfile(sc.location):
+    if create_scenario or not os.path.isdir(sc.location):
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
         berlin_hp.basic_scenario.create_basic_scenario(year)
 
-    sc = load_scenario(sc)
+    # Load scenario from csv-file
+    logging.info("Read scenario {0}: {1}".format(sc.name, stopwatch()))
+    sc.load_csv().check_table('time_series')
+
     nodes = sc.create_nodes(nodes_de)
 
     src = os.path.join(scenario_path, '{0}.xls'.format(sc.name))
@@ -156,9 +166,58 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
     sc.add_nodes(nodes)
     sc.name = '{0}_{1}_{2}'.format('berlin_hp', year, sim_type)
 
-    p = my_reegis.embedded_model.connect_electricity_buses('DE01', 'BE', sc.es)
+    sc.add_nodes(my_reegis.embedded_model.connect_electricity_buses(
+        'DE01', 'BE', sc.es))
 
-    compute(load_scenario(sc), nodes=p)
+    # Create concrete model, solve it and dump the results
+    compute(sc)
+
+
+def add_import_export_nodes(bus, import_costs, export_costs):
+    nodes = reegis_tools.scenario_tools.NodeDict()
+    nodes['import'] = solph.Source(
+        label='import_elec_fhg',
+        outputs={bus: solph.Flow(emission=0, variable_costs=import_costs)})
+    nodes['export'] = solph.Sink(
+        label='export_elec_fhg',
+        inputs={bus: solph.Flow(emission=0, variable_costs=export_costs)})
+    return nodes
+
+
+def friedrichshagen_main(year, create_scenario=True):
+    """Friedrichshagen"""
+    name = '{0}_{1}_{2}'.format('friedrichshagen', year, 'single')
+    sc = berlin_hp.Scenario(name=name, year=year, debug=False)
+    scenario_path = os.path.join(cfg.get('paths', 'scenario'), str(year))
+    sc.location = os.path.join(scenario_path, '{0}_csv'.format(name))
+
+    if create_scenario or not os.path.isdir(sc.location):
+        logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
+        berlin_hp.friedrichshagen.create_basic_scenario(year)
+
+    os.makedirs(os.path.join(scenario_path, 'results'), exist_ok=True)
+    src = os.path.join(scenario_path, '{0}.xls'.format(sc.name))
+    dst = os.path.join(scenario_path, 'results', '{0}.xls'.format(sc.name))
+    copyfile(src, dst)
+
+    # Load scenario from csv-file
+    logging.info("Read scenario {0}: {1}".format(sc.name, stopwatch()))
+    sc.load_csv()
+    # print(sc.table_collection)
+    sc.check_table('time_series')
+
+    # Create nodes and add them to the EnergySystem
+    sc.add_nodes(sc.create_nodes(region='FHG'))
+
+    # print([x for x in sc.es.groups.keys() if 'elec' in str(x)])
+    costs = sys_results.analyse_system_costs(plot=False)
+
+    bus = sc.es.groups['bus_elec_FHG']
+    sc.add_nodes(add_import_export_nodes(
+        bus, import_costs=costs/0.9, export_costs=costs*(-0.9)))
+
+    # Create concrete model, solve it and dump the results
+    compute(sc, dump_graph=True)
 
 
 def log_exception(e):
@@ -174,12 +233,13 @@ def start_all(create_scenario=True):
                     os.path.dirname(berlin_hp.__file__)])
 
     checker = True
-
+    # friedrichshagen_main(2014, create_scenario=False)
+    # exit(0)
     for year in [2014, 2013, 2012]:
         # deflex and embedded
         for t in ['de21', 'de22']:
             try:
-                deflex_main(year, sim_type=t, create_scenario=create_scenario)
+                # deflex_main(year, sim_type=t, create_scenario=create_scenario)
                 embedded_main(
                     year, sim_type=t, create_scenario=create_scenario)
             except Exception as e:
