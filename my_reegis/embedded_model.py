@@ -277,7 +277,7 @@ def create_reduced_de21_scenario(year):
 
 
 def connect_electricity_buses(bus1, bus2, es):
-    nodes = {}
+    nodes = reegis_tools.scenario_tools.NodeDict()
     lines = [(bus1, bus2), (bus2, bus1)]
     for line in lines:
         line_label = 'power_line_{0}_{1}'.format(line[0], line[1])
@@ -340,9 +340,6 @@ def main(year, rmap):
 
     logging.info("All done. Berlin {0} finished without errors: {0}".format(
         stopwatch()))
-
-
-
 
 
 if __name__ == "__main__":
