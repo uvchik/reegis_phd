@@ -220,6 +220,34 @@ def friedrichshagen_main(year, create_scenario=True):
     compute(sc, dump_graph=True)
 
 
+def optimise_scenario(path, name, create_fct, create_scenario=True, year=None):
+
+    if year is None:
+        year = 2050
+
+    sc = deflex.Scenario(name=name, year=year)
+    sc.location = os.path.join(path, '{0}_csv'.format(name))
+
+    if create_scenario or not os.path.isdir(sc.location):
+        logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
+        create_fct()
+
+    os.makedirs(os.path.join(path, 'results'), exist_ok=True)
+    src = os.path.join(path, '{0}.xls'.format(sc.name))
+    dst = os.path.join(path, 'results', '{0}.xls'.format(sc.name))
+    copyfile(src, dst)
+
+    # Load scenario from csv-file
+    logging.info("Read scenario {0}: {1}".format(sc.name, stopwatch()))
+    sc.load_csv().check_table('time_series')
+
+    # Create nodes and add them to the EnergySystem
+    sc.table2es()
+
+    # Create concrete model, solve it and dump the results
+    compute(sc)
+
+
 def log_exception(e):
     logging.error(traceback.format_exc())
     time.sleep(0.5)
@@ -233,13 +261,17 @@ def start_all(create_scenario=True):
                     os.path.dirname(berlin_hp.__file__)])
 
     checker = True
-    # friedrichshagen_main(2014, create_scenario=False)
-    # exit(0)
+    path = '/home/uwe/express/reegis/scenarios/new'
+    name = 'deflex_XX_Nc00_Li05_HP02_de21'
+    create_fct = my_reegis.alternative_scenarios.create_expensive_scenario
+    optimise_scenario(path, name, create_fct, create_scenario=True, year=None)
+    friedrichshagen_main(2014, create_scenario=False)
+
     for year in [2014, 2013, 2012]:
         # deflex and embedded
         for t in ['de21', 'de22']:
             try:
-                # deflex_main(year, sim_type=t, create_scenario=create_scenario)
+                deflex_main(year, sim_type=t, create_scenario=create_scenario)
                 embedded_main(
                     year, sim_type=t, create_scenario=create_scenario)
             except Exception as e:
