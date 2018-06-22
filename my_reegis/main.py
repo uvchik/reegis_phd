@@ -261,7 +261,7 @@ def start_all(create_scenario=True):
                     os.path.dirname(berlin_hp.__file__)])
 
     checker = True
-    path = '/home/uwe/express/reegis/scenarios/new'
+    path = os.path.join(cfg.get('paths', 'scenario'), 'new')
     name = 'deflex_XX_Nc00_Li05_HP02_de21'
     create_fct = my_reegis.alternative_scenarios.create_expensive_scenario
     optimise_scenario(path, name, create_fct, create_scenario=True, year=None)
