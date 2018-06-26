@@ -108,7 +108,6 @@ def create_scenario_XX_Nc00_Li05_HP02():
     # use massive heat_pumps
     """
     sc = load_deflex(2014, sim_type='de21', create_scenario=False)
-    add_simple_gas_turbine(sc)
 
     reduce_power_plants(sc, nuclear=0, lignite=0.5)
 
