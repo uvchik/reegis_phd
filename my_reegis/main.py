@@ -29,6 +29,7 @@ import deflex
 import berlin_hp
 import my_reegis
 from my_reegis import results as sys_results
+from my_reegis import alternative_scenarios
 
 
 def stopwatch():
@@ -262,9 +263,24 @@ def start_all(create_scenario=True):
 
     checker = True
     path = os.path.join(cfg.get('paths', 'scenario'), 'new')
-    name = 'deflex_XX_Nc00_Li05_HP02_de21'
-    create_fct = my_reegis.alternative_scenarios.create_expensive_scenario
-    optimise_scenario(path, name, create_fct, create_scenario=True, year=None)
+    my_scenarios = {
+        'deflex_XX_Nc00_Li05_HP02_de21':
+            alternative_scenarios.create_scenario_XX_Nc00_Li05_HP02,
+        'deflex_XX_Nc00_Li05_HP00_de21':
+            alternative_scenarios.create_scenario_XX_Nc00_Li05_HP00,
+        'deflex_XX_Nc00_Li05_HP02_GT_de21':
+            alternative_scenarios.create_scenario_XX_Nc00_Li05_HP02_GT,
+        'deflex_XX_Nc00_Li05_HP00_GT_de21':
+            alternative_scenarios.create_scenario_XX_Nc00_Li05_HP00_GT,
+    }
+
+    for name, create_fct in my_scenarios.items():
+        try:
+            optimise_scenario(
+                path, name, create_fct, create_scenario=True, year=None)
+        except Exception as e:
+            checker = log_exception(e)
+
     friedrichshagen_main(2014, create_scenario=False)
 
     for year in [2014, 2013, 2012]:
