@@ -214,7 +214,7 @@ def create_scenario_XX_Nc00_Li05_HP00_GT():
 
     reduce_power_plants(sc, nuclear=0, lignite=0.5)
 
-    name = '{0}_{1}_{2}'.format('deflex', 'XX_Nc00_Li05_HP02_GT', cfg.get(
+    name = '{0}_{1}_{2}'.format('deflex', 'XX_Nc00_Li05_HP00_GT', cfg.get(
         'init', 'map'))
     path = os.path.join(cfg.get('paths', 'scenario'), 'new')
     sc.to_excel(os.path.join(path, name + '.xls'))
