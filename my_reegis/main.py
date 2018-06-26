@@ -257,11 +257,7 @@ def log_exception(e):
     return False
 
 
-def start_all(create_scenario=True):
-    cfg.init(paths=[os.path.dirname(deflex.__file__),
-                    os.path.dirname(berlin_hp.__file__)])
-
-    checker = True
+def start_alternative_scenarios(checker, create_scenario=True):
     path = os.path.join(cfg.get('paths', 'scenario'), 'new')
     my_scenarios = {
         'deflex_XX_Nc00_Li05_HP02_de21':
@@ -276,13 +272,15 @@ def start_all(create_scenario=True):
 
     for name, create_fct in my_scenarios.items():
         try:
-            optimise_scenario(
-                path, name, create_fct, create_scenario=True, year=None)
+            optimise_scenario(path, name, create_fct,
+                              create_scenario=create_scenario, year=None)
         except Exception as e:
             checker = log_exception(e)
 
-    friedrichshagen_main(2014, create_scenario=False)
+    return checker
 
+
+def start_basic_scenarios(checker=True, create_scenario=True):
     for year in [2014, 2013, 2012]:
         # deflex and embedded
         for t in ['de21', 'de22']:
@@ -298,7 +296,34 @@ def start_all(create_scenario=True):
             berlin_hp_main(year)
         except Exception as e:
             checker = log_exception(e)
+    return checker
 
+
+def start_friedrichshagen(checker=True, create_scenario=True):
+    try:
+        friedrichshagen_main(2014, create_scenario=create_scenario)
+    except Exception as e:
+        checker = log_exception(e)
+
+    return checker
+
+
+def start_all(checker=True, create_scenario=True):
+
+    cfg.init(paths=[os.path.dirname(deflex.__file__),
+                    os.path.dirname(berlin_hp.__file__)])
+
+    checker = start_alternative_scenarios(
+        checker, create_scenario=create_scenario)
+
+    checker = start_friedrichshagen(checker, create_scenario=create_scenario)
+
+    checker = start_basic_scenarios(checker, create_scenario=create_scenario)
+
+    return checker
+
+
+def log_check(checker):
     if checker is True:
         logging.info("Everything is fine: {0}".format(stopwatch()))
     else:
@@ -307,5 +332,9 @@ def start_all(create_scenario=True):
 
 if __name__ == "__main__":
     logger.define_logging()
+    cfg.init(paths=[os.path.dirname(deflex.__file__),
+                    os.path.dirname(berlin_hp.__file__)])
+
     stopwatch()
-    start_all(create_scenario=True)
+    # logg_check(start_all(create_scenario=True))
+    log_check(start_alternative_scenarios(checker=True, create_scenario=True))
