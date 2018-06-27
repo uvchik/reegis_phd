@@ -336,5 +336,5 @@ if __name__ == "__main__":
                     os.path.dirname(berlin_hp.__file__)])
 
     stopwatch()
-    # logg_check(start_all(create_scenario=True))
-    log_check(start_alternative_scenarios(checker=True, create_scenario=True))
+    log_check(start_all(create_scenario=True))
+    # log_check(start_alternative_scenarios(checker=True, create_scenario=True))
