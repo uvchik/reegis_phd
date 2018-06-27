@@ -313,12 +313,12 @@ def start_all(checker=True, create_scenario=True):
     cfg.init(paths=[os.path.dirname(deflex.__file__),
                     os.path.dirname(berlin_hp.__file__)])
 
-    checker = start_alternative_scenarios(
-        checker, create_scenario=create_scenario)
-
-    checker = start_friedrichshagen(checker, create_scenario=create_scenario)
+    # checker = start_friedrichshagen(checker, create_scenario=create_scenario)
 
     checker = start_basic_scenarios(checker, create_scenario=create_scenario)
+
+    checker = start_alternative_scenarios(
+        checker, create_scenario=create_scenario)
 
     return checker
 
