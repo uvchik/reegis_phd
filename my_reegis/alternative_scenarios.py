@@ -2,22 +2,22 @@
 import os
 import logging
 from datetime import datetime
-import time
-import traceback
-from shutil import copyfile
+# import time
+# import traceback
+# from shutil import copyfile
 
 # oemof packages
 from oemof.tools import logger
-from oemof import solph
+# from oemof import solph
 
 # internal modules
 import reegis_tools.config as cfg
-import reegis_tools.scenario_tools
+# import reegis_tools.scenario_tools
 import deflex
 from deflex import inhabitants
 import berlin_hp
-import my_reegis
-from my_reegis import results as sys_results
+# import my_reegis
+# from my_reegis import results as sys_results
 
 
 def stopwatch():
