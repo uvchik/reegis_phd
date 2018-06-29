@@ -334,8 +334,9 @@ if __name__ == "__main__":
     logger.define_logging()
     cfg.init(paths=[os.path.dirname(deflex.__file__),
                     os.path.dirname(berlin_hp.__file__)])
-    deflex_main(2014, sim_type='de21', create_scenario=False)
-    exit(0)
+    # deflex_main(2014, sim_type='de21', create_scenario=False)
+    # exit(0)
     stopwatch()
     log_check(start_all(create_scenario=True))
-    # log_check(start_alternative_scenarios(checker=True, create_scenario=True))
+    # log_check(
+    #     start_alternative_scenarios(checker=True, create_scenario=True))
