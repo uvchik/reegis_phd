@@ -28,7 +28,7 @@ import reegis_tools.scenario_tools
 import deflex
 import berlin_hp
 import my_reegis
-from my_reegis import results as sys_results
+# from my_reegis import results as sys_results
 from my_reegis import alternative_scenarios
 
 
@@ -211,11 +211,11 @@ def friedrichshagen_main(year, create_scenario=True):
     sc.add_nodes(sc.create_nodes(region='FHG'))
 
     # print([x for x in sc.es.groups.keys() if 'elec' in str(x)])
-    costs = sys_results.analyse_system_costs(plot=False)
+    # costs = sys_results.analyse_system_costs(plot=False)
 
-    bus = sc.es.groups['bus_elec_FHG']
-    sc.add_nodes(add_import_export_nodes(
-        bus, import_costs=costs/0.9, export_costs=costs*(-0.9)))
+    # bus = sc.es.groups['bus_elec_FHG']
+    # sc.add_nodes(add_import_export_nodes(
+    #     bus, import_costs=costs/0.9, export_costs=costs*(-0.9)))
 
     # Create concrete model, solve it and dump the results
     compute(sc, dump_graph=True)
