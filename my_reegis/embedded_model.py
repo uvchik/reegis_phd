@@ -277,14 +277,15 @@ def create_reduced_de21_scenario(year):
 
 
 def connect_electricity_buses(bus1, bus2, es):
+    label = berlin_hp.Label
     nodes = reegis_tools.scenario_tools.NodeDict()
     lines = [(bus1, bus2), (bus2, bus1)]
     for line in lines:
-        line_label = 'power_line_{0}_{1}'.format(line[0], line[1])
-        bus_label_in = 'bus_elec_{0}'.format(line[0])
-        bus_label_out = 'bus_elec_{0}'.format(line[1])
-        b_in = es.groups[bus_label_in]
-        b_out = es.groups[bus_label_out]
+        line_label = ('line', 'electricity', line[0], line[1])
+        bus_label_in = label('bus', 'electricity', 'all', line[0])
+        bus_label_out = label('bus', 'electricity', 'all', line[1])
+        b_in = es.groups[str(bus_label_in)]
+        b_out = es.groups[str(bus_label_out)]
         nodes[line_label] = solph.Transformer(
             label=line_label,
             inputs={b_in: solph.Flow(variable_costs=0.0000001)},
