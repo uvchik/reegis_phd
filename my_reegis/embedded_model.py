@@ -281,7 +281,7 @@ def connect_electricity_buses(bus1, bus2, es):
     nodes = reegis_tools.scenario_tools.NodeDict()
     lines = [(bus1, bus2), (bus2, bus1)]
     for line in lines:
-        line_label = ('line', 'electricity', line[0], line[1])
+        line_label = label('line', 'electricity', line[0], line[1])
         bus_label_in = label('bus', 'electricity', 'all', line[0])
         bus_label_out = label('bus', 'electricity', 'all', line[1])
         b_in = es.groups[str(bus_label_in)]
