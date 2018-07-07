@@ -410,7 +410,6 @@ class LCOEAnalyzerCHP(Analyzer):
     """
 
     """
-
     def __init__(self, demand):
         super(LCOEAnalyzerCHP, self).__init__()
         self.costs = {}
@@ -418,11 +417,14 @@ class LCOEAnalyzerCHP(Analyzer):
 
     def analyze(self, *args):
         super(LCOEAnalyzerCHP, self).analyze(*args)
+        cost_flow = None
+        label = args
 
         if isinstance(args[1], solph.Transformer):
-            eta = {}
+            # eta = {}
+            label = args[1].label
             if len(args[1].outputs) == 2:
-                cost_flow = None
+                pass
                 # for o in args[1].outputs:
                 #     key = 'conversion_factors_{0}'.format(o)
                 #     eta_key = o.label.split('_')[-2]
@@ -437,30 +439,34 @@ class LCOEAnalyzerCHP(Analyzer):
                 # cost_flow = self.rsq(args) * pee
 
             elif len(args[1].outputs) == 1:
-                t_out = [o for o in args[1].outputs][0].label.split('_')[-2]
-                t_in = [i for i in args[1].inputs][0].label.split('_')[-2]
-                if t_out == 'elec' and t_in != 'elec':
+                t_out = [o for o in args[1].outputs][0].label.tag
+                t_in = [i for i in args[1].inputs][0].label.tag
+                if t_out == 'electricity' and t_in != 'electricity':
                     cost_flow = self.rsq(args)
                 else:
                     cost_flow = None
 
             else:
                 print(args[1].label, len(args[1].outputs))
-                cost_flow = None
 
             if args[0] not in self.costs:
                 var_costs = 0
-                flow_seq = 0
+                flow_seq = 1
                 for i in args[0].inputs:
                     var_costs += (self.psc((i, args[0]))['variable_costs'] *
                                   self.rsq((i, args[0])).sum())
                     flow_seq += self.rsq((i, args[0])).sum()
                 self.costs[args[0]] = var_costs / flow_seq
 
-            if cost_flow is not None:
-                self.result[args[1].label] = cost_flow * self.costs[args[0]]
-                self.result[args[1].label] = (
-                    self.result[args[1].label]['flow'].div(self.demand))
+        elif 'shortage' == args[0].label.cat and args[1] is not None:
+            label = args[0].label
+            # self.costs[args[0]] = self.psc(args)['variable_costs']
+            self.costs[args[0]] = 50
+            cost_flow = self.rsq(args)
+
+        if cost_flow is not None:
+            self.result[label] = cost_flow * self.costs[args[0]]
+            self.result[label] = self.result[label]['flow'].div(self.demand)
 
 
 class LCOEAnalyzer(Analyzer):
@@ -509,3 +515,45 @@ class LCOEAnalyzer(Analyzer):
         result = (inv + vc) / self.total_load
         self.result[args] = result
         self.total += result
+
+
+def new_analyser(results, demand):
+    analysis = Analysis(
+        results['Main'], results['Param'],
+        iterator=FlowNodeIterator)
+    lcoe = LCOEAnalyzerCHP(demand)
+    analysis.add_analyzer(lcoe)
+    analysis.analyze()
+    df = pd.DataFrame.from_dict(lcoe.result)
+    df.reset_index(drop=True, inplace=True)
+    return df
+
+
+def my_analyser(results):
+    import pprint as pp
+    analysis = Analysis(
+        results['Main'],
+        results['Param'],
+        iterator=FlowNodeIterator)
+    seq = SequenceFlowSumAnalyzer()
+    ft = FlowTypeAnalyzer()
+    demand_nodes = [x[1] for x in results['Main'].keys() if x[1] is not None and 'demand_elec' in x[1].label]
+    print(demand_nodes)
+    lcoe = LCOEAnalyzer(demand_nodes)
+    nb_analyzer = NodeBalanceAnalyzer()
+    analysis.add_analyzer(SequenceFlowSumAnalyzer())
+    analysis.add_analyzer(VariableCostAnalyzer())
+    analysis.add_analyzer(InvestAnalyzer())
+    analysis.add_analyzer(lcoe)
+    analysis.add_analyzer(ft)
+    analysis.add_analyzer(nb_analyzer)
+    analysis.analyze()
+    balance = lcoe.result
+    print(lcoe.total)
+    # pp.pprint(seq.result)
+    pp.pprint(balance)
+    blnc = {}
+    for b in balance.keys():
+        blnc[b[0].label] = balance[b]
+
+    return blnc

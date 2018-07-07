@@ -1,14 +1,15 @@
 import berlin_hp
 import os
 import logging
-import reegis_tools.gui as gui
+import deflex
 import reegis_tools.geometries
 import pprint as pp
+from oemof import graph
 from oemof.tools import logger
 from oemof import solph as solph
 from datetime import datetime
 from oemof import outputlib
-from oemof.outputlib import analyzer
+from my_reegis import analyzer
 from matplotlib import pyplot as plt
 import oemof_visio as oev
 import pandas as pd
@@ -16,10 +17,48 @@ import matplotlib.patheffects as path_effects
 import matplotlib.patches as patches
 import math
 from matplotlib.colors import LinearSegmentedColormap
-import reegis_tools.config as cfg
+# import reegis_tools.config as cfg
+import reegis_tools.gui as gui
+from my_reegis.plot import *
+from collections import namedtuple
+
+
+def shape_tuple_legend(reverse=False, **kwargs):
+    rm_list = ['source', 'trsf', 'electricity']
+    handels = kwargs['handles']
+    labels = kwargs['labels']
+    axes = kwargs['ax']
+    parameter = {}
+
+    new_labels = []
+    for label in labels:
+        label = label.replace('(', '')
+        label = label.replace(')', '')
+        label = [x for x in label.split(', ') if x not in rm_list]
+        label = ', '.join(label)
+        new_labels.append(label)
+    labels = new_labels
+
+    parameter['bbox_to_anchor'] = kwargs.get('bbox_to_anchor', (1, 0.5))
+    parameter['loc'] = kwargs.get('loc', 'center left')
+    parameter['ncol'] = kwargs.get('ncol', 1)
+    plotshare = kwargs.get('plotshare', 0.9)
+
+    if reverse:
+        handels = handels.reverse()
+        labels = labels.reverse()
+
+    box = axes.get_position()
+    axes.set_position([box.x0, box.y0, box.width * plotshare, box.height])
+
+    parameter['handles'] = handels
+    parameter['labels'] = labels
+    axes.legend(**parameter)
+    return axes
 
 
 def shape_legend(node, rm_list, reverse=False, **kwargs):
+    """Deprecated ?"""
     handels = kwargs['handles']
     labels = kwargs['labels']
     axes = kwargs['ax']
@@ -29,7 +68,7 @@ def shape_legend(node, rm_list, reverse=False, **kwargs):
     for label in labels:
         label = label.replace('(', '')
         label = label.replace('), flow)', '')
-        label = label.replace(node, '')
+        label = label.replace(str(node), '')
         label = label.replace(',', '')
         label = label.replace(' ', '')
         for item in rm_list:
@@ -62,7 +101,7 @@ def stopwatch():
 
 
 def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None,
-                     vmax=None, label_max=None):
+                     vmax=None, label_max=None, unit='GWh'):
     lines = reegis_tools.geometries.Geometry()
     lines.load(cfg.get('paths', 'geometry'),
                cfg.get('geometry', 'de21_power_lines'))
@@ -145,7 +184,7 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None,
         if v[key] > label_max:
             ax.text(
                 v['centroid'].x, v['centroid'].y,
-                '{0} GWh'.format(round(v[key])),
+                '{0} {1}'.format(round(v[key]), unit),
                 color='#000000',
                 fontsize=9.5,
                 zorder=15,
@@ -155,79 +194,65 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None,
     polygons.gdf.apply(lambda x: ax.annotate(
         s=x.name, xy=x.geometry.centroid.coords[0], ha='center'), axis=1)
 
+    plt.title(key)
+
     plt.show()
 
 
-def compare_transmission(year):
-    # DE21
-    sc_de21_results = load_results(year, 'de21', 'deflex')
+def compare_transmission(es1, es2, name1='es1', name2='es2'):
 
-    # DE21 + BE
-    sc_debe_results = load_results(year, 'de22', 'berlin_hp')
+    results1 = es1.results['Main']
+    results2 = es2.results['Main']
 
-    lines = [x for x in sc_de21_results.keys() if 'power_line' in x[0]]
+    out_flow_lines = [x for x in results1.keys() if 'line' in x[0].label.cat]
 
     # Calculate results
     transmission = pd.DataFrame()
-    for line in lines:
-        line_name = line[0].replace('power_line_', '').replace('_', '-')
-        regions = line_name.split('-')
-        name1 = 'power_line_{0}_{1}'.format(regions[0], regions[1])
-        name2 = 'power_line_{0}_{1}'.format(regions[1], regions[0])
-        # sc_de21.results
-        de21a = outputlib.views.node(sc_de21_results, name1)['sequences'].sum()
-        de21b = outputlib.views.node(sc_de21_results, name2)['sequences'].sum()
-        debea = outputlib.views.node(sc_debe_results, name1)['sequences'].sum()
-        debeb = outputlib.views.node(sc_debe_results, name2)['sequences'].sum()
-        transmission.loc[line_name, 'DE'] = de21a.iloc[0] - de21b.iloc[0]
-        transmission.loc[line_name, 'BE'] = debea.iloc[0] - debeb.iloc[0]
+    for out_flow in out_flow_lines:
+        # es1
+        line_a_1 = out_flow[0]
+        bus_reg1_1 = [x for x in line_a_1.inputs][0]
+        bus_reg2_1 = out_flow[1]
+        line_b_1 = es1.groups['_'.join(['line', 'electricity',
+                                        bus_reg2_1.label.region,
+                                        bus_reg1_1.label.region])]
+
+        # es2
+        bus_reg1_2 = es2.groups[str(bus_reg1_1.label)]
+        bus_reg2_2 = es2.groups[str(bus_reg2_1.label)]
+        line_a_2 = es2.groups[str(line_a_1.label)]
+        line_b_2 = es2.groups[str(line_b_1.label)]
+
+        from1to2_1 = results1[(line_a_1, bus_reg2_1)]['sequences'].sum()
+        from2to1_1 = results1[(line_b_1, bus_reg1_1)]['sequences'].sum()
+        from1to2_2 = results2[(line_a_2, bus_reg2_2)]['sequences'].sum()
+        from2to1_2 = results2[(line_b_2, bus_reg1_2)]['sequences'].sum()
+
+        line_name = '-'.join([line_a_1.label.subtag, line_a_1.label.region])
+
+        transmission.loc[line_name, name1] = float(from1to2_1 - from2to1_1)
+        transmission.loc[line_name, name2] = float(from1to2_2 - from2to1_2)
 
     # PLOTS
+    transmission = transmission.div(1000)
     transmission.plot(kind='bar')
 
-    transmission['diff'] = transmission['BE'] - transmission['DE']
+    # transmission['diff_1-2'] = transmission[name1] - transmission[name2]
+    transmission['diff_2-1'] = transmission[name2] - transmission[name1]
+    transmission['fraction'] = (transmission['diff_2-1'] /
+                                abs(transmission[name1]) * 100)
+    transmission['fraction'].fillna(0, inplace=True)
 
     key = gui.get_choice(list(transmission.columns),
                          "Plot transmission lines", "Choose data column.")
-    transmission[key] = transmission[key] / 1000
+
     vmax = max([abs(transmission[key].max()), abs(transmission[key].min())])
-    plot_power_lines(transmission, key, vmax=vmax/2)
+
+    units = {'es1': 'GWh', 'es2': 'GWh', 'diff_2-1': 'GWh', 'fraction': '%'}
+
+    plot_power_lines(transmission, key, vmax=vmax/10, unit=units[key])
 
     return transmission
-
-
-def powerlines2export_import(bus):
-    print(bus['sequences'].sum())
-    export_cols = [x for x in bus['sequences'].columns
-                   if 'power_line' in x[0][1]]
-    import_cols = [x for x in bus['sequences'].columns
-                   if 'power_line' in x[0][0]]
-    bus_name = [x[0][0] for x in bus['sequences'].columns
-                if 'power_line' in x[0][1]][0]
-    export_name = ((bus_name, 'export'), 'flow')
-    import_name = (('import', bus_name), 'flow')
-    bus['sequences'][export_name] = bus['sequences'][export_cols].sum(axis=1)
-    bus['sequences'][import_name] = bus['sequences'][import_cols].sum(axis=1)
-    bus['sequences'].drop(export_cols, axis=1, inplace=True)
-    bus['sequences'].drop(import_cols, axis=1, inplace=True)
-    return bus
-
-
-def analyse_bus(year, rmap, cat, region):
-    results = load_results(year, rmap, cat)
-    print(results.keys())
-    bus_elec = outputlib.views.node(results, 'bus_elec_{0}'.format(region))
-
-    # bus_elec = powerlines2export_import(bus_elec)
-    print(bus_elec['sequences'].sum())
-    plot_bus(bus_elec, 'bus_elec_{0}'.format(region),
-             rm_list=['_{0}'.format(region)])
-    h_bus = 'bus_distr_heat_vattenfall_friedrichshagen'
-    bus_heat = outputlib.views.node(results, h_bus)
-    print(bus_heat['sequences'].sum())
-    plot_bus(bus_heat, h_bus,
-             rm_list=['_{0}'.format(region)])
-    plt.show()
 
 
 def plot_regions(data, column):
@@ -254,46 +279,145 @@ def plot_regions(data, column):
     plt.show()
 
 
-def reshape_results(results, data, region, node=None):
-    if node is None:
-        node = 'bus_elec_{0}'.format(region)
-    tmp = outputlib.views.node(results, node)['sequences']
+def reshape_bus_view(es, bus, data=None, aggregate_lines=True):
 
-    # aggregate powerline columns to import and export
-    exp = [x for x in tmp.columns if 'power_line' in x[0][1]]
-    imp = [x for x in tmp.columns if 'power_line' in x[0][0]]
-    tmp[((node, 'export'), 'flow')] = tmp[exp].sum(axis=1)
-    tmp[(('import', node), 'flow')] = tmp[imp].sum(axis=1)
-    tmp.drop(exp + imp, axis=1, inplace=True)
+    if data is None:
+        m_cols = pd.MultiIndex(levels=[[], [], [], [], []],
+                               labels=[[], [], [], [], []])
+        data = pd.DataFrame(columns=m_cols)
 
-    in_c = [x for x in tmp.columns if x[0][1] == node]
-    out_c = [x for x in tmp.columns if x[0][0] == node]
+    # filter all nodes and sub-list import/exports
+    node_flows = [x for x in es.results['Main'].keys()
+                  if x[1] == bus or x[0] == bus]
 
-    data[region] = pd.concat({'in': tmp[in_c], 'out': tmp[out_c]}, axis=1)
-    dc = {}
-    for c in data[region]['in'].columns:
-        dc[c] = c[0][0].replace('_{0}'.format(region), '')
-    for c in data[region]['out'].columns:
-        dc[c] = c[0][1].replace('_{0}'.format(region), '')
-    data[region] = data[region].rename(columns=dc, level=1)
+    # If True all powerlines will be aggregated to import/export
+    if aggregate_lines is True:
+        export_flows = [x for x in node_flows if x[1].label.cat == 'line']
+        import_flows = [x for x in node_flows if x[0].label.cat == 'line']
+
+        # only export lines
+        export_label = (bus.label.region, 'out', 'export', 'electricity',
+                        'all')
+        data[export_label] = (
+                es.results['Main'][export_flows[0]]['sequences']['flow'] * 0)
+        for export_flow in export_flows:
+            data[export_label] += (
+                es.results['Main'][export_flow]['sequences']['flow'])
+            node_flows.remove(export_flow)
+
+        # only import lines
+        import_label = (bus.label.region, 'in', 'import', 'electricity', 'all')
+        data[import_label] = (
+                es.results['Main'][import_flows[0]]['sequences']['flow'] * 0)
+        for import_flow in import_flows:
+            data[import_label] += (
+                es.results['Main'][import_flow]['sequences']['flow'])
+            node_flows.remove(import_flow)
+
+    # all flows without lines (import/export)
+    for flow in node_flows:
+        if flow[0] == bus:
+            flow_label = (bus.label.region, 'out', flow[1].label.cat,
+                          flow[1].label.tag, flow[1].label.subtag)
+        elif flow[1] == bus:
+            flow_label = (bus.label.region, 'in', flow[0].label.cat,
+                          flow[0].label.tag, flow[0].label.subtag)
+        else:
+            flow_label = None
+
+        data[flow_label] = es.results['Main'][flow]['sequences']['flow']
+
+    return data.sort_index(axis=1)
+
+
+def get_multiregion_bus_balance(es, bus_substring=None):
+    """
+
+    Parameters
+    ----------
+    es : solph.EnergySystem
+        An EnergySystem with results.
+    bus_substring : str or tuple
+        A sub-string or sub-tuple to find a list of buses.
+
+    Returns
+    -------
+    pd.DataFrame : Multiregional results.
+
+    """
+    # regions = [x for x in es.results['tags']['region']
+    #            if re.match(r"DE[0-9][0-9]", x)]
+
+    if bus_substring is None:
+        bus_substring = 'bus_electricity_all'
+
+    buses = set([x[0] for x in es.results['Main'].keys()
+                 if str(bus_substring) in str(x[0].label)])
+
+    data = None
+    for bus in sorted(buses):
+        data = reshape_bus_view(es, bus, data)
+
     return data
 
 
-def get_multiregion_results(year):
-    de_results = load_results(year, 'de21', 'deflex')
+def get_nominal_values(es):
+    de_results = es.results['Param']
 
-    regions = [x[0].replace('shortage_bus_elec_', '')
-               for x in de_results.keys()
-               if 'shortage_bus_elec' in x[0]]
+    regions = [x[0].label.region for x in es.results['Param'].keys()
+               if ('shortage' in x[0].label.cat) &
+               ('electricity' in x[0].label.tag)]
 
-    data = {}
-    for region in sorted(regions):
-        data = reshape_results(de_results, data, region)
-    return pd.concat(data, axis=1)
+    midx = pd.MultiIndex(levels=[[], [], [], []], labels=[[], [], [], []])
+    dt = pd.DataFrame(index=midx, columns=['nominal_value'])
+    for region in sorted(set(regions)):
+        node = 'bus_electricity_all_{0}'.format(region)
+        node = es.groups[node]
+        in_c = [x for x in de_results.keys() if x[1] == node]
+        out_c = [x for x in de_results.keys()
+                 if x[0] == node and x[1] is not None]
+        for k in in_c:
+            # print(repr(k.label))
+            # idx = region, 'in', k[0].replace('_{0}'.format(region), '')
+            dt.loc[k[0].label] = de_results[k]['scalars'].get('nominal_value')
+
+        for k in out_c:
+            dt.loc[k[1].label] = de_results[k]['scalars'].get('nominal_value')
+
+    return dt
 
 
-def show_region_values_gui(year):
-    data = get_multiregion_results(year)
+def plot_multiregion_io(es):
+    multi_reg_res = get_multiregion_bus_balance(es).groupby(
+        level=[1, 2, 3, 4], axis=1).sum()
+
+    multi_reg_res[('out', 'losses')] = (multi_reg_res[('out', 'export')] -
+                                        multi_reg_res[('in', 'import')])
+    del multi_reg_res[('out', 'export')]
+    del multi_reg_res[('in', 'import')]
+
+    in_list = ['trsf_pp_nuclear', 'trsf_pp_lignite', 'source_geothermal',
+               'source_hydro', 'source_solar', 'source_wind',
+               'trsf_pp_hard_coal', 'trsf_pp_natural_gas', 'trsf_pp_other',
+               'trsf_pp_bioenergy', 'trsf_pp_oil', 'trsf_pp_natural_gas_add',
+               'trsf_chp_other', 'trsf_chp_lignite', 'trsf_chp_natural_gas',
+               'trsf_chp_oil', 'trsf_chp_bioenergy', 'trsf_chp_hard_coal',
+               'phe_storage', 'import', 'shortage_bus_elec', ]
+
+    my_cdict = get_cdict_df(multi_reg_res['in'])
+    my_cdict.update(get_cdict_df(multi_reg_res['out']))
+    # print(my_cdict)
+
+    oev.plot.io_plot(df_in=multi_reg_res['in'],
+                     df_out=multi_reg_res['out'],
+                     smooth=True, inorder=in_list, cdict=my_cdict)
+
+    return multi_reg_res
+
+
+def show_region_values_gui(es):
+    data = get_multiregion_bus_balance(es).groupby(
+        level=[1, 2, 3, 4], axis=1).sum()
     data = data.agg(['sum', 'min', 'max', 'mean'])
     data = data.reorder_levels([1, 2, 0], axis=1)
 
@@ -325,32 +449,42 @@ def load_param_results():
     # return sc.es.results['param']
 
 
-def load_results(year, rmap, cat):
-    path = os.path.join(cfg.get('paths', 'scenario'), str(year), 'results')
-    file = '{cat}_{year}_{rmap}.esys'.format(cat=cat, year=year, rmap=rmap)
-    sc = berlin_hp.Scenario()
-    fn = os.path.join(path, file)
-    logging.info("Restoring file from {0}".format(fn))
-    print(datetime.fromtimestamp(os.path.getmtime(fn)).strftime(
-        '%d. %B %Y - %H:%M:%S'))
-    sc.restore_es(fn)
-    return outputlib.processing.convert_keys_to_strings(sc.results)
+def create_tags(nodes):
+    tags = None
+    fields = None
+    for node in nodes:
+        if tags is None:
+            fields = node.label.__getattribute__('_fields')
+            tags = {f: [] for f in fields}
+        for field, value in node.label.__getattribute__('_asdict')().items():
+            tags[field].append(value)
+    for field in fields:
+        tags[field] = set(tags[field])
+    return tags
 
 
-def load_es(year, rmap, cat):
-    path = os.path.join(cfg.get('paths', 'scenario'), str(year), 'results')
-    file = '{cat}_{year}_{rmap}.esys'.format(cat=cat, year=year, rmap=rmap)
-    sc = berlin_hp.Scenario()
+def load_es(variant, rmap, cat, write_graph=False, with_tags=True):
+    if isinstance(variant, int):
+        var_path = str(variant)
+    else:
+        var_path = 'new'
+
+    path = os.path.join(cfg.get('paths', 'scenario'), var_path, 'results')
+    file = '{cat}_{var}_{rmap}.esys'.format(cat=cat, var=variant, rmap=rmap)
+    sc = deflex.Scenario()
     fn = os.path.join(path, file)
     logging.info("Restoring file from {0}".format(fn))
-    print(datetime.fromtimestamp(os.path.getmtime(fn)).strftime(
-        '%d. %B %Y - %H:%M:%S'))
+    file_datetime = datetime.fromtimestamp(os.path.getmtime(fn)).strftime(
+        '%d. %B %Y - %H:%M:%S')
+    logging.info("Restored results created on: {0}".format(file_datetime))
     sc.restore_es(fn)
+
+    if write_graph:
+        graph.create_nx_graph(sc.es, filename='/home/uwe/mygraph',
+                              remove_nodes_with_substrings=['commodity'])
+    if with_tags:
+        sc.es.results['tags'] = create_tags(sc.es.nodes)
     return sc.es
-
-
-def load_all_results(year, rmap, cat):
-    return load_es(year, rmap, cat).results
 
 
 def check_excess_shortage(results):
@@ -428,6 +562,50 @@ def get_full_load_hours(results):
     plt.show()
 
 
+def plot_bus_view(es, bus=None):
+    """
+
+    Parameters
+    ----------
+    es
+    bus : str or Node or None
+
+    Returns
+    -------
+
+    """
+    if isinstance(bus, str):
+        bus = es.groups[bus]
+
+    if bus is None:
+        data = get_multiregion_bus_balance(es).groupby(
+            axis=1, level=[1, 2, 3, 4]).sum()
+        title = 'Germany'
+    else:
+        data = reshape_bus_view(es, bus)[bus.label.region]
+        title = repr(bus.label)
+
+    fig = plt.figure(figsize=(10, 5))
+
+    my_colors = get_cdict(data['in'])
+    my_colors.update(get_cdict(data['out']))
+
+    my_plot = oev.plot.io_plot(
+        df_in=data['in'], df_out=data['out'], cdict=my_colors,
+        inorder=get_orderlist_from_multiindex(data['in'].columns),
+        outorder=get_orderlist_from_multiindex(data['out'].columns),
+        ax=fig.add_subplot(1, 1, 1), smooth=True)
+    ax = shape_tuple_legend(**my_plot)
+    ax = oev.plot.set_datetime_ticks(ax, data.index, tick_distance=48,
+                                     date_format='%d-%m-%H', offset=12,
+                                     tight=True)
+    ax.set_ylabel('Power in MW')
+    ax.set_xlabel('Date')
+    ax.set_title(title)
+    plt.show()
+    exit(0)
+
+
 def plot_bus(node, node_label, rm_list=None):
 
     fig = plt.figure(figsize=(10, 5))
@@ -441,10 +619,6 @@ def plot_bus(node, node_label, rm_list=None):
                                    # date_from=datetime(2014, 5, 31),
                                    # date_to=datetime(2014, 6, 8))
 
-    # pprint.pprint(get_cdict(my_node))
-
-    pp.pprint(my_node.columns)
-    # exit(0)
     my_plot = oev.plot.io_plot(node_label, plot_slice,
                                cdict=get_cdict(my_node),
                                inorder=get_orderlist(my_node, 'in'),
@@ -462,105 +636,6 @@ def plot_bus(node, node_label, rm_list=None):
     # plt.show()
 
 
-def get_orderlist(my_node, flow):
-    my_order = ['source_solar', 'source_wind', 'chp', 'hp', 'pp', 'import',
-                'shortage', 'power_line', 'demand', 'export', 'excess']
-    cols = list(my_node.columns)
-    if flow == 'in':
-        f = 0
-    elif flow == 'out':
-        f = 1
-    else:
-        logging.error("A flow has to be 'in' or 'out.")
-    order = []
-
-    for element in my_order:
-        tmp = [x for x in cols if element in x[0][f].lower()]
-        for t in tmp:
-            cols.remove(t)
-        order.extend(tmp)
-    return order
-
-
-def get_cdict(my_node):
-    my_colors = cfg.get_dict_list('plot_colors', string=True)
-    color_dict = {}
-    for col in my_node.columns:
-        n = 0
-        color_keys = list(my_colors.keys())
-        try:
-            while color_keys[n] not in col[0][0].lower():
-                n += 1
-            if len(my_colors[color_keys[n]]) > 1:
-                color = '#{0}'.format(my_colors[color_keys[n]].pop(0))
-            else:
-                color = '#{0}'.format(my_colors[color_keys[n]][0])
-            color_dict[col] = color
-        except IndexError:
-            n = 0
-            try:
-                while color_keys[n] not in col[0][1].lower():
-                    n += 1
-                if len(my_colors[color_keys[n]]) > 1:
-                    color = '#{0}'.format(my_colors[color_keys[n]].pop(0))
-                else:
-                    color = '#{0}'.format(my_colors[color_keys[n]][0])
-                color_dict[col] = color
-            except IndexError:
-                color_dict[col] = '#ff00f0'
-
-    return color_dict
-
-
-def get_cdict_df(df):
-    my_colors = cfg.get_dict_list('plot_colors', string=True)
-    color_dict = {}
-    for col in df.columns:
-        n = 0
-        color_keys = list(my_colors.keys())
-        try:
-            while color_keys[n] not in col.lower():
-                n += 1
-            if len(my_colors[color_keys[n]]) > 1:
-                color = '#{0}'.format(my_colors[color_keys[n]].pop(0))
-            else:
-                color = '#{0}'.format(my_colors[color_keys[n]][0])
-            color_dict[col] = color
-        except IndexError:
-            color_dict[col] = '#ff00f0'
-    return color_dict
-
-
-def my_analyser(results):
-    import pprint as pp
-    analysis = analyzer.Analysis(
-        results['Main'],
-        results['Param'],
-        iterator=analyzer.FlowNodeIterator)
-    seq = analyzer.SequenceFlowSumAnalyzer()
-    ft = analyzer.FlowTypeAnalyzer()
-    demand_nodes = [x[1] for x in results['Main'].keys() if x[1] is not None and 'demand_elec' in x[1].label]
-    print(demand_nodes)
-    lcoe = analyzer.LCOEAnalyzer(demand_nodes)
-    nb_analyzer = analyzer.NodeBalanceAnalyzer()
-    analysis.add_analyzer(analyzer.SequenceFlowSumAnalyzer())
-    analysis.add_analyzer(analyzer.VariableCostAnalyzer())
-    analysis.add_analyzer(analyzer.InvestAnalyzer())
-    analysis.add_analyzer(lcoe)
-    analysis.add_analyzer(ft)
-    analysis.add_analyzer(nb_analyzer)
-    analysis.analyze()
-    balance = lcoe.result
-    print(lcoe.total)
-    # pp.pprint(seq.result)
-    pp.pprint(balance)
-    blnc = {}
-    for b in balance.keys():
-        blnc[b[0].label] = balance[b]
-
-    return blnc
-
-
 def ee_analyser(results, ee_type):
     analysis = analyzer.Analysis(
         results['Main'], results['Param'],
@@ -574,59 +649,196 @@ def ee_analyser(results, ee_type):
     return df.sum(axis=1)
 
 
-def results_iterator(results):
-    r = results['Main']
-    p = results['Param']
+def emissions(es):
+    r = es.results['Main']
+    p = es.results['Param']
 
-    sorted_results = pd.DataFrame()
+    emission_df = pd.DataFrame()
+
     for i in r.keys():
-        # find source flows
-        if isinstance(i[0], solph.Source):
-            column_name = i[0].label.split('_')[1]
-            try:
-                sorted_results[column_name] += r[i]['sequences']['flow']
-            except KeyError:
-                sorted_results[column_name] = r[i]['sequences']['flow']
+        if (i[0].label.cat == 'source') & (i[0].label.tag == 'commodity'):
+            emission_df.loc[i[0].label.subtag, 'specific_emission'] = (
+                p[i]['scalars']['emission'])
+            emission_df.loc[i[0].label.subtag, 'summed_flow'] = (
+                r[i]['sequences']['flow'].sum())
 
-        # find storage discharge
-        if isinstance(i[0], solph.components.GenericStorage):
-            if i[1] is not None:
-                column_name = i[0].label.split('_')[1] + '_discharge'
+    emission_df['total_emission'] = (emission_df['specific_emission'] *
+                                     emission_df['summed_flow'])
+
+    emission_df.sort_index(inplace=True)
+
+    return emission_df
+
+
+def fullloadhours(es, grouplevel=None):
+    if grouplevel is None:
+        grouplevel = [0, 1, 2, 3, 4]
+
+    r = es.results['Main']
+    p = es.results['Param']
+
+    idx = pd.MultiIndex(levels=[[], [], [], [], []],
+                        labels=[[], [], [], [], []])
+    cols = ['nominal_value', 'summed_flow']
+    sort_results = pd.DataFrame(index=idx, columns=cols)
+    logging.info('Start')
+    for i in r.keys():
+        if isinstance(i[1], solph.Transformer):
+            out_node = [o for o in i[1].outputs][0]
+            cf_name = 'conversion_factors_' + str(out_node.label)
+            try:
+                nom_value = (
+                    p[(i[1], out_node)]['scalars']['nominal_value'] /
+                    p[(i[1], None)]['scalars'][cf_name])
+                label = tuple(i[1].label) + ('nvo', )
+            except KeyError:
                 try:
-                    sorted_results[column_name] += r[i]['sequences']['flow']
+                    nom_value = p[i]['scalars']['nominal_value']
+                    label = tuple(i[1].label) + ('nvi', )
                 except KeyError:
-                    sorted_results[column_name] = r[i]['sequences']['flow']
+                    nom_value = r[i]['sequences']['flow'].max()
+                    label = tuple(i[1].label) + ('max', )
 
-        # find elec_demand
-        if isinstance(i[1], solph.Sink):
-            column_name = '_'.join(i[1].label.split('_')[:2])
+            summed_flow = r[i]['sequences']['flow'].sum()
+
+        elif isinstance(i[0], solph.Source):
             try:
-                sorted_results[column_name] += r[i]['sequences']['flow']
+                nom_value = p[i]['scalars']['nominal_value']
+                label = tuple(i[0].label) + ('nvo', )
             except KeyError:
-                sorted_results[column_name] = r[i]['sequences']['flow']
+                nom_value = r[i]['sequences']['flow'].max()
+                label = tuple(i[0].label) + ('max', )
 
-    return sorted_results.sort_index(axis=1)
+            summed_flow = r[i]['sequences']['flow'].sum()
+
+        else:
+            label = None
+            nom_value = None
+            summed_flow = None
+
+        if nom_value is not None:
+            sort_results.loc[label, 'nominal_value'] = nom_value
+            if not sort_results.index.is_lexsorted():
+                sort_results.sort_index(inplace=True)
+            sort_results.loc[label, 'summed_flow'] = summed_flow
+
+    logging.info('End')
+    new = sort_results.groupby(level=grouplevel).sum()
+    new['flh'] = new['summed_flow'] / new['nominal_value']
+    return new
 
 
-def new_analyser(results, demand):
-    analysis = analyzer.Analysis(
-        results['Main'], results['Param'],
-        iterator=analyzer.FlowNodeIterator)
-    lcoe = analyzer.LCOEAnalyzerCHP(demand)
-    analysis.add_analyzer(lcoe)
-    analysis.analyze()
-    df = pd.DataFrame.from_dict(lcoe.result)
-    df.reset_index(drop=True, inplace=True)
-    df.name = 'value (right)'
-    return df
+def results_iterator(es, demand):
+
+    back = namedtuple('analysis', ['lcoe', 'misc'])
+
+    r = es.results['Main']
+    p = es.results['Param']
+
+    df_sort_res = pd.DataFrame()
+    dict_analyse = {}
+    costs = {}
+    for i in r.keys():
+        df_sort_res = sorted_results(i, df_sort_res, r)
+        dict_analyse = analyze(i, dict_analyse, costs, demand, r, p)
+
+    df_sort_res.sort_index(axis=1, inplace=True)
+    df_analyse = pd.DataFrame.from_dict(dict_analyse)
+    df_analyse.reset_index(drop=True, inplace=True)
+    return back(df_analyse, df_sort_res)
+
+
+def analyze(args, result, costs, demand, r, p):
+    cost_flow = None
+    label = args
+
+    if isinstance(args[1], solph.Transformer):
+        # eta = {}
+        label = args[1].label
+        if len(args[1].outputs) == 2:
+            pass
+            # for o in args[1].outputs:
+            #     key = 'conversion_factors_{0}'.format(o)
+            #     eta_key = o.label.split('_')[-2]
+            #     eta_val = self.psc((args[1], None))[key]
+            #     eta[eta_key] = eta_val
+            # eta['heat_ref'] = 0.9
+            # eta['elec_ref'] = 0.55
+            #
+            # pee = (1 / (eta['heat'] / eta['heat_ref'] + eta['elec'] /
+            #             eta['elec_ref'])) * (eta['elec'] / eta['elec_ref'])
+            #
+            # cost_flow = self.rsq(args) * pee
+
+        elif len(args[1].outputs) == 1:
+            t_out = [o for o in args[1].outputs][0].label.tag
+            t_in = [i for i in args[1].inputs][0].label.tag
+            if t_out == 'electricity' and t_in != 'electricity':
+                cost_flow = r[args]['sequences']
+            else:
+                cost_flow = None
+
+        else:
+            print(args[1].label, len(args[1].outputs))
+
+        if args[0] not in costs:
+            var_costs = 0
+            flow_seq = 1
+            for i in args[0].inputs:
+                var_costs += (p[(i, args[0])]['scalars']['variable_costs'] *
+                              r[(i, args[0])]['sequences'].sum())
+                flow_seq += r[(i, args[0])]['sequences'].sum()
+            costs[args[0]] = var_costs / flow_seq
+
+    elif 'shortage' == args[0].label.cat and args[1] is not None:
+        label = args[0].label
+        # self.costs[args[0]] = self.psc(args)['variable_costs']
+        costs[args[0]] = 50
+        cost_flow = r[args]['sequences']
+
+    if cost_flow is not None:
+        result[label] = cost_flow * costs[args[0]]
+        result[label] = result[label]['flow'].div(demand)
+
+    return result
+
+
+def sorted_results(i, sort_res, r):
+    # find source flows
+    if isinstance(i[0], solph.Source):
+        column_name = i[0].label.cat + '_' + i[0].label.tag
+        try:
+            sort_res[column_name] += r[i]['sequences']['flow']
+        except KeyError:
+            sort_res[column_name] = r[i]['sequences']['flow']
+
+    # find storage discharge
+    if isinstance(i[0], solph.components.GenericStorage):
+        if i[1] is not None:
+            column_name = i[0].label.subtag + '_discharge'
+            try:
+                sort_res[column_name] += r[i]['sequences']['flow']
+            except KeyError:
+                sort_res[column_name] = r[i]['sequences']['flow']
+
+    # find elec_demand
+    if isinstance(i[1], solph.Sink):
+        column_name = i[1].label.cat + '_' + i[1].label.tag
+        try:
+            sort_res[column_name] += r[i]['sequences']['flow']
+        except KeyError:
+            sort_res[column_name] = r[i]['sequences']['flow']
+
+    return sort_res
 
 
 def analyse_plot(cost_values, multiregion, demand_elec, demand_distr):
-    in_list = ['trsf_pp_nuclear', 'trsf_pp_lignite', 'trsf_pp_hard_coal',
-               'trsf_pp_natural_gas', 'trsf_pp_other', 'trsf_pp_bioenergy',
-               'trsf_chp_other', 'trsf_chp_lignite', 'trsf_chp_natural_gas',
-               'trsf_chp_oil', 'trsf_chp_bioenergy', 'trsf_chp_hard_coal',
-               'phe_storage']
+    orderkeys = ['nuclear', 'lignite', 'hard_coal', 'natural_gas', 'other',
+                 'bioenergy', 'oil', 'natural_gas_add', 'phe_storage',
+                 'shortage']
+
+    in_list = get_orderlist_from_multiindex(multiregion['in'].columns,
+                                            orderkeys)
     my_cdict = get_cdict_df(multiregion['in'])
     my_cdict.update(get_cdict_df(multiregion['out']))
     # print(my_cdict)
@@ -650,9 +862,9 @@ def analyse_plot(cost_values, multiregion, demand_elec, demand_distr):
     ana_df = pd.DataFrame(columns=my_cols)
 
     for c in cost_values.columns:
-        cn = c.split('_')
-        ana_df[(cn[1], cn[3], cn[2])] = cost_values[c]
+        ana_df[str(c)] = cost_values[c]
     ana_df = ana_df.groupby(level=[0, 1], axis=1).sum()
+
     # ana_df[('chp', 'chp')] = ana_df['chp'].sum(axis=1)
 
     ana_x = ana_df.reset_index(drop=True).plot()
@@ -662,54 +874,79 @@ def analyse_plot(cost_values, multiregion, demand_elec, demand_distr):
     cost_values.name = 'cost_value (right)'
     ax2 = cost_values.sum(axis=1).plot(
         ax=ax, secondary_y=True, legend=True, color='#7cfff0')
-    ax2.set_ylim(0, 20)
+    # ax2.set_ylim(0, 20)
     # ax2.set_xlim(3000, 3200)
     plt.show()
 
 
-def reshape_multiregion_df():
-    res = get_multiregion_results(2014).groupby(level=[1, 2], axis=1).sum()
+def reshape_multiregion_df(es):
+    """Remove"""
+    res = get_multiregion_bus_balance(es).groupby(
+        axis=1, level=[1, 2, 3, 4]).sum()
 
-    res[('out', 'losses')] = res[('out', 'export')] - res[('in', 'import')]
-    del res[('out', 'export')]
-    del res[('in', 'import')]
+    res[('out', 'demand', 'electricity', 'all')] += (
+            res[('out', 'export', 'electricity', 'all')] -
+            res[('in', 'import', 'electricity', 'all')] +
+            res[('out', 'storage', 'electricity', 'phes')] -
+            res[('in', 'storage', 'electricity', 'phes')])
+    del res[('out', 'export', 'electricity', 'all')]
+    del res[('in', 'import', 'electricity', 'all')]
+    del res[('out', 'storage', 'electricity', 'phes')]
+    del res[('in', 'storage', 'electricity', 'phes')]
 
-    volatile_sources = ['source_geothermal', 'source_hydro', 'source_solar',
-                        'source_wind', 'phe_storage']
+    for ee_src, values in res[('in', 'source', 'ee')].iteritems():
+        res[('out', 'demand', 'electricity', 'all')] -= values
+        del res[('in', 'source', 'ee', ee_src)]
 
-    for src in volatile_sources:
-        res[('out', 'demand_elec')] -= res[('in', src)]
-        del res[('in', src)]
-
-    chp_trsf = [x for x in res['in'].columns if 'chp' in x]
-
-    for chp in chp_trsf:
-        res[('out', 'demand_elec')] -= res[('in', chp)]
-        del res[('in', chp)]
-
-    additional_demand = ['phe_storage', 'losses']
-    for add in additional_demand:
-        res[('out', 'demand_elec')] += res[('out', add)]
-        del res[('out', add)]
+    for fuel, values in res[('in', 'trsf', 'chp')].iteritems():
+        res[('out', 'demand', 'electricity', 'all')] -= values
+        del res[('in', 'trsf', 'chp', fuel)]
 
     for c in res.columns:
         if res[c].sum() < 0.0001:
             del res[c]
-    print(res.groupby(level=0, axis=1).sum().sum())
-    print(res.sum())
-    # exit(0)
     return res
 
 
-def analyse_system_costs(plot=False):
-    all_res = load_all_results(2014, 'de21', 'deflex')
-    multi_res = reshape_multiregion_df()
-    c_values = new_analyser(all_res, multi_res[('out', 'demand_elec')])
+def get_one_node_type(es, node=None):
+    mr_df = get_multiregion_bus_balance(es).groupby(
+            axis=1, level=[1, 2, 3, 4]).sum()
+
+    nom_values = get_nominal_values(es)
+
+    if node is None:
+        items = sorted(mr_df.columns.get_level_values(2).unique())
+        node = gui.get_choice(items, 'Node selection')
+
+    smry = pd.DataFrame()
+    smry['sum'] = mr_df.loc[pd.IndexSlice[:], pd.IndexSlice[:, :, node]].sum()
+    smry['max'] = mr_df.loc[pd.IndexSlice[:], pd.IndexSlice[:, :, node]].max()
+    smry['mlh'] = smry['sum'].div(smry['max'])
+    smry['mlf'] = smry['sum'].div(smry['max']).div(len(mr_df)).multiply(100)
+
+    smry['nominal_value'] = (
+        nom_values.loc[(pd.IndexSlice[:, :, node]), 'nominal_value'])
+    smry['flh'] = smry['sum'].div(smry['nominal_value'])
+    smry['flf'] = (
+        smry['sum'].div(smry['nominal_value']).div(len(mr_df)).multiply(100))
+
+    return smry
+
+
+def analyse_system_costs(es, plot=False):
+    multi_res = reshape_multiregion_df(es)
+
+    demand = multi_res['out', 'demand', 'electricity', 'all']
+
+    iter_res = results_iterator(es, demand)
+    c_values = iter_res.lcoe
+    # c_values = new_analyser(all_res, multi_res[
+    #     ('out', 'demand_electricity_all')])
 
     if plot is True:
-        sorted_flows = results_iterator(all_res)
-        analyse_plot(c_values, multi_res, sorted_flows['demand_elec'],
-                     sorted_flows['demand_distr'])
+        sorted_flows = iter_res.misc
+        analyse_plot(c_values, multi_res, sorted_flows[
+            'demand_electricity'], sorted_flows['demand_heat'])
 
     return c_values.sum(axis=1)
 
@@ -718,8 +955,45 @@ if __name__ == "__main__":
     logger.define_logging()
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__)])
     # analyse_system_costs(plot=True)
+    # my_es = load_es(2014, 'single', 'friedrichshagen')
+    # exit(0)
+    # analyse_bus(2014, 'de21', 'deflex', 'DE01')
 
-    analyse_bus(2014, 'single', 'friedrichshagen', 'FHG')
+    my_es = load_es(2014, 'de21', 'deflex')
+    analyse_system_costs(my_es, plot=True)
+    # print(get_nominal_values(my_es))
+    # exit(0)
+    plot_bus_view(my_es)
+    exit(0)
+    # my_es_2 = load_es(2014, 'de21', 'berlin_hp')
+    # reshape_bus_view(my_es, my_es.groups['bus_electricity_all_DE01'])
+    get_multiregion_bus_balance(my_es, 'bus_electricity_all')
+
+    # compare_transmission(my_es, my_es_2)
+    exit(0)
+
+    print(emissions(my_es).div(1000000))
+    exit(0)
+    fullloadhours(my_es, [0, 1, 2, 3, 4]).to_excel('/home/uwe/test.xls')
+    exit(0)
+    analyse_system_costs(my_es, plot=True)
+    plt.show()
+    print('Done')
+    df1 = get_one_node_type(my_es, node='shortage_bus_elec')
+    df2 = get_one_node_type(my_es)
+    print(df1.round(1))
+    print(df2.round(1))
+    exit(0)
+
+    my_res = plot_multiregion_io(my_es)
+    print(my_res.sum())
+    print(my_res.max())
+
+    print(my_res.sum().div(my_res.max()))
+
+    plt.show()
+
+    # analyse_bus(2014, 'single', 'friedrichshagen', 'FHG')
     exit(0)
     # all_res = load_all_results(2014, 'de21', 'deflex')
     # wind = ee_analyser(all_res, 'wind')
@@ -733,54 +1007,6 @@ if __name__ == "__main__":
     # cs_bus = [x for x in results.keys() if ('_cs_' in x[0].label) & (
     #     isinstance(x[1], solph.Transformer))]
 
-    # trsf_temp = {}
-    # trsf = {}
-    # src_keys = []
-    # type_keys = []
-    # for x in cs_bus:
-    #     k = '_'.join(x[0].label.split('_')[2:])
-    #     src_keys.append(k)
-    # for x in cs_bus:
-    #     k = (x[1].label.split('_')[1])
-    #     type_keys.append(k)
-    #
-    # print(set(src_keys))
-    # print(set(type_keys))
-
-    my_cols = pd.MultiIndex(levels=[[], [], []], labels=[[], [], []],
-                            names=[u'type', u'src', u'region'])
-    dt_idx = results[cs_bus[0]]['sequences'].index
-    flows = pd.DataFrame(columns=my_cols, index=dt_idx)
-    para = pd.DataFrame(columns=my_cols)
-    for key in param.keys():
-        try:
-            print(param[key]['scalars'])
-        except:
-            pass
-
-    n = 0
-    for x in cs_bus:
-        src = '_'.join(x[0].label.split('_')[2:])
-        tp = x[1].label.split('_')[1]
-        reg = x[1].label.split('_')[2]
-        if tp == 'dectrl':
-            reg = str(n)
-            n += 1
-        flows[(tp, src, reg)] = results[x]['sequences']
-        print(param[(system.groups[x[1].label], None)])
-        print(system.groups[x[1].label].conversion_factors)
-        para[(tp, src, reg)] = param[(system.groups[x[1].label], None)]
-        exit(0)
-
-    flows.sort_index(1, inplace=True)
-    # print(flows.sum().groupby(level=0).sum())
-    # print(flows['dectrl', 'natural_gas'])
-    # exit(0)
-    print(flows.sum().sum())
-    flows.drop('hp', level=0, axis=1, inplace=True)
-    flows.drop('dectrl', level=0, axis=1, inplace=True)
-    print(flows.sum())
-    print(para)
     # print(flows.sum())
     # exit(0)
     # system = load_es(2014, 'de21', 'deflex')
@@ -794,16 +1020,13 @@ if __name__ == "__main__":
     pet = (1/(eta_th_kwk/eta_th_ref + eta_el_kwk/eta_el_ref)) * (
             eta_th_kwk/eta_th_ref)
 
-    param = outputlib.processing.parameter_as_dict(system)
     # print(param)
     # Refferenzwirkungsgrade Typenabhängig (Kohle, Gas...)
 
     print(pee * 200, pet * 200)
 
-
-    # https://www.ffe.de/download/wissen/334_Allokationsmethoden_CO2/ET_Allokationsmethoden_CO2.pdf
-
-
+    # https://www.ffe.de/download/wissen/
+    # 334_Allokationsmethoden_CO2/ET_Allokationsmethoden_CO2.pdf
 
     # for src in trsf_temp.keys():
     #     if src not in trsf:
