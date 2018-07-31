@@ -221,7 +221,8 @@ def friedrichshagen_main(year, create_scenario=True):
     compute(sc, dump_graph=True)
 
 
-def optimise_scenario(path, name, create_fct, create_scenario=True, year=None):
+def optimise_scenario(path, name, create_fct=None, create_scenario=True,
+                      year=None):
 
     if year is None:
         year = 2050
@@ -229,9 +230,11 @@ def optimise_scenario(path, name, create_fct, create_scenario=True, year=None):
     sc = deflex.Scenario(name=name, year=year)
     sc.location = os.path.join(path, '{0}_csv'.format(name))
 
-    if create_scenario or not os.path.isdir(sc.location):
-        logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
-        create_fct()
+    if create_fct is not None:
+        if create_scenario or not os.path.isdir(sc.location):
+            logging.info("Create scenario for {0}: {1}".format(stopwatch(),
+                                                               name))
+            create_fct()
 
     os.makedirs(os.path.join(path, 'results'), exist_ok=True)
     src = os.path.join(path, '{0}.xls'.format(sc.name))
@@ -323,6 +326,21 @@ def start_all(checker=True, create_scenario=True):
     return checker
 
 
+def start_all_by_dir(checker=True):
+    # alternative_scenarios.multi_scenario_deflex()
+    start_dir = os.path.join(cfg.get('paths', 'scenario'), 're')
+
+    for root, directories, filenames in os.walk(start_dir):
+        for d in directories:
+            if d[-4:] == '_csv':
+                name = d[:-4]
+                try:
+                    optimise_scenario(start_dir, name)
+                except Exception as e:
+                    checker = log_exception(e)
+    return checker
+
+
 def log_check(checker):
     if checker is True:
         logging.info("Everything is fine: {0}".format(stopwatch()))
@@ -338,6 +356,7 @@ if __name__ == "__main__":
     # exit(0)
     
     stopwatch()
-    log_check(start_all(create_scenario=True))
+    log_check(start_all_by_dir())
+    # log_check(start_all(create_scenario=True))
     # log_check(
     #     start_alternative_scenarios(checker=True, create_scenario=True))
