@@ -16,6 +16,7 @@ import deflex
 
 from my_reegis import results
 from my_reegis import main
+import multiprocessing
 
 
 def stopwatch():
@@ -70,7 +71,7 @@ def fetch_upstream_scenario_values(full_file_name):
         logging.info("Remaining scenarios: {0}".format(number))
         tmp_es = solph.EnergySystem()
         tmp_es.restore(root, fn)
-        for val in ['levelized', 'meritorder', 'emission']:
+        for val in ['levelized', 'meritorder', 'emission', 'emission_last']:
             upstream_values[fn[:-5], val] = (
                 getattr(results.analyse_system_costs(tmp_es), val))
         number -= 1
@@ -97,14 +98,69 @@ def load_upstream_overall_values():
         full_file_name, index_col=[0, 1], squeeze=True, header=None).sort_index()
 
 
+def remove_shortage_excess_electricity(nodes):
+    elec_nodes = [v for k, v in nodes.items() if v.label.tag == 'electricity']
+    for v in elec_nodes:
+        if v.label.cat == 'excess':
+            flow = next(iter(nodes[v.label].inputs.values()))
+            flow.nominal_value = 0
+        elif v.label.cat == 'shortage':
+            flow = next(iter(nodes[v.label].outputs.values()))
+            flow.nominal_value = 0
+
+
+def ee_invest_nodes(nodes):
+    ee_sources = {k: v for k, v in nodes.items() if v.label.tag == 'ee'}
+    av = {}
+    for label in ee_sources.keys():
+        flow = next(iter(nodes[label].outputs.values()))
+        av[label.subtag] = flow.actual_value
+
+    elec_bus_label = Label('bus', 'electricity', 'all', 'FHG')
+    for t in av.keys():
+        ee_label = Label('invest_source', 'ee', t, 'FHG')
+        print(ee_label.subtag, av[ee_label.subtag].sum())
+        nodes[ee_label] = solph.Source(
+            label=ee_label,
+            outputs={nodes[elec_bus_label]: solph.Flow(
+                actual_value=av[ee_label.subtag],
+                fixed=True,
+                investment=solph.Investment(ep_costs=10))})
+    return add_storage(nodes)
+
+
+def add_storage(nodes):
+    elec_bus_label = Label('bus', 'electricity', 'all', 'FHG')
+    storage_label = Label('storage', 'electricity', 'no_losses', 'FHG')
+    nodes[storage_label] = solph.components.GenericStorage(
+        label=storage_label,
+        inputs={nodes[elec_bus_label]: solph.Flow(variable_costs=10)},
+        outputs={nodes[elec_bus_label]: solph.Flow()},
+        capacity_loss=0.00, initial_capacity=0,
+        invest_relation_input_capacity=1,
+        invest_relation_output_capacity=1,
+        inflow_conversion_factor=1, outflow_conversion_factor=1,
+        investment=solph.Investment(ep_costs=10),
+    )
+    return nodes
+    # pprint.pprint(shortage)
+
+
 def add_import_export(nodes, cost_scenario='no_costs', value=None):
-    if cost_scenario != 'no_costs':
+
+    if cost_scenario == 'no_costs':
+        export_costs = -0.000001
+        import_costs = 500
+
+    elif cost_scenario == 'ee':
+        remove_shortage_excess_electricity(nodes)
+        export_costs = 5000
+        import_costs = 5000
+
+    else:
         upstream = load_upstream_scenario_values()
         export_costs = upstream[cost_scenario][value] * -0.99
         import_costs = upstream[cost_scenario][value] * 1.01
-    else:
-        export_costs = 0
-        import_costs = 100
 
     elec_bus_label = Label('bus', 'electricity', 'all', 'FHG')
 
@@ -157,15 +213,33 @@ def add_dectrl_wp(nodes, frac_wp=0.2):
     return nodes
 
 
-def add_volatile_sources(nodes):
-    ee_sources = {k: v for k, v in nodes.items() if v.label.tag == 'ee'}
+def add_volatile_sources(nodes, add_capacity):
+    """add_capacity = {'solar': 5,
+                       'wind': 20}
+    """
 
-    add_capacity = {'solar': 5,
-                    'wind': 20}
+    ee_sources = {k: v for k, v in nodes.items() if v.label.tag == 'ee' and
+                  v.label.cat == 'source'}
+    if add_capacity.get('set', False) is True:
+        for label in ee_sources.keys():
+            if label.subtag.lower() in add_capacity:
+                flow = next(iter(nodes[label].outputs.values()))
+                flow.nominal_value = add_capacity[label.subtag.lower()]
+    else:
+        for label in ee_sources.keys():
+            if label.subtag.lower() in add_capacity:
+                flow = next(iter(nodes[label].outputs.values()))
+                flow.nominal_value += add_capacity[label.subtag.lower()]
 
-    for label in ee_sources.keys():
-        flow = next(iter(nodes[label].outputs.values()))
-        flow.nominal_value += add_capacity[label.subtag.lower()]
+    return nodes
+
+
+def deactivate_fix_pp(nodes):
+    fix_trsf = [k for k, v in nodes.items() if v.label.cat == 'chp'
+                and v.label.tag == 'fix'
+                and v.label.subtag == 'natural_gas']
+    flow = next(iter(nodes[fix_trsf[0]].inputs.values()))
+    flow.nominal_value = 0
     return nodes
 
 
@@ -179,12 +253,21 @@ def choose_pp(nodes, fuel):
     return nodes
 
 
-def adapted(year, name, cost_scenario, cost_value, add_wp, add_bio, pp,
-            overwrite=False):
+def adapted(year, name, cost_scenario, cost_value, add_wp, add_bio, pp, fix_pp,
+            volatile_src=None, ee_invest='ee_invest0', overwrite=False):
+    if name is None:
+        vs_str = 'vs'
+        if volatile_src is not None:
+            for k, v in volatile_src.items():
+                vs_str += '_{0}{1}'.format(k, v)
+
+        name = '_'.join([cost_value, cost_scenario, add_wp, add_bio, pp,
+                         fix_pp, vs_str, ee_invest])
+
     stopwatch()
     base_name = '{0}_{1}_{2}'.format('friedrichshagen', year, 'single')
-    name = '{0}_{1}_{2}'.format('friedrichshagen', year, name)
-    sc = berlin_hp.Scenario(name=name, year=year, debug=False)
+    scenario_name = '{0}_{1}_{2}'.format('friedrichshagen', year, name)
+    sc = berlin_hp.Scenario(name=scenario_name, year=year, debug=False)
 
     path = os.path.join(cfg.get('paths', 'scenario'), 'friedrichshagen')
 
@@ -205,15 +288,23 @@ def adapted(year, name, cost_scenario, cost_value, add_wp, add_bio, pp,
     logging.info("Add nodes to the EnergySystem: {0}".format(stopwatch()))
 
     nodes = sc.create_nodes(region='FHG')
-    if add_wp:
+    if ee_invest == 'ee_invest1':
+        nodes = ee_invest_nodes(nodes)
+
+    if add_wp == 'wp02':
         nodes = add_dectrl_wp(nodes)
     nodes = add_import_export(nodes, cost_scenario, value=cost_value)
-    if add_bio:
+
+    if add_bio == 'bio1':
         nodes = add_bio_powerplant(nodes)
+
+    if fix_pp == 'fix0':
+        nodes = deactivate_fix_pp(nodes)
 
     nodes = choose_pp(nodes, pp)
 
-    nodes = add_volatile_sources(nodes)
+    if volatile_src is not None:
+        nodes = add_volatile_sources(nodes, volatile_src)
 
     sc.es = sc.initialise_energy_system()
     sc.es.add(*nodes.values())
@@ -225,11 +316,7 @@ def adapted(year, name, cost_scenario, cost_value, add_wp, add_bio, pp,
     main.compute(sc)
 
 
-if __name__ == "__main__":
-    logger.define_logging()
-    cfg.init(paths=[os.path.dirname(deflex.__file__),
-                    os.path.dirname(berlin_hp.__file__)])
-    stopwatch()
+def compute_adapted_scenarios():
     up_scenarios = list(
         load_upstream_scenario_values().columns.get_level_values(0).unique())
     up_scenarios.append('no_costs')
@@ -258,4 +345,95 @@ if __name__ == "__main__":
             scenario['name'], stopwatch()))
         adapted(**scenario)
         logging.info("{0} scenarios left".format(n))
+
+
+def basic_chp_extension_scenario(scen):
+    chp_fuel = scen[0]
+    cost_scenario = scen[1]
+    scenario = {
+        'name': None,
+        'cost_scenario': cost_scenario,
+        'cost_value': 'meritorder',
+        'fix_pp': 'fix0',
+        'add_wp': 'wp00',
+        'add_bio': 'bio0',
+        'pp': chp_fuel,
+        'year': 2014,
+        'volatile_src': {'wind': 0}}
+
+    adapted(**scenario)
+
+
+def basic_ee_wrapper(scenario):
+    adapted(**scenario)
+
+
+def basic_ee_scenario():
+    pv_flh = 895.689228779882
+    wind_flh = 1562.51612773669
+    demand = 60586.6486548771
+
+    scenario_list = []
+    for frac in range(11):
+        pv = demand / pv_flh * frac / 10
+        wind = demand / wind_flh * (1 - frac / 10)
+
+        scenario = {
+            'name': None,
+            'cost_scenario': 'ee',
+            'cost_value': 'meritorder',
+            'fix_pp': 'fix0',
+            'add_wp': 'wp00',
+            'add_bio': 'bio0',
+            'pp': 'chp_fuel',
+            'year': 2014,
+            'ee_invest': 'ee_invest0',
+            'volatile_src': {'wind': wind, 'solar': pv, 'set': True}}
+        scenario_list.append(scenario)
+
+    p = multiprocessing.Pool(multiprocessing.cpu_count())
+    p.map(basic_ee_wrapper, scenario_list)
+    p.close()
+    p.join()
+
+
+def my_scenarios():
+    up_scenarios = list(
+        load_upstream_scenario_values().columns.get_level_values(0).unique())
+    up_scenarios = list()
+    up_scenarios.append('no_costs')
+    fuels = ['hard_coal', 'natural_gas']
+    my_list = []
+    for upc in up_scenarios:
+        for f in fuels:
+            my_list.append((f, upc))
+
+    # length = len(my_list)
+    # for scenario in my_list:
+    #     basic_chp_extension_scenario(
+    #                             args=(scenario[0], scenario[1])).start()
+    #     logging.info("Rest: {0}".format(length))
+    #     length -= 1
+
+    p = multiprocessing.Pool(multiprocessing.cpu_count())
+    p.map(basic_chp_extension_scenario, my_list)
+    p.close()
+    p.join()
+
+
+if __name__ == "__main__":
+    logger.define_logging()
+    cfg.init(paths=[os.path.dirname(deflex.__file__),
+                    os.path.dirname(berlin_hp.__file__)])
+    stopwatch()
+    # load_upstream_scenario_values().columns.get_level_values(0).unique()
+    basic_ee_scenario()
+    # my_scenarios()
+    # basic_chp_extension_scenario('hard_coal')
+    #
+    # for fuel in ['hard_coal', 'natural_gas']:
+    #     Process(target=basic_chp_extension_scenario,
+    #             args=(fuel, cost_scenario)).start()
+
+    # compute_adapted_scenarios()
     logging.info("Done: {0}".format(stopwatch()))
