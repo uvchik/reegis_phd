@@ -88,6 +88,13 @@ def more_heat_pumps(sc, heat_pump_fraction, cop):
                     inhab_fraction.loc[region] * heat_pump.div(cop))
 
 
+def increase_re_share(sc, factor):
+    t = sc.table_collection['volatile_source']
+    for region in t.columns.get_level_values(0).unique():
+        for vs in t[region].columns:
+            t[region, vs] += t[region, vs] * factor
+
+
 def add_simple_gas_turbine(sc, nom_val, efficiency=0.39):
     sc.table_collection['commodity_source'][('DE', 'natural gas add')] = (
         sc.table_collection['commodity_source'][('DE', 'natural gas')])
@@ -102,43 +109,51 @@ def add_simple_gas_turbine(sc, nom_val, efficiency=0.39):
             'limit_elec_pp', (region, 'natural gas add')] = 'inf'
 
 
-def create_scenario_XX_Nc00_Li05_HP02():
+def create_scenario_XX_Nc00_Li05_HP02(subpath='new', factor=0.0):
     """remove nuclear
     # reduce lignite by 50%
     # use massive heat_pumps
     """
     sc = load_deflex(2014, sim_type='de21', create_scenario=False)
+
+    increase_re_share(sc, factor)
 
     reduce_power_plants(sc, nuclear=0, lignite=0.5)
 
     more_heat_pumps(sc, heat_pump_fraction=0.2, cop=2)
 
-    name = '{0}_{1}_{2}'.format('deflex', 'XX_Nc00_Li05_HP02', cfg.get(
+    sub = 'XX_Nc00_Li05_HP02_f{0}'.format(factor)
+
+    name = '{0}_{1}_{2}'.format('deflex', sub, cfg.get(
         'init', 'map'))
-    path = os.path.join(cfg.get('paths', 'scenario'), 'new')
+    path = os.path.join(cfg.get('paths', 'scenario'), subpath)
     sc.to_excel(os.path.join(path, name + '.xls'))
     csv_path = os.path.join(path, '{0}_csv'.format(name))
     sc.to_csv(csv_path)
 
 
-def create_scenario_XX_Nc00_Li05_HP00():
+def create_scenario_XX_Nc00_Li05_HP00(subpath='new', factor=0.0):
     """remove nuclear
     # reduce lignite by 50%
     # use massive heat_pumps
     """
     sc = load_deflex(2014, sim_type='de21', create_scenario=False)
 
+    increase_re_share(sc, factor)
+
     reduce_power_plants(sc, nuclear=0, lignite=0.5)
 
-    name = '{0}_{1}_{2}'.format('deflex', 'XX_Nc00_Li05_HP00', cfg.get(
+    sub = 'XX_Nc00_Li05_HP00_f{0}'.format(factor)
+
+    name = '{0}_{1}_{2}'.format('deflex', sub, cfg.get(
         'init', 'map'))
-    path = os.path.join(cfg.get('paths', 'scenario'), 'new')
+    path = os.path.join(cfg.get('paths', 'scenario'), subpath)
     sc.to_excel(os.path.join(path, name + '.xls'))
     csv_path = os.path.join(path, '{0}_csv'.format(name))
     sc.to_csv(csv_path)
 
 
-def create_scenario_XX_Nc00_Li05_HP02_GT():
+def create_scenario_XX_Nc00_Li05_HP02_GT(subpath='new', factor=0.0):
     """remove nuclear
     # reduce lignite by 50%
     # use massive heat_pumps
@@ -167,21 +182,26 @@ def create_scenario_XX_Nc00_Li05_HP02_GT():
         'DE21': 0.0}
 
     sc = load_deflex(2014, sim_type='de21', create_scenario=False)
+
+    increase_re_share(sc, factor)
+
     add_simple_gas_turbine(sc, nom_val)
 
     reduce_power_plants(sc, nuclear=0, lignite=0.5)
 
     more_heat_pumps(sc, heat_pump_fraction=0.2, cop=2)
 
-    name = '{0}_{1}_{2}'.format('deflex', 'XX_Nc00_Li05_HP02_GT', cfg.get(
+    sub = 'XX_Nc00_Li05_HP02_GT_f{0}'.format(factor)
+
+    name = '{0}_{1}_{2}'.format('deflex', sub, cfg.get(
         'init', 'map'))
-    path = os.path.join(cfg.get('paths', 'scenario'), 'new')
+    path = os.path.join(cfg.get('paths', 'scenario'), subpath)
     sc.to_excel(os.path.join(path, name + '.xls'))
     csv_path = os.path.join(path, '{0}_csv'.format(name))
     sc.to_csv(csv_path)
 
 
-def create_scenario_XX_Nc00_Li05_HP00_GT():
+def create_scenario_XX_Nc00_Li05_HP00_GT(subpath='new', factor=0.0):
     """remove nuclear
     # reduce lignite by 50%
     # use massive heat_pumps
@@ -210,20 +230,50 @@ def create_scenario_XX_Nc00_Li05_HP00_GT():
         'DE21': 0.0}
 
     sc = load_deflex(2014, sim_type='de21', create_scenario=False)
+
+    increase_re_share(sc, factor)
+
     add_simple_gas_turbine(sc, nom_val)
 
     reduce_power_plants(sc, nuclear=0, lignite=0.5)
 
-    name = '{0}_{1}_{2}'.format('deflex', 'XX_Nc00_Li05_HP00_GT', cfg.get(
+    sub = 'XX_Nc00_Li05_HP00_GT_f{0}'.format(factor)
+
+    name = '{0}_{1}_{2}'.format('deflex', sub, cfg.get(
         'init', 'map'))
-    path = os.path.join(cfg.get('paths', 'scenario'), 'new')
+    path = os.path.join(cfg.get('paths', 'scenario'), subpath)
     sc.to_excel(os.path.join(path, name + '.xls'))
     csv_path = os.path.join(path, '{0}_csv'.format(name))
     sc.to_csv(csv_path)
+
+
+def simple_deflex_de21_2014(subpath='new', factor=0.0):
+    sc = load_deflex(2014, sim_type='de21', create_scenario=False)
+
+    increase_re_share(sc, factor)
+
+    sub = 'de21_f{0}'.format(factor)
+
+    name = '{0}_{1}_{2}'.format('deflex', sub, cfg.get(
+        'init', 'map'))
+    path = os.path.join(cfg.get('paths', 'scenario'), subpath)
+    sc.to_excel(os.path.join(path, name + '.xls'))
+    csv_path = os.path.join(path, '{0}_csv'.format(name))
+    sc.to_csv(csv_path)
+
+
+def multi_scenario_deflex():
+    for f in range(11):
+        create_scenario_XX_Nc00_Li05_HP00_GT(subpath='re', factor=f/10)
+        create_scenario_XX_Nc00_Li05_HP02_GT(subpath='re', factor=f/10)
+        create_scenario_XX_Nc00_Li05_HP00(subpath='re', factor=f/10)
+        create_scenario_XX_Nc00_Li05_HP02(subpath='re', factor=f/10)
+        simple_deflex_de21_2014(subpath='re', factor=f/10)
 
 
 if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(deflex.__file__),
                     os.path.dirname(berlin_hp.__file__)])
     logger.define_logging()
+    multi_scenario_deflex()
     stopwatch()
