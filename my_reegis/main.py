@@ -327,7 +327,7 @@ def start_all(checker=True, create_scenario=True):
 
 
 def start_all_by_dir(checker=True):
-    # alternative_scenarios.multi_scenario_deflex()
+    alternative_scenarios.multi_scenario_deflex()
     start_dir = os.path.join(cfg.get('paths', 'scenario'), 're')
 
     for root, directories, filenames in os.walk(start_dir):
