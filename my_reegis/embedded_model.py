@@ -48,7 +48,7 @@ def create_reduced_scenario(year, sim_type):
 def create_reduced_de22_scenario(year):
     name = '{0}_{1}_{2}'.format('deflex', year, 'de22')
     de = deflex.Scenario(name=name, year=2014)
-    de_path = os.path.join(cfg.get('paths', 'scenario'), str(year),
+    de_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(year),
                            '{0}_csv'.format(name))
 
     if not os.path.isdir(de_path):
@@ -67,11 +67,11 @@ def create_reduced_de22_scenario(year):
         if 'DE22' in i:
             de.table_collection['transmission'].drop(i, inplace=True)
 
-    name = '{0}_{1}_{2}'.format('without_berlin', year, 'de22')
+    name = '{0}_{1}_{2}'.format('deflex', year, 'de22_without_berlin')
 
     sce = reegis_tools.scenario_tools.Scenario(
         table_collection=de.table_collection, name=name, year=year)
-    path = os.path.join(cfg.get('paths', 'scenario'), str(year))
+    path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(year))
     sce.to_excel(os.path.join(path, name + '.xls'))
     csv_path = os.path.join(path, '{0}_csv'.format(name))
     sce.to_csv(csv_path)
@@ -85,8 +85,8 @@ def create_reduced_de21_scenario(year):
     # Berlin
     name = '{0}_{1}_{2}'.format('berlin_hp', year, 'single')
     berlin = berlin_hp.Scenario(name=name, year=year)
-    berlin_fn = os.path.join(cfg.get('paths', 'scenario'), str(year),
-                             '{0}_csv'.format(name))
+    berlin_fn = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp',
+                             str(year), '{0}_csv'.format(name))
     if not os.path.isdir(berlin_fn):
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
         berlin_hp.basic_scenario.create_basic_scenario(year)
@@ -97,7 +97,7 @@ def create_reduced_de21_scenario(year):
     # de21
     name = '{0}_{1}_{2}'.format('deflex', year, 'de21')
     de = deflex.Scenario(name=name, year=2014)
-    de_path = os.path.join(cfg.get('paths', 'scenario'), '{year}',
+    de_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', '{year}',
                            '{0}_csv'.format(name))
 
     if not os.path.isdir(de_path):
@@ -265,12 +265,12 @@ def create_reduced_de21_scenario(year):
 
     ct.to_excel(os.path.join(
         cfg.get('paths', 'messages'), 'summery_embedded_model.xls'))
-    name = '{0}_{1}_{2}'.format('without_berlin', year, 'de21')
+    name = '{0}_{1}_{2}'.format('deflex', year, 'de21_without_berlin')
     sce = reegis_tools.scenario_tools.Scenario(
         table_collection=de.table_collection,
         name=name,
         year=year)
-    path = os.path.join(cfg.get('paths', 'scenario'), str(year))
+    path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(year))
     sce.to_excel(os.path.join(path, name + '.xls'))
     csv_path = os.path.join(path, '{0}_csv'.format(name))
     sce.to_csv(csv_path)

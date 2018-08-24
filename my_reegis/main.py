@@ -69,7 +69,8 @@ def deflex_main(year, sim_type='de21', create_scenario=True):
     cfg.tmp_set('init', 'map', sim_type)
     name = '{0}_{1}_{2}'.format('deflex', year, cfg.get('init', 'map'))
     sc = deflex.Scenario(name=name, year=year)
-    scenario_path = os.path.join(cfg.get('paths', 'scenario'), str(year))
+    scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex',
+                                 str(year))
     sc.location = os.path.join(scenario_path, '{0}_csv'.format(name))
 
     if create_scenario or not os.path.isdir(sc.location):
@@ -96,7 +97,8 @@ def berlin_hp_main(year, sim_type='single', create_scenario=True):
     cfg.tmp_set('init', 'map', sim_type)
     name = '{0}_{1}_{2}'.format('berlin_hp', year, cfg.get('init', 'map'))
     sc = berlin_hp.Scenario(name=name, year=year, debug=False)
-    scenario_path = os.path.join(cfg.get('paths', 'scenario'), str(year))
+    scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp',
+                                 str(year))
     sc.location = os.path.join(scenario_path, '{0}_csv'.format(name))
 
     if create_scenario or not os.path.isdir(sc.location):
@@ -122,9 +124,10 @@ def berlin_hp_main(year, sim_type='single', create_scenario=True):
 def embedded_main(year, sim_type='de21', create_scenario=True):
     # deflex
     cfg.tmp_set('init', 'map', sim_type)
-    name = '{0}_{1}_{2}'.format('without_berlin', year, sim_type)
+    name = '{0}_{1}_{2}'.format('deflex', year, sim_type + '_without_berlin')
     sc_de = deflex.Scenario(name=name, year=year)
-    scenario_path = os.path.join(cfg.get('paths', 'scenario'), str(year))
+    scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex',
+                                 str(year))
     sc_de.location = os.path.join(scenario_path, '{0}_csv'.format(name))
 
     # Create scenario files if they do exist or creation is forced
@@ -146,7 +149,8 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
     cfg.tmp_set('init', 'map', 'single')
     name = '{0}_{1}_{2}'.format('berlin_hp', year, cfg.get('init', 'map'))
     sc = berlin_hp.Scenario(name=name, year=year, debug=False)
-    scenario_path = os.path.join(cfg.get('paths', 'scenario'), str(year))
+    scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp',
+                                 str(year))
     sc.location = os.path.join(scenario_path, '{0}_csv'.format(name))
 
     if create_scenario or not os.path.isdir(sc.location):
@@ -161,7 +165,7 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
 
     src = os.path.join(scenario_path, '{0}.xls'.format(sc.name))
     dst = os.path.join(
-        scenario_path, 'results', '{0}_embedded.xls'.format(sc.name))
+        scenario_path, 'results', '{0}_{1}.xls'.format(sc.name, sim_type))
     copyfile(src, dst)
 
     sc.add_nodes(nodes)
@@ -320,8 +324,8 @@ def start_all(checker=True, create_scenario=True):
 
     checker = start_basic_scenarios(checker, create_scenario=create_scenario)
 
-    checker = start_alternative_scenarios(
-        checker, create_scenario=create_scenario)
+    # checker = start_alternative_scenarios(
+    #     checker, create_scenario=create_scenario)
 
     return checker
 
@@ -352,11 +356,12 @@ if __name__ == "__main__":
     logger.define_logging()
     cfg.init(paths=[os.path.dirname(deflex.__file__),
                     os.path.dirname(berlin_hp.__file__)])
+
     # deflex_main(2014, sim_type='de21', create_scenario=False)
     # exit(0)
     
     stopwatch()
-    log_check(start_all_by_dir())
-    # log_check(start_all(create_scenario=True))
+    # log_check(start_all_by_dir())
+    log_check(start_all(create_scenario=True))
     # log_check(
     #     start_alternative_scenarios(checker=True, create_scenario=True))
