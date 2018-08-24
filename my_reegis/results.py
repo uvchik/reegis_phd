@@ -17,9 +17,9 @@ import matplotlib.patheffects as path_effects
 import matplotlib.patches as patches
 import math
 from matplotlib.colors import LinearSegmentedColormap
-# import reegis_tools.config as cfg
+import reegis_tools.config as cfg
 import reegis_tools.gui as gui
-from my_reegis.plot import *
+from my_reegis import plot
 from my_reegis import friedrichshagen_scenarios as fsc
 from collections import namedtuple
 
@@ -102,7 +102,12 @@ def stopwatch():
 
 
 def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None,
-                     vmax=None, label_max=None, unit='GWh'):
+                     vmax=None, label_max=None, unit='GWh', size=None):
+    if size is None:
+        ax = plt.figure(figsize=(5, 5)).add_subplot(1, 1, 1)
+    else:
+        ax = plt.figure(figsize=size).add_subplot(1, 1, 1)
+
     lines = reegis_tools.geometries.Geometry()
     lines.load(cfg.get('paths', 'geometry'),
                cfg.get('geometry', 'de21_power_lines'))
@@ -143,7 +148,7 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None,
         label_max = vmax * 0.5
 
     ax = polygons.gdf.plot(edgecolor='#9aa1a9', cmap=cmap_bg,
-                           column='color')
+                           column='color', ax=ax)
     ax = lines.gdf.plot(cmap=cmap_lines, legend=True, ax=ax, column=key,
                         vmin=0, vmax=vmax)
     for i, v in lines.gdf.iterrows():
@@ -197,7 +202,7 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None,
 
     plt.title(key)
 
-    plt.show()
+    # plt.show()
 
 
 def compare_transmission(es1, es2, name1='es1', name2='es2'):
@@ -234,24 +239,14 @@ def compare_transmission(es1, es2, name1='es1', name2='es2'):
         transmission.loc[line_name, name1] = float(from1to2_1 - from2to1_1)
         transmission.loc[line_name, name2] = float(from1to2_2 - from2to1_2)
 
-    # PLOTS
-    transmission = transmission.div(1000)
-    transmission.plot(kind='bar')
-
     # transmission['diff_1-2'] = transmission[name1] - transmission[name2]
+
+    transmission = transmission.div(1000)
+
     transmission['diff_2-1'] = transmission[name2] - transmission[name1]
     transmission['fraction'] = (transmission['diff_2-1'] /
                                 abs(transmission[name1]) * 100)
     transmission['fraction'].fillna(0, inplace=True)
-
-    key = gui.get_choice(list(transmission.columns),
-                         "Plot transmission lines", "Choose data column.")
-
-    vmax = max([abs(transmission[key].max()), abs(transmission[key].min())])
-
-    units = {'es1': 'GWh', 'es2': 'GWh', 'diff_2-1': 'GWh', 'fraction': '%'}
-
-    plot_power_lines(transmission, key, vmax=vmax/10, unit=units[key])
 
     return transmission
 
@@ -410,8 +405,8 @@ def plot_multiregion_io(es):
                'trsf_chp_oil', 'trsf_chp_bioenergy', 'trsf_chp_hard_coal',
                'phe_storage', 'import', 'shortage_bus_elec', ]
 
-    my_cdict = get_cdict_df(multi_reg_res['in'])
-    my_cdict.update(get_cdict_df(multi_reg_res['out']))
+    my_cdict = plot.get_cdict_df(multi_reg_res['in'])
+    my_cdict.update(plot.get_cdict_df(multi_reg_res['out']))
     # print(my_cdict)
 
     oev.plot.io_plot(df_in=multi_reg_res['in'],
@@ -456,6 +451,9 @@ def load_param_results():
 
 
 def create_tags(nodes):
+    """
+    sc.es.results['tags'] = create_tags(sc.es.nodes)
+    """
     tags = None
     fields = None
     for node in nodes:
@@ -469,24 +467,22 @@ def create_tags(nodes):
     return tags
 
 
-def load_es(variant=None, rmap=None, cat=None, fn=None, write_graph=False,
-            with_tags=True):
-    if fn is None:
-        try:
-            if not cat == 'friedrichshagen':
-                variant = int(variant)
-                var_path = str(variant)
-            else:
-                var_path = cat
-        except ValueError:
-            var_path = 'new'
+def write_graph(es):
+    graph.create_nx_graph(es, filename='/home/uwe/mygraph',
+                          remove_nodes_with_substrings=['commodity'])
 
-        path = os.path.join(cfg.get('paths', 'scenario'), var_path, 'results')
-        name = '{cat}_{var}_{rmap}'.format(cat=cat, var=variant, rmap=rmap)
-        file = name + '.esys'
-        fn = os.path.join(path, file)
+
+def load_es(*args, var=None):
+    path = os.path.join(cfg.get('paths', 'scenario'), *args, 'results')
+
+    if var is None:
+        var = []
     else:
-        name = os.path.basename(fn)[:-5]
+        var = [var]
+
+    name = '_'.join(list(args) + var)
+
+    fn = os.path.join(path, name + '.esys')
 
     sc = deflex.Scenario()
     logging.info("Restoring file from {0}".format(fn))
@@ -494,13 +490,6 @@ def load_es(variant=None, rmap=None, cat=None, fn=None, write_graph=False,
         '%d. %B %Y - %H:%M:%S')
     logging.info("Restored results created on: {0}".format(file_datetime))
     sc.restore_es(fn)
-
-    if write_graph:
-        graph.create_nx_graph(sc.es, filename='/home/uwe/mygraph',
-                              remove_nodes_with_substrings=['commodity'])
-    if with_tags:
-        sc.es.results['tags'] = create_tags(sc.es.nodes)
-
     sc.es.name = name
     return sc.es
 
@@ -608,13 +597,13 @@ def plot_bus_view(es, bus=None, ax=None):
         data = reshape_bus_view(es, bus)[bus.label.region]
         title = repr(bus.label)
 
-    my_colors = get_cdict(data['in'])
-    my_colors.update(get_cdict(data['out']))
+    my_colors = plot.get_cdict(data['in'])
+    my_colors.update(plot.get_cdict(data['out']))
 
     my_plot = oev.plot.io_plot(
         df_in=data['in'], df_out=data['out'], cdict=my_colors,
-        inorder=get_orderlist_from_multiindex(data['in'].columns),
-        outorder=get_orderlist_from_multiindex(data['out'].columns),
+        inorder=plot.get_orderlist_from_multiindex(data['in'].columns),
+        outorder=plot.get_orderlist_from_multiindex(data['out'].columns),
         ax=ax, smooth=True)
     ax = shape_tuple_legend(**my_plot)
     ax = oev.plot.set_datetime_ticks(ax, data.index, tick_distance=48,
@@ -642,9 +631,9 @@ def plot_bus(es, node_label, rm_list=None):
                                    # date_to=datetime(2014, 6, 8))
 
     my_plot = oev.plot.io_plot(node_label, plot_slice,
-                               cdict=get_cdict(my_node),
-                               inorder=get_orderlist(my_node, 'in'),
-                               outorder=get_orderlist(my_node, 'out'),
+                               cdict=plot.get_cdict(my_node),
+                               inorder=plot.get_orderlist(my_node, 'in'),
+                               outorder=plot.get_orderlist(my_node, 'out'),
                                ax=fig.add_subplot(1, 1, 1),
                                smooth=True)
     ax = shape_legend(node_label, rm_list, **my_plot)
@@ -897,10 +886,10 @@ def analyse_plot(cost_values, merit_values, multiregion, demand_elec,
                  'bioenergy', 'oil', 'natural_gas_add', 'phe_storage',
                  'shortage']
 
-    in_list = get_orderlist_from_multiindex(multiregion['in'].columns,
+    in_list = plot.get_orderlist_from_multiindex(multiregion['in'].columns,
                                             orderkeys)
-    my_cdict = get_cdict_df(multiregion['in'])
-    my_cdict.update(get_cdict_df(multiregion['out']))
+    my_cdict = plot.get_cdict_df(multiregion['in'])
+    my_cdict.update(plot.get_cdict_df(multiregion['out']))
     # print(my_cdict)
 
     oplot = oev.plot.io_plot(df_in=multiregion['in'],
@@ -1285,6 +1274,18 @@ def analyse_ee_basic():
     plt.show()
 
 
+# def get_resource_usage(es):
+#     print(get_multiregion_bus_balance(es, 'bus_commodity').sum())
+
+
+def analyse_berlin_basic():
+    es_be = load_es('berlin_hp', '2014', var='single')
+    elec_balance = get_multiregion_bus_balance(es_be)
+    # print(elec_balance.sum())
+    resource_blnc = get_multiregion_bus_balance(es_be, 'bus_commodity').sum()
+    print(resource_blnc.loc['BE', 'in', 'source', 'commodity'].sum() * 0.0036)
+
+
 def analyse_fhg_basic():
     # upstream_es = load_es(2014, 'de21', 'deflex')
     path = os.path.join(
@@ -1366,8 +1367,10 @@ def analyse_upstream_scenarios():
 if __name__ == "__main__":
     logger.define_logging()
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__)])
-    analyse_ee_basic()
+    analyse_berlin_basic()
     exit(0)
+    # analyse_ee_basic()
+    # exit(0)
     analyse_fhg_basic()
     # analyse_upstream_scenarios()
     # exit(0)
@@ -1466,11 +1469,11 @@ if __name__ == "__main__":
     # exit(0)
     # plot_bus_view(my_es)
     exit(0)
-    # my_es_2 = load_es(2014, 'de21', 'berlin_hp')
+    my_es_2 = load_es(2014, 'de21', 'berlin_hp')
     # reshape_bus_view(my_es, my_es.groups['bus_electricity_all_DE01'])
     get_multiregion_bus_balance(my_es, 'bus_electricity_all')
 
-    # compare_transmission(my_es, my_es_2)
+    compare_transmission(my_es, my_es_2)
     exit(0)
 
     print(emissions(my_es).div(1000000))
