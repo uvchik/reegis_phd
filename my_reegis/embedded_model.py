@@ -98,7 +98,7 @@ def create_reduced_de21_scenario(year):
 
     # de21
     name = '{0}_{1}_{2}'.format('deflex', year, 'de21')
-    de = deflex.Scenario(name=name, year=2014)
+    de = deflex.Scenario(name=name, year=year)
     de_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', '{year}',
                            '{0}_csv'.format(name))
 
