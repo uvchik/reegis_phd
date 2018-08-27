@@ -347,21 +347,22 @@ def main(year, rmap):
 
 if __name__ == "__main__":
     logger.define_logging(file_level=logging.INFO)
+    cfg.init(paths=[os.path.dirname(deflex.__file__)])
     # yr = 2014
     # rmap = de21
     # berlin_hp.main(yr)
     # de21.main(yr)
     # create_reduced_de22_scenario(yr)
     for y in [2014, 2013, 2012]:
-        berlin_hp.basic_scenario.create_basic_scenario(y)
+        # berlin_hp.basic_scenario.create_basic_scenario(y)
         create_reduced_de21_scenario(y)
-        create_reduced_de22_scenario(y)
-        for my_rmap in ['de21', 'de22']:
-            try:
-                main(y, my_rmap)
-            except Exception as e:
-                logging.error(traceback.format_exc())
-                time.sleep(0.5)
-                logging.error(e)
-                time.sleep(0.5)
+        # create_reduced_de22_scenario(y)
+        # for my_rmap in ['de21', 'de22']:
+        #     try:
+        #         main(y, my_rmap)
+        #     except Exception as e:
+        #         logging.error(traceback.format_exc())
+        #         time.sleep(0.5)
+        #         logging.error(e)
+        #         time.sleep(0.5)
     # main(yr, rmap)
