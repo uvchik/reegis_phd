@@ -94,6 +94,8 @@ def create_reduced_de21_scenario(year):
     berlin.load_csv(berlin_fn.format(year=year))
     berlin.check_table('time_series')
 
+    berlin.table_collection['time_series'].reset_index(drop=True, inplace=True)
+
     # de21
     name = '{0}_{1}_{2}'.format('deflex', year, 'de21')
     de = deflex.Scenario(name=name, year=2014)
