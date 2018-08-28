@@ -126,7 +126,7 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
     cfg.tmp_set('init', 'map', sim_type)
     name = '{0}_{1}_{2}'.format('deflex', year, sim_type + '_without_berlin')
     sc_de = deflex.Scenario(name=name, year=year)
-    scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex',
+    scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp',
                                  str(year))
     sc_de.location = os.path.join(scenario_path, '{0}_csv'.format(name))
 
@@ -292,7 +292,7 @@ def start_basic_scenarios(checker=True, create_scenario=True):
         # deflex and embedded
         for t in ['de21', 'de22']:
             try:
-                deflex_main(year, sim_type=t, create_scenario=create_scenario)
+                # deflex_main(year, sim_type=t, create_scenario=create_scenario)
                 embedded_main(
                     year, sim_type=t, create_scenario=create_scenario)
             except Exception as e:

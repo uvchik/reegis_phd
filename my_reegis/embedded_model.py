@@ -99,7 +99,7 @@ def create_reduced_de21_scenario(year):
     # de21
     name = '{0}_{1}_{2}'.format('deflex', year, 'de21')
     de = deflex.Scenario(name=name, year=year)
-    de_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', '{year}',
+    de_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(year),
                            '{0}_csv'.format(name))
 
     if not os.path.isdir(de_path):
@@ -272,7 +272,7 @@ def create_reduced_de21_scenario(year):
         table_collection=de.table_collection,
         name=name,
         year=year)
-    path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(year))
+    path = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp', str(year))
     sce.to_excel(os.path.join(path, name + '.xls'))
     csv_path = os.path.join(path, '{0}_csv'.format(name))
     sce.to_csv(csv_path)
@@ -347,7 +347,8 @@ def main(year, rmap):
 
 if __name__ == "__main__":
     logger.define_logging(file_level=logging.INFO)
-    cfg.init(paths=[os.path.dirname(deflex.__file__)])
+    cfg.init(paths=[os.path.dirname(deflex.__file__),
+                    os.path.dirname(berlin_hp.__file__)])
     # yr = 2014
     # rmap = de21
     # berlin_hp.main(yr)
