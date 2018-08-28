@@ -71,7 +71,7 @@ def create_reduced_de22_scenario(year):
 
     sce = reegis_tools.scenario_tools.Scenario(
         table_collection=de.table_collection, name=name, year=year)
-    path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(year))
+    path = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp', str(year))
     sce.to_excel(os.path.join(path, name + '.xls'))
     csv_path = os.path.join(path, '{0}_csv'.format(name))
     sce.to_csv(csv_path)
