@@ -38,7 +38,7 @@ def stopwatch():
     return str(datetime.now() - stopwatch.start)[:-7]
 
 
-def compute(sc, dump_graph=False):
+def compute(sc, dump_graph=False, log_solver=True):
     scenario_path = os.path.dirname(sc.location)
     results_path = os.path.join(scenario_path, 'results')
     os.makedirs(results_path, exist_ok=True)
@@ -54,7 +54,13 @@ def compute(sc, dump_graph=False):
 
     logging.info("Solve the optimisation model ({0}): {1}".format(
         sc.name, stopwatch()))
-    sc.solve()
+
+    if log_solver is True:
+        filename = os.path.join(results_path, sc.name + '.log')
+    else:
+        filename = None
+
+    sc.solve(logfile=filename)
 
     logging.info("Solved. Dump results: {0}".format(stopwatch()))
     out_file = os.path.join(results_path, sc.name + '.esys')
@@ -292,7 +298,7 @@ def start_basic_scenarios(checker=True, create_scenario=True):
         # deflex and embedded
         for t in ['de21', 'de22']:
             try:
-                # deflex_main(year, sim_type=t, create_scenario=create_scenario)
+                deflex_main(year, sim_type=t, create_scenario=create_scenario)
                 embedded_main(
                     year, sim_type=t, create_scenario=create_scenario)
             except Exception as e:
