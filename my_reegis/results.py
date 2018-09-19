@@ -1279,11 +1279,75 @@ def analyse_ee_basic():
 
 
 def analyse_berlin_basic():
+    r = {}
+    # de22
+    es_de = load_es('deflex', '2014', var='de22')
+    elec_balance = get_multiregion_bus_balance(es_de)
+    # heat_balance = get_multiregion_bus_balance(es_de, 'bus_heat')
+    import_berlin = elec_balance.sum().loc['DE22', 'in', 'import',
+                                           'electricity', 'all']
+    export_berlin = elec_balance.sum().loc['DE22', 'out', 'export',
+                                           'electricity', 'all']
+    netto_import = import_berlin - export_berlin
+
+    resource_blnc = get_multiregion_bus_balance(es_de, 'bus_commodity').sum()
+    # print(resource_blnc.loc['DE22'])
+    # print(heat_balance.sum().loc['DE22'])
+    # print(elec_balance.sum().loc['DE22'])
+    # exit(0)
+    r['DE22'] = resource_blnc.loc['DE22', 'in', 'source', 'commodity']
+    r['DE22']['netto_import'] = netto_import  # /0.357411
+
+    # berlin_hp_de22
+    es_be22 = load_es('berlin_hp', '2014', var='de22')
+    elec_balance = get_multiregion_bus_balance(es_be22)
+    import_berlin = elec_balance.sum().loc['BE', 'in', 'import',
+                                           'electricity', 'all']
+    export_berlin = elec_balance.sum().loc['BE', 'out', 'export',
+                                           'electricity', 'all']
+    netto_import = import_berlin - export_berlin
+
+    resource_blnc = get_multiregion_bus_balance(es_be22, 'bus_commodity').sum()
+    r['BE22'] = resource_blnc.loc['BE', 'in', 'source', 'commodity']
+    r['BE22']['netto_import'] = netto_import  # /0.357411
+
+    # berlin_hp_de21
+    es_be21 = load_es('berlin_hp', '2014', var='de21')
+    elec_balance = get_multiregion_bus_balance(es_be21)
+    import_berlin = elec_balance.sum().loc['BE', 'in', 'import',
+                                           'electricity', 'all']
+    export_berlin = elec_balance.sum().loc['BE', 'out', 'export',
+                                           'electricity', 'all']
+    netto_import = import_berlin - export_berlin
+
+    resource_blnc = get_multiregion_bus_balance(es_be21, 'bus_commodity').sum()
+    r['BE21'] = resource_blnc.loc['BE', 'in', 'source', 'commodity']
+    r['BE21']['netto_import'] = netto_import  # /0.357411
+
+    # berlin_hp_single
     es_be = load_es('berlin_hp', '2014', var='single')
-    elec_balance = get_multiregion_bus_balance(es_be)
-    # print(elec_balance.sum())
     resource_blnc = get_multiregion_bus_balance(es_be, 'bus_commodity').sum()
-    print(resource_blnc.loc['BE', 'in', 'source', 'commodity'].sum() * 0.0036)
+    r['Single'] = resource_blnc.loc['BE', 'in', 'source', 'commodity']
+    r['Single']['netto_import'] = 0
+
+    # Energiebilanz Berlin 2014
+    r['statistic'] = pd.Series({
+        'bioenergy': 7152000,
+        'hard_coal': 43245000,
+        'lignite': 12274000,
+        'natural_gas': 80635000,
+        'oil': 29800000,
+        'waste': 477000,
+        'netto_import': 19786000}).div(3.6)
+
+    df = pd.concat(r).div(1000000)
+    print(df)
+    print(df.groupby(level=0).sum())
+    df.unstack().plot(kind='bar')
+    # r[2].plot(kind='bar', axis=a)
+    plt.show()
+
+
 
 
 def analyse_fhg_basic():
