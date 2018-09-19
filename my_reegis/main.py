@@ -302,7 +302,7 @@ def start_alternative_scenarios(checker, create_scenario=True):
 def start_basic_scenarios(checker=True, create_scenario=True):
     for year in [2014, 2013, 2012]:
         # deflex and embedded
-        for t in ['de22']:  # ['de21', 'de22']:
+        for t in ['de21', 'de22']:
             if t == 'de22':
                 ex_reg = ['DE22']
             else:
