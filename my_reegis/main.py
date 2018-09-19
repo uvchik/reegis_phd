@@ -71,12 +71,17 @@ def compute(sc, dump_graph=False, log_solver=True):
         sc.name, stopwatch()))
 
 
-def deflex_main(year, sim_type='de21', create_scenario=True):
+def deflex_main(year, sim_type='de21', create_scenario=True, dump_graph=False,
+                extra_regions=None):
     cfg.tmp_set('init', 'map', sim_type)
     name = '{0}_{1}_{2}'.format('deflex', year, cfg.get('init', 'map'))
     sc = deflex.Scenario(name=name, year=year)
     scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex',
                                  str(year))
+
+    if extra_regions is not None:
+        sc.extra_regions = extra_regions
+
     sc.location = os.path.join(scenario_path, '{0}_csv'.format(name))
 
     if create_scenario or not os.path.isdir(sc.location):
@@ -96,10 +101,11 @@ def deflex_main(year, sim_type='de21', create_scenario=True):
     sc.table2es()
 
     # Create concrete model, solve it and dump the results
-    compute(sc)
+    compute(sc, dump_graph=dump_graph)
 
 
-def berlin_hp_main(year, sim_type='single', create_scenario=True):
+def berlin_hp_main(year, sim_type='single', create_scenario=True,
+                   dump_graph=False):
     cfg.tmp_set('init', 'map', sim_type)
     name = '{0}_{1}_{2}'.format('berlin_hp', year, cfg.get('init', 'map'))
     sc = berlin_hp.Scenario(name=name, year=year, debug=False)
@@ -124,7 +130,7 @@ def berlin_hp_main(year, sim_type='single', create_scenario=True):
     sc.table2es()
 
     # Create concrete model, solve it and dump the results
-    compute(sc)
+    compute(sc, dump_graph=dump_graph)
 
 
 def embedded_main(year, sim_type='de21', create_scenario=True):
@@ -296,9 +302,15 @@ def start_alternative_scenarios(checker, create_scenario=True):
 def start_basic_scenarios(checker=True, create_scenario=True):
     for year in [2014, 2013, 2012]:
         # deflex and embedded
-        for t in ['de21', 'de22']:
+        for t in ['de22']:  # ['de21', 'de22']:
+            if t == 'de22':
+                ex_reg = ['DE22']
+            else:
+                ex_reg = None
+
             try:
-                deflex_main(year, sim_type=t, create_scenario=create_scenario)
+                deflex_main(year, sim_type=t, create_scenario=create_scenario,
+                            extra_regions=ex_reg)
                 embedded_main(
                     year, sim_type=t, create_scenario=create_scenario)
             except Exception as e:
