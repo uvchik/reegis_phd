@@ -254,8 +254,9 @@ def create_reduced_de21_scenario(year):
     for col in de.table_collection['transformer'][region].columns:
         de.table_collection['transformer'].loc[rows, (region, col)] -= (
                 table_collect['transformer'].loc[rows, ('BE', col)])
-        de.table_collection['transformer'].loc[rows, (region, col)].fillna(
-            float('inf'), inplace=True)
+        de.table_collection['transformer'].loc[rows, (region, col)] = (
+            de.table_collection['transformer'].loc[rows, (region, col)].fillna(
+                float('inf')))
 
     sub['DE01_new'] = de.table_collection['transformer'].loc[rows, region].sum(
         axis=1)
