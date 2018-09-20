@@ -78,6 +78,9 @@ def deflex_main(year, sim_type='de21', create_scenario=True, dump_graph=False,
     sc = deflex.Scenario(name=name, year=year)
     scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex',
                                  str(year))
+    if 'without_berlin' in sim_type:
+        scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp',
+                                     str(year))
 
     if extra_regions is not None:
         sc.extra_regions = extra_regions
@@ -302,7 +305,7 @@ def start_alternative_scenarios(checker, create_scenario=True):
 def start_basic_scenarios(checker=True, create_scenario=True):
     for year in [2014, 2013, 2012]:
         # deflex and embedded
-        for t in ['de22', 'de21']:
+        for t in ['de21', 'de22']:
             if t == 'de22':
                 ex_reg = ['DE22']
             else:
@@ -313,6 +316,8 @@ def start_basic_scenarios(checker=True, create_scenario=True):
                             extra_regions=ex_reg)
                 embedded_main(
                     year, sim_type=t, create_scenario=create_scenario)
+                deflex_main(year, sim_type=t + '_without_berlin',
+                            create_scenario=False)
             except Exception as e:
                 checker = log_exception(e)
 
