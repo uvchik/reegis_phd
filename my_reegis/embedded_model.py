@@ -133,15 +133,15 @@ def create_reduced_de21_scenario(year):
     berlin_district_heating = berlin_district_heating.sum(axis=1)
 
     ct.loc['district heating', 'DE01_orig'] = round(
-        de.table_collection['time_series'][region, 'district_heating'].sum())
+        de.table_collection['time_series'][region, 'district heating'].sum())
     ct.loc['district heating', 'BE'] = round(
         berlin_district_heating.sum())
 
-    de.table_collection['time_series'][region, 'district_heating'] -= (
+    de.table_collection['time_series'][region, 'district heating'] -= (
         berlin_district_heating)
 
     ct.loc['district heating', 'DE01_new'] = round(
-        de.table_collection['time_series'][region, 'district_heating'].sum())
+        de.table_collection['time_series'][region, 'district heating'].sum())
 
     # Electricity demand
     berlin_elec_demand = (
@@ -231,7 +231,7 @@ def create_reduced_de21_scenario(year):
                                       inplace=True)
 
     heat_demand = pd.DataFrame(berlin_district_heating,
-                               columns=['district_heating'])
+                               columns=['district heating'])
 
     heat_demand = (
         pd.concat([heat_demand], axis=1, keys=['BE']).sort_index(1))
