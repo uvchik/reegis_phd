@@ -406,7 +406,7 @@ if __name__ == "__main__":
     
     stopwatch()
     # log_check(start_all_by_dir())
-    log_check(start_berlin_single_scenarios())
-    # log_check(start_all(create_scenario=True))
+    # log_check(start_berlin_single_scenarios())
+    log_check(start_all(create_scenario=True))
     # log_check(
     #     start_alternative_scenarios(checker=True, create_scenario=True))
