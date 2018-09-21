@@ -21,6 +21,7 @@ import reegis_tools.config as cfg
 import reegis_tools.gui as gui
 from my_reegis import plot
 from my_reegis import friedrichshagen_scenarios as fsc
+import my_reegis.plot as my_plot
 from collections import namedtuple
 
 
@@ -485,7 +486,7 @@ def load_es(*args, var=None):
     fn = os.path.join(path, name + '.esys')
 
     sc = deflex.Scenario()
-    logging.info("Restoring file from {0}".format(fn))
+    logging.debug("Restoring file from {0}".format(fn))
     file_datetime = datetime.fromtimestamp(os.path.getmtime(fn)).strftime(
         '%d. %B %Y - %H:%M:%S')
     logging.info("Restored results created on: {0}".format(file_datetime))
@@ -1280,55 +1281,47 @@ def analyse_ee_basic():
 
 def analyse_berlin_basic():
     r = {}
-    # de22
-    es_de = load_es('deflex', '2014', var='de22')
-    elec_balance = get_multiregion_bus_balance(es_de)
-    # heat_balance = get_multiregion_bus_balance(es_de, 'bus_heat')
-    import_berlin = elec_balance.sum().loc['DE22', 'in', 'import',
-                                           'electricity', 'all']
-    export_berlin = elec_balance.sum().loc['DE22', 'out', 'export',
-                                           'electricity', 'all']
-    netto_import = import_berlin - export_berlin
+    year = 2014
+    scenarios = {
+        'deflex_de22': {'es': ['deflex', str(year)],
+                        'var': 'de22',
+                        'region': 'DE22'},
+        'berlin_de22': {'es': ['berlin_hp', str(year)],
+                        'var': 'de22',
+                        'region': 'BE'},
+        'berlin_de21': {'es': ['berlin_hp', str(year)],
+                        'var': 'de21',
+                        'region': 'BE'},
+        'berlin_up_de21': {'es': ['berlin_hp', str(year)],
+                          'var': 'single_up_deflex_2014_de21',
+                          'region': 'BE'},
+        'berlin_single': {'es': ['berlin_hp', str(year)],
+                          'var': 'single_up_None',
+                          'region': 'BE'},
+        # 'deflex_de22b': {'es': ['deflex', str(year), 'de22'],
+        #                 'region': 'DE22'},
+        # 'deflex_de22c': {'es': ['deflex', str(year), 'de22'],
+        #                 'region': 'DE22'},
+    }
 
-    resource_blnc = get_multiregion_bus_balance(es_de, 'bus_commodity').sum()
-    # print(resource_blnc.loc['DE22'])
-    # print(heat_balance.sum().loc['DE22'])
-    # print(elec_balance.sum().loc['DE22'])
-    # exit(0)
-    r['DE22'] = resource_blnc.loc['DE22', 'in', 'source', 'commodity']
-    r['DE22']['netto_import'] = netto_import  # /0.357411
+    for k, v in scenarios.items():
+        es = load_es(*v['es'], var=v['var'])
 
-    # berlin_hp_de22
-    es_be22 = load_es('berlin_hp', '2014', var='de22')
-    elec_balance = get_multiregion_bus_balance(es_be22)
-    import_berlin = elec_balance.sum().loc['BE', 'in', 'import',
-                                           'electricity', 'all']
-    export_berlin = elec_balance.sum().loc['BE', 'out', 'export',
-                                           'electricity', 'all']
-    netto_import = import_berlin - export_berlin
+        resource_blnc = get_multiregion_bus_balance(es, 'bus_commodity').sum()
+        r[k] = resource_blnc.loc[v['region'], 'in', 'source', 'commodity']
 
-    resource_blnc = get_multiregion_bus_balance(es_be22, 'bus_commodity').sum()
-    r['BE22'] = resource_blnc.loc['BE', 'in', 'source', 'commodity']
-    r['BE22']['netto_import'] = netto_import  # /0.357411
+        if 'None' not in v['var']:
+            elec_balance = get_multiregion_bus_balance(es)
+            import_berlin = elec_balance.sum().loc[v['region'], 'in', 'import',
+                                                   'electricity', 'all']
+            export_berlin = elec_balance.sum().loc[v['region'], 'out', 'export',
+                                                   'electricity', 'all']
+            netto_import = import_berlin - export_berlin
+            r[k]['netto_import'] = netto_import  # /0.357411
+        else:
+            r[k]['netto_import'] = 0
 
-    # berlin_hp_de21
-    es_be21 = load_es('berlin_hp', '2014', var='de21')
-    elec_balance = get_multiregion_bus_balance(es_be21)
-    import_berlin = elec_balance.sum().loc['BE', 'in', 'import',
-                                           'electricity', 'all']
-    export_berlin = elec_balance.sum().loc['BE', 'out', 'export',
-                                           'electricity', 'all']
-    netto_import = import_berlin - export_berlin
-
-    resource_blnc = get_multiregion_bus_balance(es_be21, 'bus_commodity').sum()
-    r['BE21'] = resource_blnc.loc['BE', 'in', 'source', 'commodity']
-    r['BE21']['netto_import'] = netto_import  # /0.357411
-
-    # berlin_hp_single
-    es_be = load_es('berlin_hp', '2014', var='single')
-    resource_blnc = get_multiregion_bus_balance(es_be, 'bus_commodity').sum()
-    r['Single'] = resource_blnc.loc['BE', 'in', 'source', 'commodity']
-    r['Single']['netto_import'] = 0
+        r[k]['other'] = r[k].get('other', 0) + r[k].get('waste', 0)
 
     # Energiebilanz Berlin 2014
     r['statistic'] = pd.Series({
@@ -1337,17 +1330,26 @@ def analyse_berlin_basic():
         'lignite': 12274000,
         'natural_gas': 80635000,
         'oil': 29800000,
-        'waste': 477000,
+        'other': 477000,
         'netto_import': 19786000}).div(3.6)
 
-    df = pd.concat(r).div(1000000)
+    df = pd.concat(r).drop('waste', axis=0, level=1).unstack().div(1000000)
+
+    print(df.sum(axis=1))
+    print(df.sum(axis=0))
+
+    color_dict = my_plot.get_cdict_df(df)
+
+    # use get to specify dark gray as the default color.
+    df.plot(
+        kind='bar', color=[color_dict.get(x, '#bbbbbb') for x in df.columns])
+
     print(df)
-    print(df.groupby(level=0).sum())
-    df.unstack().plot(kind='bar')
+    df['import_ressources'] = df['netto_import'] / 0.40
+    df.drop('netto_import', axis=1, inplace=True)
+    print(df.sum(axis=1))
     # r[2].plot(kind='bar', axis=a)
     plt.show()
-
-
 
 
 def analyse_fhg_basic():
