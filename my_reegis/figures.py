@@ -19,12 +19,40 @@ def create_subplot(default_size, **kwargs):
     return plt.figure(figsize=size).add_subplot(1, 1, 1)
 
 
+def fig_6_0(**kwargs):
+    ax = create_subplot((8.5, 5), **kwargs)
+    fn_csv = os.path.join(os.path.dirname(__file__), 'data',
+                          'electricity_import.csv')
+    df = pd.read_csv(fn_csv)
+    df['Jahr'] = df['year'].astype(str)
+
+    print('10-Jahresmittel:', df['elec_import'].sum() / df['elec_usage'].sum())
+
+    df['Erzeugung [TWh]'] = (df['elec_usage'] - df['elec_import']).div(3600)
+    df['Import [TWh]'] = df['elec_import'].div(3600)
+
+    df['Importanteil [%]'] = df['elec_import'] / df['elec_usage'] * 100
+    ax1 = df[['Jahr', 'Importanteil [%]']].plot(
+        x='Jahr', linestyle='-', marker='o', secondary_y=True,
+        color='#555555', ax=ax)
+    df[['Jahr', 'Import [TWh]', 'Erzeugung [TWh]']].plot(
+        x='Jahr', kind='bar', ax=ax1, stacked=True,
+        color=['#343e58', '#aebde3'])
+    ax1.set_ylim(0, 100)
+
+    h0, l0 = ax.get_legend_handles_labels()
+    h1, l1 = ax1.get_legend_handles_labels()
+    ax.legend(h0 + h1, l0 + l1, bbox_to_anchor=(1.06, 0.8))
+    plt.subplots_adjust(right=0.74, left=0.05)
+    return 'anteil_import_stromverbrauch_berlin'
+
+
 def fig_6_1(**kwargs):
 
     size_6_1 = kwargs.get('size', (10, 10))
-
-    my_es = results.load_es(2013, 'de21', 'deflex')
-    my_es_2 = results.load_es(2013, 'de21', 'berlin_hp')
+    year = 2014
+    my_es = results.load_es('deflex', str(year), var='de21')
+    my_es_2 = results.load_es('deflex', str(year), var='de22')
     transmission = results.compare_transmission(my_es, my_es_2)
 
     key = gui.get_choice(list(transmission.columns),
@@ -33,6 +61,7 @@ def fig_6_1(**kwargs):
     units = {'es1': 'GWh', 'es2': 'GWh', 'diff_2-1': 'GWh', 'fraction': '%'}
     results.plot_power_lines(transmission, key, vmax=vmax/5, unit=units[key],
                              size=size_6_1)
+    return 'name_6_1'
 
 
 def fig_6_x_draft1(**kwargs):
@@ -46,6 +75,7 @@ def fig_6_x_draft1(**kwargs):
     # PLOTS
     transmission = transmission.div(1000)
     transmission.plot(kind='bar', ax=ax)
+    return 'name_6_x'
 
 
 def fig_4_1(**kwargs):
@@ -67,6 +97,7 @@ def fig_4_1(**kwargs):
                          'Anteil Fernwärme']]
     ax = fraction.plot(kind='bar', ax=ax, rot=0)
     ax.set_xlabel('')
+    return 'name_4_1'
 
 
 def figure_district_heating_areas(**kwargs):
@@ -117,31 +148,35 @@ def figure_district_heating_areas(**kwargs):
                  bbox=dict(boxstyle="round", alpha=.5,
                            ec=(1, 1, 1), fc=(1, 1, 1)))
     plt.draw()
+    return 'ew_fw_elec_share'
 
 
-def plot_figure(number, filename=None, show=False, **kwargs):
+def plot_figure(number, save=False, path=None, show=False, **kwargs):
 
     number_name = {
+        '6.0': fig_6_0,
         '6.1': fig_6_1,
         '6.x': fig_6_x_draft1,
         '5.3': figure_district_heating_areas,
         '4.1': fig_4_1,
     }
 
-    number_name[number](**kwargs)
+    filename = number_name[number](**kwargs)
 
-    if filename is not None:
-        logging.info("Save figure as {0}".format(filename))
-        plt.savefig(filename)
+    if save is True:
+        if path is None:
+            fn = filename + '.pdf'
+        else:
+            fn = os.path.join(path, filename + '.pdf')
+        logging.info("Save figure as {0}".format(fn))
+        plt.savefig(fn)
 
-    if show is True or filename is None:
+    if show is True or save is not True:
         plt.show()
 
 
 if __name__ == "__main__":
     logger.define_logging()
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__)])
-    path = '/home/uwe/git_local/monographie/figures/'
-    # fn = os.path.join(path, 'ew_fw_elec_share' + '.pdf')
-    fn = None
-    plot_figure('5.3', filename=fn)
+    p = '/home/uwe/git_local/monographie/figures/'
+    plot_figure('6.0', save=True, show=True, path=p)
