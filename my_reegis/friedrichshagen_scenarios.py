@@ -78,11 +78,11 @@ def fetch_upstream_scenario_values(full_file_name):
     upstream_values.to_csv(full_file_name)
 
 
-def load_upstream_scenario_values():
+def load_upstream_scenario_values(overwrite=False):
     path = cfg.get('paths', 'friedrichshagen')
     filename = 'upstream_scenario_values.csv'
     full_file_name = os.path.join(path, filename)
-    if not os.path.isfile(full_file_name):
+    if not os.path.isfile(full_file_name) or overwrite:
         fetch_upstream_scenario_values(full_file_name)
     return pd.read_csv(
         full_file_name, index_col=[0], header=[0, 1]).sort_index()
@@ -146,7 +146,8 @@ def add_storage(nodes):
     # pprint.pprint(shortage)
 
 
-def add_import_export(nodes, cost_scenario='no_costs', value=None):
+def add_import_export(nodes, cost_scenario='no_costs', value=None,
+                      region='FHG'):
 
     if cost_scenario == 'no_costs':
         export_costs = -0.000001
@@ -162,15 +163,15 @@ def add_import_export(nodes, cost_scenario='no_costs', value=None):
         export_costs = upstream[cost_scenario][value] * -0.99
         import_costs = upstream[cost_scenario][value] * 1.01
 
-    elec_bus_label = Label('bus', 'electricity', 'all', 'FHG')
+    elec_bus_label = Label('bus', 'electricity', 'all', region)
 
-    exp_label = Label('export', 'electricity', 'all', 'FHG')
+    exp_label = Label('export', 'electricity', 'all', region)
     nodes[exp_label] = solph.Sink(
                 label=exp_label,
                 inputs={nodes[elec_bus_label]: solph.Flow(
                     variable_costs=export_costs)})
 
-    imp_label = Label('import', 'electricity', 'all', 'FHG')
+    imp_label = Label('import', 'electricity', 'all', region)
     nodes[imp_label] = solph.Source(
                 label=imp_label,
                 outputs={nodes[elec_bus_label]: solph.Flow(
@@ -400,7 +401,7 @@ def basic_ee_scenario():
 def my_scenarios():
     up_scenarios = list(
         load_upstream_scenario_values().columns.get_level_values(0).unique())
-    up_scenarios = list()
+    # up_scenarios = list()
     up_scenarios.append('no_costs')
     fuels = ['hard_coal', 'natural_gas']
     my_list = []
@@ -426,6 +427,9 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(deflex.__file__),
                     os.path.dirname(berlin_hp.__file__)])
     stopwatch()
+    load_upstream_scenario_values(overwrite=True)
+    print(fetch_esys_files())
+    exit(0)
     # load_upstream_scenario_values().columns.get_level_values(0).unique()
     basic_ee_scenario()
     # my_scenarios()
