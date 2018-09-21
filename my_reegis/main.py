@@ -30,6 +30,7 @@ import berlin_hp
 import my_reegis
 # from my_reegis import results as sys_results
 from my_reegis import alternative_scenarios
+from my_reegis import friedrichshagen_scenarios as fhg_sc
 
 
 def stopwatch():
@@ -108,8 +109,10 @@ def deflex_main(year, sim_type='de21', create_scenario=True, dump_graph=False,
 
 
 def berlin_hp_main(year, sim_type='single', create_scenario=True,
-                   dump_graph=False):
+                   dump_graph=False, upstream=None):
+
     cfg.tmp_set('init', 'map', sim_type)
+
     name = '{0}_{1}_{2}'.format('berlin_hp', year, cfg.get('init', 'map'))
     sc = berlin_hp.Scenario(name=name, year=year, debug=False)
     scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp',
@@ -129,8 +132,16 @@ def berlin_hp_main(year, sim_type='single', create_scenario=True,
     logging.info("Read scenario {0}: {1}".format(sc.name, stopwatch()))
     sc.load_csv().check_table('time_series')
 
-    # Create nodes and add them to the EnergySystem
-    sc.table2es()
+    nodes = sc.create_nodes(region='BE')
+
+    if upstream is not None:
+        nodes = fhg_sc.add_import_export(nodes, cost_scenario=upstream,
+                                         value='meritorder', region='BE')
+
+    sc.es = sc.initialise_energy_system()
+    sc.es.add(*nodes.values())
+
+    sc.name = sc.name + '_up_' + str(upstream)
 
     # Create concrete model, solve it and dump the results
     compute(sc, dump_graph=dump_graph)
@@ -302,6 +313,22 @@ def start_alternative_scenarios(checker, create_scenario=True):
     return checker
 
 
+def start_berlin_single_scenarios(checker=True, create_scenario=True):
+    for year in [2014, 2013, 2012]:
+        for upstream in ['deflex_{y}_de21', 'deflex_{y}_de22', None]:
+            # Add year to upstream scenario
+            if upstream is not None:
+                upstream = upstream.format(y=year)
+
+            # Run scenario
+            try:
+                berlin_hp_main(year, create_scenario=create_scenario,
+                               upstream=upstream)
+            except Exception as e:
+                checker = log_exception(e)
+    return checker
+
+
 def start_basic_scenarios(checker=True, create_scenario=True):
     for year in [2014, 2013, 2012]:
         # deflex and embedded
@@ -320,12 +347,6 @@ def start_basic_scenarios(checker=True, create_scenario=True):
                             create_scenario=False)
             except Exception as e:
                 checker = log_exception(e)
-
-        # berlin_hp
-        try:
-            berlin_hp_main(year)
-        except Exception as e:
-            checker = log_exception(e)
     return checker
 
 
@@ -385,6 +406,7 @@ if __name__ == "__main__":
     
     stopwatch()
     # log_check(start_all_by_dir())
-    log_check(start_all(create_scenario=True))
+    log_check(start_berlin_single_scenarios())
+    # log_check(start_all(create_scenario=True))
     # log_check(
     #     start_alternative_scenarios(checker=True, create_scenario=True))
