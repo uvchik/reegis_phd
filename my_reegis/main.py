@@ -314,12 +314,12 @@ def start_alternative_scenarios(checker, create_scenario=True):
 
 
 def start_berlin_single_scenarios(checker=True, create_scenario=True):
-    for year in [2014, 2013, 2012]:
-        for upstream in ['deflex_{y}_de21', 'deflex_{y}_de22', None]:
-            # Add year to upstream scenario
-            if upstream is not None:
-                upstream = upstream.format(y=year)
-
+    for year in [2014, 2013]:
+        up_sc = fhg_sc.load_upstream_scenario_values(
+            ).columns.get_level_values(0).unique()
+        up_sc = [x for x in up_sc if str(year) in x]
+        up_sc.append(None)
+        for upstream in up_sc:
             # Run scenario
             try:
                 berlin_hp_main(year, create_scenario=create_scenario,
@@ -376,7 +376,7 @@ def start_all(checker=True, create_scenario=True):
 
 def start_all_by_dir(checker=True):
     alternative_scenarios.multi_scenario_deflex()
-    start_dir = os.path.join(cfg.get('paths', 'scenario'), 're')
+    start_dir = os.path.join(cfg.get('paths', 'scenario'), '2014_var')
 
     for root, directories, filenames in os.walk(start_dir):
         for d in directories:
@@ -405,8 +405,8 @@ if __name__ == "__main__":
     # exit(0)
     
     stopwatch()
-    # log_check(start_all_by_dir())
+    log_check(start_all_by_dir())
     # log_check(start_berlin_single_scenarios())
-    log_check(start_all(create_scenario=True))
+    # log_check(start_all(create_scenario=True))
     # log_check(
     #     start_alternative_scenarios(checker=True, create_scenario=True))
