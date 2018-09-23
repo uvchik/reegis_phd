@@ -381,12 +381,17 @@ def start_all_by_dir(checker=True):
 
     for root, directories, filenames in os.walk(start_dir):
         for d in directories:
-            if d[-4:] == '_csv':
-                name = d[:-4]
-                try:
-                    optimise_scenario(start_dir, name)
-                except Exception as e:
-                    checker = log_exception(e)
+            sc.append(d)
+
+    logging.info("All scenarios: {0}".format(sorted(sc)))
+
+    for d in sorted(sc):
+        if d[-4:] == '_csv':
+            name = d[:-4]
+            try:
+                optimise_scenario(start_dir, name)
+            except Exception as e:
+                checker = log_exception(e)
     return checker
 
 
