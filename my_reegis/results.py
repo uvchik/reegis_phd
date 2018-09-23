@@ -102,7 +102,7 @@ def stopwatch():
     return str(datetime.now() - stopwatch.start)[:-7]
 
 
-def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None,
+def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
                      vmax=None, label_max=None, unit='GWh', size=None):
     if size is None:
         ax = plt.figure(figsize=(5, 5)).add_subplot(1, 1, 1)
@@ -169,8 +169,7 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None,
         if v['reverse']:
             orient += math.pi
 
-        if round(v[key]) == 0:
-            pass
+        if round(v[key]) == 0 or not direction:
             polygon = patches.RegularPolygon(
                 (v['centroid'].x, v['centroid'].y),
                 4,
@@ -230,21 +229,40 @@ def compare_transmission(es1, es2, name1='es1', name2='es2'):
         line_a_2 = es2.groups[str(line_a_1.label)]
         line_b_2 = es2.groups[str(line_b_1.label)]
 
-        from1to2_1 = results1[(line_a_1, bus_reg2_1)]['sequences'].sum()
-        from2to1_1 = results1[(line_b_1, bus_reg1_1)]['sequences'].sum()
-        from1to2_2 = results2[(line_a_2, bus_reg2_2)]['sequences'].sum()
-        from2to1_2 = results2[(line_b_2, bus_reg1_2)]['sequences'].sum()
+        from1to2_es1 = results1[(line_a_1, bus_reg2_1)]['sequences']
+        from2to1_es1 = results1[(line_b_1, bus_reg1_1)]['sequences']
+        from1to2_es2 = results2[(line_a_2, bus_reg2_2)]['sequences']
+        from2to1_es2 = results2[(line_b_2, bus_reg1_2)]['sequences']
 
         line_name = '-'.join([line_a_1.label.subtag, line_a_1.label.region])
 
-        transmission.loc[line_name, name1] = float(from1to2_1 - from2to1_1)
-        transmission.loc[line_name, name2] = float(from1to2_2 - from2to1_2)
+        # Annual balance for each line and each energy system
+        transmission.loc[line_name, name1] = float(from1to2_es1.sum() -
+                                                   from2to1_es1.sum())
+        transmission.loc[line_name, name2] = float(from1to2_es2.sum() -
+                                                   from2to1_es2.sum())
+
+        # Absolute annual flow for each line
+        transmission.loc[line_name, name1 + '_abs'] = float(
+            from1to2_es1.sum() + from2to1_es1.sum())
+        transmission.loc[line_name, name2 + '_abs'] = float(
+            from1to2_es2.sum() + from2to1_es2.sum())
+
+        # Maximum peak value for each line and each energy system
+        transmission.loc[line_name, name1 + '_max'] = float(
+            from1to2_es1.abs().max() - from2to1_es1.abs().max())
+        transmission.loc[line_name, name2 + '_max'] = float(
+            from1to2_es2.abs().max() - from2to1_es2.abs().max())
 
     # transmission['diff_1-2'] = transmission[name1] - transmission[name2]
 
     transmission = transmission.div(1000)
 
     transmission['diff_2-1'] = transmission[name2] - transmission[name1]
+    transmission['diff_2-1_max'] = (transmission[name2 + '_max'] -
+                                    transmission[name1 + '_max'])
+    transmission['diff_2-1_abs'] = (transmission[name2 + '_abs'] -
+                                    transmission[name1 + '_abs'])
     transmission['fraction'] = (transmission['diff_2-1'] /
                                 abs(transmission[name1]) * 100)
     transmission['fraction'].fillna(0, inplace=True)
@@ -252,28 +270,61 @@ def compare_transmission(es1, es2, name1='es1', name2='es2'):
     return transmission
 
 
-def plot_regions(data, column):
+def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
+                 column=None, cmap=None, label_col=None, color=None,
+                 edgecolor='#9aa1a9', legend=True, ax=None):
+    if ax is None:
+        ax = plt.figure().add_subplot(1, 1, 1)
+
     polygons = reegis_tools.geometries.Geometry()
-    polygons.load(cfg.get('paths', 'geometry'),
-                  cfg.get('geometry', 'de21_polygons_simple'))
-    polygons.gdf = polygons.gdf.merge(data, left_index=True, right_index=True)
 
-    print(polygons.gdf)
+    if deflex_map is not None:
+        polygons.load(cfg.get('paths', 'geometry'),
+                      cfg.get('geometry', deflex_map))
+    elif fn is not None:
+        polygons.load(fullname=fn)
+    else:
+        polygons.load(cfg.get('paths', 'geometry'),
+                      cfg.get('geometry', 'de21_polygons_simple'))
 
-    cmap = LinearSegmentedColormap.from_list(
-            'mycmap', [
-                # (0, '#aaaaaa'),
-                (0.000000000, 'green'),
-                (0.5, 'yellow'),
-                (1, 'red')])
+    if label_col is None:
+        label_col = column
+    elif label_col == 'index':
+        polygons.gdf['my_index'] = polygons.gdf.index
+        label_col = 'my_index'
 
-    ax = polygons.gdf.plot(edgecolor='#9aa1a9', cmap=cmap, vmin=0,
-                           column=column, legend=True)
+    if data is not None:
+        polygons.gdf = polygons.gdf.merge(data, left_index=True,
+                                          right_index=True)
 
-    polygons.gdf.apply(lambda x: ax.annotate(
-        s=x[column], xy=x.geometry.centroid.coords[0], ha='center'), axis=1)
+    if cmap is None and color is None:
+        cmap = LinearSegmentedColormap.from_list(
+                'mycmap', [
+                    # (0, '#aaaaaa'),
+                    (0.000000000, 'green'),
+                    (0.5, 'yellow'),
+                    (1, 'red')])
 
-    plt.show()
+    ax = polygons.gdf.plot(edgecolor=edgecolor, cmap=cmap, vmin=0, ax=ax,
+                           legend=legend, column=column, color=color)
+
+    if textbox is True:
+        bb = dict(boxstyle="round", alpha=.5, ec=(1, 1, 1), fc=(1, 1, 1))
+    elif isinstance(textbox, dict):
+        bb = textbox
+    else:
+        bb = None
+
+    if label_col is not None:
+        polygons.gdf.apply(
+            lambda x: ax.text(
+                x.geometry.representative_point().x,
+                x.geometry.representative_point().y,
+                x[label_col], size=9,
+                ha="center", va="center", bbox=bb),
+            axis=1)
+
+    return ax
 
 
 def reshape_bus_view(es, bus, data=None, aggregate_lines=True):
@@ -1278,6 +1329,64 @@ def analyse_ee_basic():
 # def get_resource_usage(es):
 #     print(get_multiregion_bus_balance(es, 'bus_commodity').sum())
 
+def analyse_DE01_basic():
+    r = {}
+    year = 2014
+    scenarios = {
+        'deflex_de22': {'es': ['deflex', str(year)],
+                        'var': 'de22',
+                        'region': 'DE22'},
+        # 'berlin_de22': {'es': ['berlin_hp', str(year)],
+        #                 'var': 'de22',
+        #                 'region': 'BE'},
+        # 'berlin_de21': {'es': ['berlin_hp', str(year)],
+        #                 'var': 'de21',
+        #                 'region': 'BE'},
+        # 'berlin_up_de21': {'es': ['berlin_hp', str(year)],
+        #                   'var': 'single_up_deflex_2014_de21',
+        #                   'region': 'BE'},
+        # 'berlin_single': {'es': ['berlin_hp', str(year)],
+        #                   'var': 'single_up_None',
+        #                   'region': 'BE'},
+        # 'deflex_de22b': {'es': ['deflex', str(year), 'de22'],
+        #                 'region': 'DE22'},
+        # 'deflex_de22c': {'es': ['deflex', str(year), 'de22'],
+        #                 'region': 'DE22'},
+    }
+    for k, v in scenarios.items():
+        es = load_es(*v['es'], var=v['var'])
+
+        results = es.results['Main']
+        flows = [f for f in results.keys()]
+        for f in flows:
+            print(str(f[0].label))
+        exit(0)
+        lines_from = [x for x in flows
+                      if (x[0].label.region == 'DE01') &
+                      (x[0].label.cat == 'line')]
+        for l in lines_from:
+            key = l[0].label.subtag
+            print(l[0].label)
+            r['from_' + key] = results[l]['sequences']['flow'].multiply(-1)
+
+        lines_to = [x for x in flows
+                    if (x[1].label.subtag == 'DE01') &
+                    (x[1].label.cat == 'line')]
+        for l in lines_to:
+            key = l[1].label.region
+            print(l[1].label)
+            r['to_' + key] = results[l]['sequences']['flow']
+        # print(outputlib.views.node(results, ))
+        # exit(0)
+        df = pd.concat(r).swaplevel().unstack()
+        df['DE13'] = df['from_DE13'] + df['to_DE13']
+        print(df.sum())
+        df[['DE13']].plot()
+        plt.show()
+        exit(0)
+
+
+
 
 def analyse_berlin_basic():
     r = {}
@@ -1292,16 +1401,25 @@ def analyse_berlin_basic():
         'berlin_de21': {'es': ['berlin_hp', str(year)],
                         'var': 'de21',
                         'region': 'BE'},
-        'berlin_up_de21': {'es': ['berlin_hp', str(year)],
-                          'var': 'single_up_deflex_2014_de21',
-                          'region': 'BE'},
+        'berlin_up_deflex_de21_wo': {
+            'es': ['berlin_hp', str(year)],
+            'var': 'single_up_deflex_2014_de21_without_berlin',
+            'region': 'BE'},
+        'berlin_up_deflex_de22_wo': {
+            'es': ['berlin_hp', str(year)],
+            'var': 'single_up_deflex_2014_de22_without_berlin',
+            'region': 'BE'},
+        'berlin_up_deflex_de21': {
+            'es': ['berlin_hp', str(year)],
+            'var': 'single_up_deflex_2014_de21',
+            'region': 'BE'},
+        'berlin_up_deflex_de22': {
+            'es': ['berlin_hp', str(year)],
+            'var': 'single_up_deflex_2014_de22',
+            'region': 'BE'},
         'berlin_single': {'es': ['berlin_hp', str(year)],
                           'var': 'single_up_None',
                           'region': 'BE'},
-        # 'deflex_de22b': {'es': ['deflex', str(year), 'de22'],
-        #                 'region': 'DE22'},
-        # 'deflex_de22c': {'es': ['deflex', str(year), 'de22'],
-        #                 'region': 'DE22'},
     }
 
     for k, v in scenarios.items():

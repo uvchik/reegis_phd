@@ -2,6 +2,7 @@ import os
 import logging
 import pandas as pd
 import geopandas as gpd
+import my_reegis
 import results
 from oemof.tools import logger
 import berlin_hp
@@ -12,6 +13,8 @@ from reegis_tools import energy_balance
 from reegis_tools import inhabitants
 from reegis_tools import geometries
 from berlin_hp import heat
+from matplotlib.colors import LinearSegmentedColormap
+from my_reegis import friedrichshagen_scenarios as fhg_sc
 
 
 def create_subplot(default_size, **kwargs):
@@ -52,24 +55,64 @@ def fig_6_1(**kwargs):
     size_6_1 = kwargs.get('size', (10, 10))
     year = 2014
     my_es = results.load_es('deflex', str(year), var='de21')
-    my_es_2 = results.load_es('deflex', str(year), var='de22')
+    my_es_2 = results.load_es('berlin_hp', str(year), var='de21')
     transmission = results.compare_transmission(my_es, my_es_2)
+
+    print(transmission)
+    print(transmission.columns)
 
     key = gui.get_choice(list(transmission.columns),
                          "Plot transmission lines", "Choose data column.")
     vmax = max([abs(transmission[key].max()), abs(transmission[key].min())])
-    units = {'es1': 'GWh', 'es2': 'GWh', 'diff_2-1': 'GWh', 'fraction': '%'}
-    results.plot_power_lines(transmission, key, vmax=vmax/5, unit=units[key],
-                             size=size_6_1)
+    units = {'es1': 'GWh', 'es2': 'GWh', 'diff_2-1': '', 'fraction': '%',
+             'es1_max': 'GW', 'es2_max': 'GW', 'diff_2-1_max': 'GW',
+             'es1_abs': 'GWh', 'es2_abs': 'GWh', 'diff_2-1_abs': 'GWh'}
+    if 'abs' in key:
+        direct = False
+    else:
+        direct = True
+
+    results.plot_power_lines(transmission, key, vmax=20, unit=units[key],
+                             size=size_6_1, direction=direct, label_max=4.9)
     return 'name_6_1'
+
+
+def fig_regionen(**kwargs):
+    ax = create_subplot((9, 7), **kwargs)
+    fn = os.path.join(cfg.get('paths', 'geo_plot'),
+                      'region_polygon_de22_reegis.csv')
+
+    reg_id = ['DE{num:02d}'.format(num=x+1) for x in range(22)]
+    idx = [x+1 for x in range(22)]
+    data = pd.DataFrame({'reg_id': reg_id}, index=idx)
+    data['class'] = 0
+    data.loc[[19, 20, 21], 'class'] = 1
+    data.loc[22, 'class'] = 0.5
+    data.loc[22, 'reg_id'] = ''
+
+    cmap = LinearSegmentedColormap.from_list(
+        'mycmap', [(0.000000000, '#badd69'),
+                   (0.5, '#dd5500'),
+                   (1, '#a5bfdd')])
+
+    ax = results.plot_regions(edgecolor='#666666', data=data, legend=False,
+                              label_col='reg_id', fn=fn, column='class',
+                              cmap=cmap, ax=ax)
+    plt.subplots_adjust(right=1, left=0, bottom=0, top=1)
+
+    # Remove frame around plot
+    for spine in plt.gca().spines.values():
+        spine.set_visible(False)
+    ax.axis('off')
+    return 'deflex_berlin_geometrien'
 
 
 def fig_6_x_draft1(**kwargs):
 
     ax = create_subplot((5, 5), **kwargs)
 
-    my_es = results.load_es(2014, 'de21', 'deflex')
-    my_es_2 = results.load_es(2014, 'de21', 'berlin_hp')
+    my_es = results.load_es(2014, 'de22', 'deflex')
+    my_es_2 = results.load_es(2014, 'de22', 'berlin_hp')
     transmission = results.compare_transmission(my_es, my_es_2)
 
     # PLOTS
@@ -151,11 +194,30 @@ def figure_district_heating_areas(**kwargs):
     return 'ew_fw_elec_share'
 
 
+def plot_upstream(**kwargs):
+    year = 2014
+    sc = fhg_sc.load_upstream_scenario_values()
+    cols = ['deflex_{0}_de21_without_berlin', 'deflex_{0}_de22_without_berlin',
+            'deflex_{0}_de22', 'deflex_2014_de21']
+    cols = [c.format(year) for c in cols]
+
+    ax = sc['deflex_2014_de22', 'meritorder'].plot()
+    ax = sc['deflex_2014_de22_without_berlin', 'meritorder'].plot(ax=ax)
+    ax = sc['deflex_2014_de21', 'meritorder'].plot(ax=ax)
+    # ax = sc['deflex_2014_de21_without_berlin', 'meritorder'].plot(ax=ax)
+    ax.legend()
+    sc[cols].mean().unstack()[['levelized']].plot(kind='bar')
+    print(sc[cols].mean().unstack()['meritorder'])
+    print(sc[cols].mean().unstack()['levelized'])
+
+
 def plot_figure(number, save=False, path=None, show=False, **kwargs):
 
     number_name = {
         '6.0': fig_6_0,
         '6.1': fig_6_1,
+        '6.2': fig_regionen,
+        '6.3': plot_upstream,
         '6.x': fig_6_x_draft1,
         '5.3': figure_district_heating_areas,
         '4.1': fig_4_1,
@@ -177,6 +239,7 @@ def plot_figure(number, save=False, path=None, show=False, **kwargs):
 
 if __name__ == "__main__":
     logger.define_logging()
-    cfg.init(paths=[os.path.dirname(berlin_hp.__file__)])
+    cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
+                    os.path.dirname(my_reegis.__file__)])
     p = '/home/uwe/git_local/monographie/figures/'
-    plot_figure('6.0', save=True, show=True, path=p)
+    plot_figure('6.3', save=False, show=True, path=p)

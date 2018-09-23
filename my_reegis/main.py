@@ -376,8 +376,9 @@ def start_all(checker=True, create_scenario=True):
 
 def start_all_by_dir(checker=True):
     # alternative_scenarios.multi_scenario_deflex()
-    start_dir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', '2014_var_entsoe')
-    sc = []
+    start_dir = os.path.join(cfg.get('paths', 'scenario'), 'deflex',
+                             '2014_var_entsoe')
+
     for root, directories, filenames in os.walk(start_dir):
         for d in directories:
             sc.append(d)
