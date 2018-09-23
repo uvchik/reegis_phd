@@ -69,6 +69,7 @@ def fetch_upstream_scenario_values(full_file_name):
     number = len(esys_files)
     for root, fn in esys_files:
         logging.info("Remaining scenarios: {0}".format(number))
+        logging.info("Analyse scenario: {0}".format(fn))
         tmp_es = solph.EnergySystem()
         tmp_es.restore(root, fn)
         for val in ['levelized', 'meritorder', 'emission', 'emission_last']:
