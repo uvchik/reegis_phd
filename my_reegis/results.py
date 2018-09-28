@@ -3,7 +3,6 @@ import os
 import logging
 import deflex
 import reegis_tools.geometries
-import pprint as pp
 from oemof import graph
 from oemof.tools import logger
 from oemof import solph as solph
@@ -21,7 +20,6 @@ import reegis_tools.config as cfg
 import reegis_tools.gui as gui
 from my_reegis import plot
 from my_reegis import friedrichshagen_scenarios as fsc
-import my_reegis.plot as my_plot
 from collections import namedtuple
 
 
@@ -524,7 +522,7 @@ def write_graph(es):
                           remove_nodes_with_substrings=['commodity'])
 
 
-def load_es(*args, var=None):
+def load_es(*args, var=None, fn=None):
     path = os.path.join(cfg.get('paths', 'scenario'), *args, 'results')
 
     if var is None:
@@ -532,9 +530,11 @@ def load_es(*args, var=None):
     else:
         var = [var]
 
-    name = '_'.join(list(args) + var)
-
-    fn = os.path.join(path, name + '.esys')
+    if fn is None:
+        name = '_'.join(list(args) + var)
+        fn = os.path.join(path, name + '.esys')
+    else:
+        name = fn.split(os.sep)[-1].split('.')[0]
 
     sc = deflex.Scenario()
     logging.debug("Restoring file from {0}".format(fn))
@@ -547,8 +547,10 @@ def load_es(*args, var=None):
 
 
 def check_excess_shortage(results):
-    ex_nodes = [x for x in results.keys() if 'excess' in x[1]]
-    sh_nodes = [x for x in results.keys() if 'shortage' in x[0]]
+    flows = [x for x in results.keys() if x[1] is not None]
+    ex_nodes = [x for x in flows if (x[1] is not None) &
+                ('excess' in x[1].label)]
+    sh_nodes = [x for x in flows if 'shortage' in x[0].label]
     for node in ex_nodes:
         f = outputlib.views.node(results, node[1])
         s = int(round(f['sequences'].sum()))
@@ -621,50 +623,65 @@ def get_full_load_hours(results):
     plt.show()
 
 
-def plot_bus_view(es, bus=None, ax=None):
+def plot_bus_view(es=None, bus=None, data=None, ax=None, legend=True,
+                  xlabel=None, ylabel=None, title=None, out_ol=None,
+                  in_ol=None, period=None, smooth=True):
     """
+    It is possible to pass an solph.EnergySystem with results, or a DataFrame
+     with Multiindex columns and 'in' and 'out' in the first column level.
+    If bus is specified only this bus of the EnergySystem will be plotted.
 
-    Parameters
-    ----------
-    es
-    bus : str or Node or None
-    ax
-
-    Returns
-    -------
-
+    Last check: 09/18
     """
 
     if ax is None:
         fig = plt.figure(figsize=(10, 5))
         ax = fig.add_subplot(1, 1, 1)
+
     if isinstance(bus, str):
         bus = es.groups[bus]
 
-    if bus is None:
+    if es is not None and bus is None:
         data = get_multiregion_bus_balance(es).groupby(
             axis=1, level=[1, 2, 3, 4]).sum()
-        title = 'Germany'
-    else:
+        default_title = 'Germany'
+    elif es is not None and bus is not None:
         data = reshape_bus_view(es, bus)[bus.label.region]
-        title = repr(bus.label)
+        default_title = repr(bus.label)
+    else:
+        default_title = None
+
+    if period is not None:
+        data = data.iloc[period[0]:period[1]]
 
     my_colors = plot.get_cdict(data['in'])
     my_colors.update(plot.get_cdict(data['out']))
 
-    my_plot = oev.plot.io_plot(
+    io_plot = oev.plot.io_plot(
         df_in=data['in'], df_out=data['out'], cdict=my_colors,
-        inorder=plot.get_orderlist_from_multiindex(data['in'].columns),
-        outorder=plot.get_orderlist_from_multiindex(data['out'].columns),
-        ax=ax, smooth=True)
-    ax = shape_tuple_legend(**my_plot)
-    ax = oev.plot.set_datetime_ticks(ax, data.index, tick_distance=48,
-                                     date_format='%d-%m-%H', offset=12,
-                                     tight=True)
-    ax.set_ylabel('Power in MW')
-    ax.set_xlabel('Date')
-    ax.set_title(title)
-    plt.show()
+        inorder=plot.get_orderlist_from_multiindex(data['in'].columns, in_ol),
+        outorder=plot.get_orderlist_from_multiindex(data['out'].columns,
+                                                    out_ol),
+        ax=ax, smooth=smooth)
+
+    if legend is True:
+        io_plot['ax'] = shape_tuple_legend(**io_plot)
+    else:
+        io_plot['ax'].legend().set_visible(False)
+        plt.draw()
+
+    ax = oev.plot.set_datetime_ticks(io_plot['ax'], data.index,
+                                     tick_distance=24, date_format='%d-%m-%Y',
+                                     offset=12, tight=True)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
+    if xlabel is not None:
+        ax.set_xlabel(xlabel)
+    if title is None:
+        ax.set_title(default_title)
+    else:
+        ax.set_title(title)
+    return ax
 
 
 def plot_bus(es, node_label, rm_list=None):
@@ -679,8 +696,8 @@ def plot_bus(es, node_label, rm_list=None):
         rm_list = []
 
     plot_slice = oev.plot.slice_df(my_node,)
-                                   # date_from=datetime(2014, 5, 31),
-                                   # date_to=datetime(2014, 6, 8))
+    # date_from=datetime(2014, 5, 31),
+    # date_to=datetime(2014, 6, 8))
 
     my_plot = oev.plot.io_plot(node_label, plot_slice,
                                cdict=plot.get_cdict(my_node),
@@ -939,7 +956,7 @@ def analyse_plot(cost_values, merit_values, multiregion, demand_elec,
                  'shortage']
 
     in_list = plot.get_orderlist_from_multiindex(multiregion['in'].columns,
-                                            orderkeys)
+                                                 orderkeys)
     my_cdict = plot.get_cdict_df(multiregion['in'])
     my_cdict.update(plot.get_cdict_df(multiregion['out']))
     # print(my_cdict)
@@ -1040,7 +1057,7 @@ def get_one_node_type(es, node=None):
     return smry
 
 
-def analyse_system_costs(es, plot=False):
+def analyse_system_costs(es, plot_cost=False):
     back = namedtuple('res', ['levelized', 'meritorder', 'emission',
                               'emission_last'])
     multi_res = reshape_multiregion_df(es)
@@ -1063,13 +1080,144 @@ def analyse_system_costs(es, plot=False):
     ax = emission_last.plot(ax=ax)
     e_spec.max(axis=1).plot(ax=ax)
 
-    if plot is True:
+    if plot_cost is True:
         sorted_flows = iter_res.misc
         analyse_plot(c_values, mo_values, multi_res, sorted_flows[
             'demand_electricity'], sorted_flows['demand_heat'])
 
     return back(c_values.sum(axis=1), mo_values.max(axis=1),
                 e_values.sum(axis=1), emission_last)
+
+
+def analyse_berlin_ressources_test():
+    # s = {}
+    year = 2014
+    scenarios = {
+        'deflex_de22': {'es': ['deflex', str(year)],
+                        'var': 'de22',
+                        'region': 'DE22'},
+        'berlin_deflex': {'es': ['berlin_hp', str(year)],
+                          'var': 'de22',
+                          'region': 'BE'},
+        'berlin_up_deflex': {
+            'es': ['berlin_hp', str(year)],
+            'var': 'single_up_deflex_2014_de22_without_berlin',
+            'region': 'BE'},
+        'berlin_up_deflex_full': {
+            'es': ['berlin_hp', str(year)],
+            'var': 'single_up_deflex_2014_de22',
+            'region': 'BE'},
+        'berlin_single': {'es': ['berlin_hp', str(year)],
+                          'var': 'single_up_None',
+                          'region': 'BE'}
+        }
+    df = pd.DataFrame(columns=pd.MultiIndex(levels=[[], []],
+                                            labels=[[], []]))
+    for k, v in scenarios.items():
+        es = load_es(*v['es'], var=v['var'])
+
+        resource_balance = get_multiregion_bus_balance(
+            es, 'bus_commodity')
+
+        df[k, 'in'] = (
+            resource_balance[v['region'], 'in', 'source', 'commodity'].sum())
+        for t in ['chp', 'pp', 'hp', 'trsf']:
+            if 'de22' not in k:
+                print(k)
+                df[k, t] = (
+                    resource_balance[v['region'], 'out', t].sum().groupby(
+                        level=1).sum())
+            else:
+                print(k, '!')
+                if t == 'trsf':
+                    t = 'heat'
+                df[k, t] = (
+                    resource_balance[v['region'], 'out', 'trsf', t].sum())
+    print(df.div(1000).to_excel('/home/uwe/temp_BE.xlsx'))
+    exit(0)
+
+
+def analyse_berlin_ressources():
+    s = {}
+    year = 2014
+    scenarios = {
+        'deflex_de22': {'es': ['deflex', str(year)],
+                        'var': 'de22',
+                        'region': 'DE22'},
+        'berlin_deflex': {'es': ['berlin_hp', str(year)],
+                          'var': 'de22',
+                          'region': 'BE'},
+        'berlin_up_deflex': {
+            'es': ['berlin_hp', str(year)],
+            'var': 'single_up_deflex_2014_de22_without_berlin',
+            'region': 'BE'},
+        'berlin_up_deflex_full': {
+            'es': ['berlin_hp', str(year)],
+            'var': 'single_up_deflex_2014_de22',
+            'region': 'BE'},
+        'berlin_single': {'es': ['berlin_hp', str(year)],
+                          'var': 'single_up_None',
+                          'region': 'BE'}
+        }
+
+    for k, v in scenarios.items():
+        es = load_es(*v['es'], var=v['var'])
+
+        resource_balance = get_multiregion_bus_balance(
+            es, 'bus_commodity')
+
+        s[k] = resource_balance[
+            v['region'], 'in', 'source', 'commodity'].copy()
+
+        if 'None' not in v['var']:
+            elec_balance = get_multiregion_bus_balance(es)
+            s[k]['ee'] = elec_balance[v['region'], 'in', 'source', 'ee'].sum(
+                axis=1)
+
+            import_berlin = elec_balance[
+                v['region'], 'in', 'import', 'electricity', 'all']
+            export_berlin = elec_balance[
+                v['region'], 'out', 'export', 'electricity', 'all']
+            s[k]['netto_import'] = import_berlin - export_berlin
+
+        else:
+            s[k]['netto_import'] = 0
+
+    seq = pd.concat(s, axis=1).div(1000000)
+
+    for scenario in seq.columns.get_level_values(0).unique():
+        seq[scenario, 'other'] = seq[scenario].get('other', 0)
+        for c in ['waste', 'bioenergy', 'ee']:
+            seq[scenario, 'other'] += seq[scenario].get(c, 0)
+
+    for c in ['waste', 'bioenergy', 'ee']:
+        seq.drop(c, level=1, inplace=True, axis=1)
+
+    return seq.swaplevel(axis=1)
+
+
+def analyse_berlin_ressources_total():
+    # Energiebilanz Berlin 2014
+    statistic = pd.Series({
+        'bioenergy': 7152000,
+        'hard_coal': 43245000,
+        'lignite': 12274000,
+        'natural_gas': 80635000,
+        'oil': 29800000,
+        'other': 477000,
+        'ee': 337000,
+        'netto_import': 19786000}).div(3.6)
+
+    statistic['other'] = 0
+
+    for c in ['bioenergy', 'ee']:
+        statistic['other'] += statistic[c]
+        del statistic[c]
+
+    seq = analyse_berlin_ressources()
+    df = seq.sum().unstack().T
+    df.loc['statistic'] = statistic.div(1000000)
+    return df.fillna(0)
 
 
 def something():
@@ -1386,90 +1534,6 @@ def analyse_DE01_basic():
         exit(0)
 
 
-
-
-def analyse_berlin_basic():
-    r = {}
-    year = 2014
-    scenarios = {
-        'deflex_de22': {'es': ['deflex', str(year)],
-                        'var': 'de22',
-                        'region': 'DE22'},
-        'berlin_de22': {'es': ['berlin_hp', str(year)],
-                        'var': 'de22',
-                        'region': 'BE'},
-        'berlin_de21': {'es': ['berlin_hp', str(year)],
-                        'var': 'de21',
-                        'region': 'BE'},
-        'berlin_up_deflex_de21_wo': {
-            'es': ['berlin_hp', str(year)],
-            'var': 'single_up_deflex_2014_de21_without_berlin',
-            'region': 'BE'},
-        'berlin_up_deflex_de22_wo': {
-            'es': ['berlin_hp', str(year)],
-            'var': 'single_up_deflex_2014_de22_without_berlin',
-            'region': 'BE'},
-        'berlin_up_deflex_de21': {
-            'es': ['berlin_hp', str(year)],
-            'var': 'single_up_deflex_2014_de21',
-            'region': 'BE'},
-        'berlin_up_deflex_de22': {
-            'es': ['berlin_hp', str(year)],
-            'var': 'single_up_deflex_2014_de22',
-            'region': 'BE'},
-        'berlin_single': {'es': ['berlin_hp', str(year)],
-                          'var': 'single_up_None',
-                          'region': 'BE'},
-    }
-
-    for k, v in scenarios.items():
-        es = load_es(*v['es'], var=v['var'])
-
-        resource_blnc = get_multiregion_bus_balance(es, 'bus_commodity').sum()
-        r[k] = resource_blnc.loc[v['region'], 'in', 'source', 'commodity']
-
-        if 'None' not in v['var']:
-            elec_balance = get_multiregion_bus_balance(es)
-            import_berlin = elec_balance.sum().loc[v['region'], 'in', 'import',
-                                                   'electricity', 'all']
-            export_berlin = elec_balance.sum().loc[v['region'], 'out', 'export',
-                                                   'electricity', 'all']
-            netto_import = import_berlin - export_berlin
-            r[k]['netto_import'] = netto_import  # /0.357411
-        else:
-            r[k]['netto_import'] = 0
-
-        r[k]['other'] = r[k].get('other', 0) + r[k].get('waste', 0)
-
-    # Energiebilanz Berlin 2014
-    r['statistic'] = pd.Series({
-        'bioenergy': 7152000,
-        'hard_coal': 43245000,
-        'lignite': 12274000,
-        'natural_gas': 80635000,
-        'oil': 29800000,
-        'other': 477000,
-        'netto_import': 19786000}).div(3.6)
-
-    df = pd.concat(r).drop('waste', axis=0, level=1).unstack().div(1000000)
-
-    print(df.sum(axis=1))
-    print(df.sum(axis=0))
-
-    color_dict = my_plot.get_cdict_df(df)
-
-    # use get to specify dark gray as the default color.
-    df.plot(
-        kind='bar', color=[color_dict.get(x, '#bbbbbb') for x in df.columns])
-
-    print(df)
-    df['import_ressources'] = df['netto_import'] / 0.40
-    df.drop('netto_import', axis=1, inplace=True)
-    print(df.sum(axis=1))
-    # r[2].plot(kind='bar', axis=a)
-    plt.show()
-
-
 def analyse_fhg_basic():
     # upstream_es = load_es(2014, 'de21', 'deflex')
     path = os.path.join(
@@ -1551,167 +1615,177 @@ def analyse_upstream_scenarios():
 if __name__ == "__main__":
     logger.define_logging()
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__)])
-    analyse_berlin_basic()
-    exit(0)
+    analyse_berlin_ressources_test()
+    # analyse_berlin_basic()
+    # exit(0)
+    # es = load_es('deflex', str(2014), var='de22_without_berlin')
+    # plot_bus_view(es)
+    # plt.show()
+    # plot_bus_view(es)
+    # check_excess_shortage(es.results['Main'])
+    # exit(0)
     # analyse_ee_basic()
     # exit(0)
-    analyse_fhg_basic()
+    # analyse_berlin_basic()
+    # exit(0)
     # analyse_upstream_scenarios()
     # exit(0)
     # analyse_fhg_basic()
     # multi_analyse_fhg_emissions()
-    df = pd.read_excel('/home/uwe/emissions_analysis.xls')
-    # for c in df.index:
-    #     print(c)
-    #     if 'hard_coal' in c:
-    #         df.drop(c, inplace=True)
-    df['optional_tot'] = (df['total'] - df['optional_export'] +
-                          df['optional_import'])
-    df['upstream_tot'] = df['total'] - df['displaced'] + df['supplement']
-    df.sort_index(axis=1).sort_index(axis=0).plot(kind='bar')
-    plt.show()
-    # analyse_fhg_emissions()
-    exit(0)
-    # my_es = load_es(2014, 'de21', 'deflex')
-    # analyse_system_costs(my_es, plot=True)
+    # df = pd.read_excel('/home/uwe/emissions_analysis.xls')
+    # # for c in df.index:
+    # #     print(c)
+    # #     if 'hard_coal' in c:
+    # #         df.drop(c, inplace=True)
+    # df['optional_tot'] = (df['total'] - df['optional_export'] +
+    #                       df['optional_import'])
+    # df['upstream_tot'] = df['total'] - df['displaced'] + df['supplement']
+    # df.sort_index(axis=1).sort_index(axis=0).plot(kind='bar')
+    # plt.show()
+    # # analyse_fhg_emissions()
     # exit(0)
-    my_sres = something()
-    sort_col = ['upstream', 'fuel', 'region']  #'export avg costs'
-    sort_idx = my_sres['meta'].sort_values(sort_col).index
-    for df in ['avg_costs', 'absolute_costs', 'absolute_flows',
-               'absolute_emissions']:
-        my_sres[df].loc[sort_idx].plot(kind='bar')
-    # my_sres['avg_costs'].sort_values(sort_col).plot(kind='bar')
-    # my_sres['avg_costs'].loc[sort_idx].plot(kind='bar')
-
-    # my_sres['absolute_flows'][cols].sort_values('export')
-
-    pd.concat([my_sres['meta'],
-               my_sres['avg_costs'],
-               my_sres['absolute_costs'],
-               my_sres['absolute_flows'],
-               my_sres['absolute_emissions'],
-               my_sres['upstream_emissions'],
-               my_sres['emissions']],
-              axis=1).to_excel('/home/uwe/test.xls')
-    plt.show()
-    exit(0)
-    # analyse_system_costs(plot=True)
-    # my_es = load_es(2014, 'deflex_2014_de21', 'friedrichshagen')
-
-    exit(0)
-    # ebus_seq = outputlib.views.node(my_es.results['Main'],
-    #                                 'bus_electricity_all_FHG')['sequences']
-    # print(ebus_seq.sum())
+    # # my_es = load_es(2014, 'de21', 'deflex')
+    # # analyse_system_costs(my_es, plot=True)
+    # # exit(0)
+    # my_sres = something()
+    # sort_col = ['upstream', 'fuel', 'region']  #'export avg costs'
+    # sort_idx = my_sres['meta'].sort_values(sort_col).index
+    # for df in ['avg_costs', 'absolute_costs', 'absolute_flows',
+    #            'absolute_emissions']:
+    #     my_sres[df].loc[sort_idx].plot(kind='bar')
+    # # my_sres['avg_costs'].sort_values(sort_col).plot(kind='bar')
+    # # my_sres['avg_costs'].loc[sort_idx].plot(kind='bar')
     #
-    # ebus = my_es.groups['bus_electricity_all_FHG']
-    # export_node = my_es.groups['export_electricity_all_FHG']
-    # import_node = my_es.groups['import_electricity_all_FHG']
-    # export_costs = my_es.flows()[(ebus, export_node)].variable_costs / 0.99
-    # import_costs = my_es.flows()[(import_node, ebus)].variable_costs / 1.01
-    # export_flow = my_es.results['Main'][(ebus, export_node)]['sequences']
-    # import_flow = my_es.results['Main'][(import_node, ebus)]['sequences']
+    # # my_sres['absolute_flows'][cols].sort_values('export')
     #
-    # export_flow.reset_index(drop=True, inplace=True)
-    # import_flow.reset_index(drop=True, inplace=True)
-    #
-    # total_export_costs = export_flow.multiply(export_costs, axis=0)
-    # total_import_costs = import_flow.multiply(import_costs, axis=0)
-    #
-    # print(total_import_costs.sum() / import_flow.sum())
-    # print(total_export_costs.sum() / export_flow.sum() * -1)
-    #
-    # ax = total_export_costs.plot()
-    # total_import_costs.plot(ax=ax)
+    # pd.concat([my_sres['meta'],
+    #            my_sres['avg_costs'],
+    #            my_sres['absolute_costs'],
+    #            my_sres['absolute_flows'],
+    #            my_sres['absolute_emissions'],
+    #            my_sres['upstream_emissions'],
+    #            my_sres['emissions']],
+    #           axis=1).to_excel('/home/uwe/test.xls')
     # plt.show()
     # exit(0)
-    plot_bus(my_es, 'bus_electricity_all_DE01')
-    # exit(0)
-    # analyse_bus(2014, 'de21', 'deflex', 'DE01')
-
-
-    exit(0)
-
-    # scenarios = pd.read_csv('scenarios.csv')
-    # scenarios['description'] = scenarios.apply(lambda x: '_'.join(x), axis=1)
+    # # analyse_system_costs(plot=True)
+    # # my_es = load_es(2014, 'deflex_2014_de21', 'friedrichshagen')
     #
-    # # scenarios.to_csv('scenarios.csv')
-    # costs_df = pd.DataFrame()
-    # for scen in scenarios.itertuples():
-    #     logging.info("Process scenario: {0}".format(scen.description))
-    #     if scen.rmap != 'single':
-    #         my_es = load_es(scen.variant, scen.rmap, scen.cat, with_tags=True)
-    #         costs_df[scen.description] = analyse_system_costs(my_es)
-
-    # costs_df.to_excel('/home/uwe/costs.xls')
-    costs_df = pd.read_excel('/home/uwe/costs.xls')
-    print(costs_df.sum())
-    print(costs_df.mean())
-    costs_df.plot(legend=True)
-    plt.show()
-    # print(get_nominal_values(my_es))
     # exit(0)
-    # plot_bus_view(my_es)
-    exit(0)
-    my_es_2 = load_es(2014, 'de21', 'berlin_hp')
-    # reshape_bus_view(my_es, my_es.groups['bus_electricity_all_DE01'])
-    get_multiregion_bus_balance(my_es, 'bus_electricity_all')
-
-    compare_transmission(my_es, my_es_2)
-    exit(0)
-
-    print(emissions(my_es).div(1000000))
-    exit(0)
-    fullloadhours(my_es, [0, 1, 2, 3, 4]).to_excel('/home/uwe/test.xls')
-    exit(0)
-    analyse_system_costs(my_es, plot=True)
-    plt.show()
-    print('Done')
-    df1 = get_one_node_type(my_es, node='shortage_bus_elec')
-    df2 = get_one_node_type(my_es)
-    print(df1.round(1))
-    print(df2.round(1))
-    exit(0)
-
-    my_res = plot_multiregion_io(my_es)
-    print(my_res.sum())
-    print(my_res.max())
-
-    print(my_res.sum().div(my_res.max()))
-
-    plt.show()
-
-    # analyse_bus(2014, 'single', 'friedrichshagen', 'FHG')
-    exit(0)
-    # all_res = load_all_results(2014, 'de21', 'deflex')
-    # wind = ee_analyser(all_res, 'wind')
-    # solar = ee_analyser(all_res, 'solar')
-    # new_analyser(all_res, wind, solar)
-    # print(bl['bus_elec_DE07'])
-    exit(0)
-    # system = load_es(2014, 'de21', 'deflex')
-    # results = load_es(2014, 'de21', 'deflex').results['Main']
-    # param = load_es(2014, 'de21', 'deflex').results['Param']
-    # cs_bus = [x for x in results.keys() if ('_cs_' in x[0].label) & (
-    #     isinstance(x[1], solph.Transformer))]
-
-    # print(flows.sum())
+    # # ebus_seq = outputlib.views.node(my_es.results['Main'],
+    # #                                 'bus_electricity_all_FHG')['sequences']
+    # # print(ebus_seq.sum())
+    # #
+    # # ebus = my_es.groups['bus_electricity_all_FHG']
+    # # export_node = my_es.groups['export_electricity_all_FHG']
+    # # import_node = my_es.groups['import_electricity_all_FHG']
+    # # export_costs = my_es.flows()[(ebus, export_node)].variable_costs / 0.99
+    # # import_costs = my_es.flows()[(import_node, ebus)].variable_costs / 1.01
+    # # export_flow = my_es.results['Main'][(ebus, export_node)]['sequences']
+    # # import_flow = my_es.results['Main'][(import_node, ebus)]['sequences']
+    # #
+    # # export_flow.reset_index(drop=True, inplace=True)
+    # # import_flow.reset_index(drop=True, inplace=True)
+    # #
+    # # total_export_costs = export_flow.multiply(export_costs, axis=0)
+    # # total_import_costs = import_flow.multiply(import_costs, axis=0)
+    # #
+    # # print(total_import_costs.sum() / import_flow.sum())
+    # # print(total_export_costs.sum() / export_flow.sum() * -1)
+    # #
+    # # ax = total_export_costs.plot()
+    # # total_import_costs.plot(ax=ax)
+    # # plt.show()
+    # # exit(0)
+    # plot_bus(my_es, 'bus_electricity_all_DE01')
+    # # exit(0)
+    # # analyse_bus(2014, 'de21', 'deflex', 'DE01')
+    #
+    #
     # exit(0)
-    # system = load_es(2014, 'de21', 'deflex')
-    # FINNISCHE METHODE
-    eta_th_kwk = 0.5
-    eta_el_kwk = 0.3
-    eta_th_ref = 0.9
-    eta_el_ref = 0.5
-    pee = (1/(eta_th_kwk/eta_th_ref + eta_el_kwk/eta_el_ref)) * (
-            eta_el_kwk/eta_el_ref)
-    pet = (1/(eta_th_kwk/eta_th_ref + eta_el_kwk/eta_el_ref)) * (
-            eta_th_kwk/eta_th_ref)
-
-    # print(param)
-    # Refferenzwirkungsgrade Typenabhängig (Kohle, Gas...)
-
-    print(pee * 200, pet * 200)
-
-    # https://www.ffe.de/download/wissen/
-    # 334_Allokationsmethoden_CO2/ET_Allokationsmethoden_CO2.pdf
+    #
+    # # scenarios = pd.read_csv('scenarios.csv')
+    # # scenarios['description'] = scenarios.apply(lambda x: '_'.join(x),
+    #  axis=1)
+    # #
+    # # # scenarios.to_csv('scenarios.csv')
+    # # costs_df = pd.DataFrame()
+    # # for scen in scenarios.itertuples():
+    # #     logging.info("Process scenario: {0}".format(scen.description))
+    # #     if scen.rmap != 'single':
+    # #         my_es = load_es(scen.variant, scen.rmap, scen.cat,
+    #  with_tags=True)
+    # #         costs_df[scen.description] = analyse_system_costs(my_es)
+    #
+    # # costs_df.to_excel('/home/uwe/costs.xls')
+    # costs_df = pd.read_excel('/home/uwe/costs.xls')
+    # print(costs_df.sum())
+    # print(costs_df.mean())
+    # costs_df.plot(legend=True)
+    # plt.show()
+    # # print(get_nominal_values(my_es))
+    # # exit(0)
+    # # plot_bus_view(my_es)
+    # exit(0)
+    # my_es_2 = load_es(2014, 'de21', 'berlin_hp')
+    # # reshape_bus_view(my_es, my_es.groups['bus_electricity_all_DE01'])
+    # get_multiregion_bus_balance(my_es, 'bus_electricity_all')
+    #
+    # compare_transmission(my_es, my_es_2)
+    # exit(0)
+    #
+    # print(emissions(my_es).div(1000000))
+    # exit(0)
+    # fullloadhours(my_es, [0, 1, 2, 3, 4]).to_excel('/home/uwe/test.xls')
+    # exit(0)
+    # analyse_system_costs(my_es, plot=True)
+    # plt.show()
+    # print('Done')
+    # df1 = get_one_node_type(my_es, node='shortage_bus_elec')
+    # df2 = get_one_node_type(my_es)
+    # print(df1.round(1))
+    # print(df2.round(1))
+    # exit(0)
+    #
+    # my_res = plot_multiregion_io(my_es)
+    # print(my_res.sum())
+    # print(my_res.max())
+    #
+    # print(my_res.sum().div(my_res.max()))
+    #
+    # plt.show()
+    #
+    # # analyse_bus(2014, 'single', 'friedrichshagen', 'FHG')
+    # exit(0)
+    # # all_res = load_all_results(2014, 'de21', 'deflex')
+    # # wind = ee_analyser(all_res, 'wind')
+    # # solar = ee_analyser(all_res, 'solar')
+    # # new_analyser(all_res, wind, solar)
+    # # print(bl['bus_elec_DE07'])
+    # exit(0)
+    # # system = load_es(2014, 'de21', 'deflex')
+    # # results = load_es(2014, 'de21', 'deflex').results['Main']
+    # # param = load_es(2014, 'de21', 'deflex').results['Param']
+    # # cs_bus = [x for x in results.keys() if ('_cs_' in x[0].label) & (
+    # #     isinstance(x[1], solph.Transformer))]
+    #
+    # # print(flows.sum())
+    # # exit(0)
+    # # system = load_es(2014, 'de21', 'deflex')
+    # # FINNISCHE METHODE
+    # eta_th_kwk = 0.5
+    # eta_el_kwk = 0.3
+    # eta_th_ref = 0.9
+    # eta_el_ref = 0.5
+    # pee = (1/(eta_th_kwk/eta_th_ref + eta_el_kwk/eta_el_ref)) * (
+    #         eta_el_kwk/eta_el_ref)
+    # pet = (1/(eta_th_kwk/eta_th_ref + eta_el_kwk/eta_el_ref)) * (
+    #         eta_th_kwk/eta_th_ref)
+    #
+    # # print(param)
+    # # Refferenzwirkungsgrade Typenabhängig (Kohle, Gas...)
+    #
+    # print(pee * 200, pet * 200)
+    #
+    # # https://www.ffe.de/download/wissen/
+    # # 334_Allokationsmethoden_CO2/ET_Allokationsmethoden_CO2.pdf
