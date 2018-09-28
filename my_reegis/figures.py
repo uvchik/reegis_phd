@@ -5,6 +5,7 @@ import geopandas as gpd
 import my_reegis
 import results
 from oemof.tools import logger
+from oemof import solph
 import berlin_hp
 import reegis_tools.config as cfg
 from matplotlib import pyplot as plt
@@ -23,8 +24,9 @@ def create_subplot(default_size, **kwargs):
 
 
 def fig_6_0(**kwargs):
+
     ax = create_subplot((8.5, 5), **kwargs)
-    fn_csv = os.path.join(os.path.dirname(__file__), 'data',
+    fn_csv = os.path.join(os.path.dirname(__file__), 'data', 'static',
                           'electricity_import.csv')
     df = pd.read_csv(fn_csv)
     df['Jahr'] = df['year'].astype(str)
@@ -204,11 +206,172 @@ def plot_upstream(**kwargs):
     ax = sc['deflex_2014_de22', 'meritorder'].plot()
     ax = sc['deflex_2014_de22_without_berlin', 'meritorder'].plot(ax=ax)
     ax = sc['deflex_2014_de21', 'meritorder'].plot(ax=ax)
-    # ax = sc['deflex_2014_de21_without_berlin', 'meritorder'].plot(ax=ax)
+    ax = sc['deflex_2014_de21_without_berlin', 'meritorder'].plot(ax=ax)
     ax.legend()
     sc[cols].mean().unstack()[['levelized']].plot(kind='bar')
     print(sc[cols].mean().unstack()['meritorder'])
     print(sc[cols].mean().unstack()['levelized'])
+    return 'upstream'
+
+
+def show_de21_de22_without_berlin(**kwargs):
+    # ax = create_subplot((7.8, 4), **kwargs)
+    figs = ('de21', 'Berlin', 'de22', 'de21_without_berlin')
+
+    y_annotate = {
+        'de21': 50,
+        'de22': 1000,
+        'de21_without_berlin': 1000,
+        'Berlin': 1000}
+
+    title_str = {
+        'de21': 'Region: DE01 in de21, Jahressumme: {0} GWh',
+        'de22': 'Region: DE01 in de22, Jahressumme: {0} GWh',
+        'de21_without_berlin':
+            'Region: DE01 in de21 ohne Berlin, Jahressumme: {0} GWh',
+        'Berlin': 'Region: Berlin in berlin_hp, Jahressumme: {0} GWh'}
+
+    ax = {}
+    f, ax_ar = plt.subplots(2, 2, sharey=True, sharex=True, figsize=(15, 10))
+
+    i = 0
+    for n in range(2):
+        for m in range(2):
+            ax[figs[i]] = ax_ar[n, m]
+            i += 1
+
+    ol = ['lignite', 'coal', 'natural_gas', 'bioenergy', 'oil', 'other',
+          'shortage']
+
+    data_sets = {}
+    period = (576, 650)
+
+    for var in ('de21', 'de22', 'de21_without_berlin'):
+        data_sets[var] = {}
+        es = results.load_es(
+            'deflex', str(2014), var='{0}'.format(var))
+        bus = [b[0] for b in es.results['Main'] if
+               (b[0].label.region == 'DE01') &
+               (b[0].label.tag == 'heat') &
+               (isinstance(b[0], solph.Bus))][0]
+        data = results.reshape_bus_view(es, bus)[bus.label.region]
+
+        results.check_excess_shortage(es.results['Main'])
+        # if data.sum().sum() > 500000:
+        #     data *= 0.5
+        annual = round(data['out', 'demand'].sum().sum(), -2)
+        data = data.iloc[period[0]:period[1]]
+        data_sets[var]['data'] = data
+        data_sets[var]['title'] = title_str[var].format(int(annual))
+
+    var = 'Berlin'
+    data_sets[var] = {}
+    es = results.load_es(
+        'berlin_hp', str(2014), var='single_up_None')
+    data = results.get_multiregion_bus_balance(es, 'district').groupby(
+            axis=1, level=[1, 2, 3, 4]).sum()
+    data.rename(columns={'waste': 'other'}, level=3, inplace=True)
+    annual = round(data['out', 'demand'].sum().sum(), -2)
+    data = data.iloc[period[0]:period[1]]
+    data_sets[var]['data'] = data
+    data_sets[var]['title'] = title_str[var].format(int(annual))
+    results.check_excess_shortage(es.results['Main'])
+
+    i = 0
+    for k in figs:
+        v = data_sets[k]
+        if i == 1:
+            legend = True
+        else:
+            legend = False
+
+        av = float(v['data'].iloc[5]['out', 'demand'].sum())
+        print(float(v['data'].iloc[6]['out', 'demand'].sum()))
+
+        a = results.plot_bus_view(data=v['data'], ax=ax[k], legend=legend,
+                                  xlabel='', ylabel='Leistung [MW]',
+                                  title=v['title'], in_ol=ol,
+                                  out_ol=['demand'], smooth=False)
+        a.annotate(str(int(av)), xy=(5, av), xytext=(12, av + y_annotate[k]),
+                   arrowprops=dict(facecolor='black',
+                                   arrowstyle='->',
+                                   connectionstyle='arc3,rad=0.2'))
+        i += 1
+
+    plt.subplots_adjust(right=0.84, left=0.06, bottom=0.08, top=0.95,
+                        wspace=0.06)
+    plt.arrow(600, 600, 200, 200)
+    return 'compare_district_heating_de01_without_berlin'
+
+
+def berlin_resources_time_series():
+    names = {
+        'lignite': 'Braunkohle',
+        'natural_gas': 'Erdgas',
+        'oil': 'Öl',
+        'hard_coal': 'Steinkohle',
+        'netto_import': 'Strom'
+    }
+
+    seq = results.analyse_berlin_ressources()
+
+    f, ax_ar = plt.subplots(5, 2, sharey='row', sharex=True, figsize=(9, 6))
+    i = 0
+    for c in ['lignite', 'natural_gas', 'oil', 'hard_coal', 'netto_import']:
+        seq[[(c, 'deflex_de22'), (c, 'berlin_deflex'),
+             (c, 'berlin_up_deflex')]].multiply(1000).resample('D').mean(
+            ).plot(ax=ax_ar[i][0], legend=False)
+        ax = seq[[(c, 'deflex_de22'), (c, 'berlin_deflex'),
+                  (c, 'berlin_up_deflex')]].multiply(1000).resample('M').mean(
+            ).plot(ax=ax_ar[i][1], legend=False)
+        ax.set_xlim([seq.index[0], seq.index[8759]])
+        txt = names[c]
+        ax.text(seq.index[8759], ax.get_ylim()[1]/2, txt, size=12,
+                verticalalignment='center', horizontalalignment='left',
+                rotation=270)
+        i += 1
+
+    for i in range(5):
+        for j in range(2):
+            ax = ax_ar[i, j]
+            if i == 0 and j == 0:
+                ax.set_title("Tagesmittel", loc='center', y=1)
+            if i == 0 and j == 1:
+                ax.set_title("Monatsmittel", loc='center', y=1)
+
+    plt.subplots_adjust(right=0.96, left=0.05, bottom=0.13, top=0.95,
+                        wspace=0.06, hspace=0.2)
+
+    handles, labels = ax.get_legend_handles_labels()
+    new_labels = []
+    for lab in labels:
+        new_labels.append(lab.split(',')[1][:-1])
+    plt.legend(handles, new_labels, bbox_to_anchor=(0, -0.9),
+               loc='lower center', ncol=3)
+    return 'ressource_use_berlin_time_series'
+
+
+def berlin_resources(**kwargs):
+    ax = create_subplot((7.8, 4), **kwargs)
+
+    names = {
+        'lignite': 'Braunkohle',
+        'natural_gas': 'Erdgas',
+        'oil': 'Öl',
+        'hard_coal': 'Steinkohle',
+        'netto_import': 'Strom'
+        }
+
+    df = results.analyse_berlin_ressources_total()
+
+
+    color_dict = my_reegis.plot.get_cdict_df(df)
+
+    df.plot(kind='bar', ax=ax,
+            color=[color_dict.get(x, '#bbbbbb') for x in df.columns])
+    plt.subplots_adjust(right=0.79)
+    plt.legend(bbox_to_anchor=(1.3, 1), loc='upper right', ncol=1)
+    return 'resource_use_berlin'
 
 
 def plot_figure(number, save=False, path=None, show=False, **kwargs):
@@ -221,6 +384,9 @@ def plot_figure(number, save=False, path=None, show=False, **kwargs):
         '6.x': fig_6_x_draft1,
         '5.3': figure_district_heating_areas,
         '4.1': fig_4_1,
+        '6.4': show_de21_de22_without_berlin,
+        '6.5': berlin_resources,
+        '6.6': berlin_resources_time_series,
     }
 
     filename = number_name[number](**kwargs)
@@ -242,4 +408,4 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
                     os.path.dirname(my_reegis.__file__)])
     p = '/home/uwe/git_local/monographie/figures/'
-    plot_figure('6.3', save=False, show=True, path=p)
+    plot_figure('6.5', save=True, show=True, path=p)
