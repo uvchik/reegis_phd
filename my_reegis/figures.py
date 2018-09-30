@@ -1,26 +1,46 @@
 import os
 import logging
 import pandas as pd
-import geopandas as gpd
 import my_reegis
 import results
+import plot
 from oemof.tools import logger
 from oemof import solph
 import berlin_hp
 import reegis_tools.config as cfg
 from matplotlib import pyplot as plt
-import reegis_tools.gui as gui
 from reegis_tools import energy_balance
 from reegis_tools import inhabitants
 from reegis_tools import geometries
 from berlin_hp import heat
 from matplotlib.colors import LinearSegmentedColormap
 from my_reegis import friedrichshagen_scenarios as fhg_sc
+from matplotlib.sankey import Sankey
+# import reegis_tools.gui as gui
+
+
+NAMES = {
+    'lignite': 'Braunkohle',
+    'natural_gas': 'Gas',
+    'oil': 'Öl',
+    'hard_coal': 'Steinkohle',
+    'netto_import': 'Stromimport',
+    'other': 'sonstige'
+}
 
 
 def create_subplot(default_size, **kwargs):
     size = kwargs.get('size', default_size)
     return plt.figure(figsize=size).add_subplot(1, 1, 1)
+
+
+def sankey_test():
+
+    Sankey(flows=[1, -5727/22309, -14168/22309, -1682/22309, -727/22309],
+           labels=[' ', ' ', ' ', ' ', ' '],
+           orientations=[-1, 1, 0, -1, 1]).finish()
+    plt.title("The default settings produce a diagram like this.")
+    return 'sankey_test'
 
 
 def fig_6_0(**kwargs):
@@ -52,30 +72,55 @@ def fig_6_0(**kwargs):
     return 'anteil_import_stromverbrauch_berlin'
 
 
-def fig_6_1(**kwargs):
-
-    size_6_1 = kwargs.get('size', (10, 10))
+def fig_6_1():
     year = 2014
-    my_es = results.load_es('deflex', str(year), var='de21')
-    my_es_2 = results.load_es('berlin_hp', str(year), var='de21')
-    transmission = results.compare_transmission(my_es, my_es_2)
+    sets = {
+        'fraction': {
+            'key': 'fraction',
+            'vmax': 10,
+            'label_max': 1,
+            'unit': '%',
+            'order': 1},
+        'absolut': {
+            'key': 'diff_2-1',
+            'vmax': 300,
+            'label_max': 100,
+            'unit': 'GWh',
+            'order': 0},
+    }
 
-    print(transmission)
-    print(transmission.columns)
+    cmp = LinearSegmentedColormap.from_list(
+        'mycmap', [
+            (0, '#aaaaaa'),
+            (0.0001, 'green'),
+            (0.5, '#d5b200'),
+            (1, 'red')])
 
-    key = gui.get_choice(list(transmission.columns),
-                         "Plot transmission lines", "Choose data column.")
-    vmax = max([abs(transmission[key].max()), abs(transmission[key].min())])
-    units = {'es1': 'GWh', 'es2': 'GWh', 'diff_2-1': '', 'fraction': '%',
-             'es1_max': 'GW', 'es2_max': 'GW', 'diff_2-1_max': 'GW',
-             'es1_abs': 'GWh', 'es2_abs': 'GWh', 'diff_2-1_abs': 'GWh'}
-    if 'abs' in key:
-        direct = False
-    else:
-        direct = True
+    f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
+    my_es1 = results.load_es('deflex', str(year), var='de21')
+    my_es2 = results.load_es('berlin_hp', str(year), var='de22')
+    transmission = results.compare_transmission(my_es1, my_es2).div(1)
 
-    results.plot_power_lines(transmission, key, vmax=20, unit=units[key],
-                             size=size_6_1, direction=direct, label_max=4.9)
+    for k, v in sets.items():
+        ax = ax_ar[v['order']]
+
+        if 'abs' in v['key']:
+            direct = False
+        else:
+            direct = True
+
+        plot.plot_power_lines(
+            transmission, v['key'], vmax=v['vmax'], unit='', ax=ax,
+            direction=direct, label_max=v['label_max'], cmap_lines=cmp,
+            legend=False)
+
+        for spine in plt.gca().spines.values():
+            spine.set_visible(False)
+        ax.axis('off')
+        plot.geopandas_colorbar_same_height(f, ax, 0, v['vmax'], cmp)
+        plt.title(v['unit'])
+    plt.subplots_adjust(right=0.97, left=0, wspace=0, bottom=0.03, top=0.96)
+
     return 'name_6_1'
 
 
@@ -97,9 +142,9 @@ def fig_regionen(**kwargs):
                    (0.5, '#dd5500'),
                    (1, '#a5bfdd')])
 
-    ax = results.plot_regions(edgecolor='#666666', data=data, legend=False,
-                              label_col='reg_id', fn=fn, column='class',
-                              cmap=cmap, ax=ax)
+    ax = plot.plot_regions(edgecolor='#666666', data=data, legend=False,
+                           label_col='reg_id', fn=fn, column='class',
+                           cmap=cmap, ax=ax)
     plt.subplots_adjust(right=1, left=0, bottom=0, top=1)
 
     # Remove frame around plot
@@ -113,9 +158,10 @@ def fig_6_x_draft1(**kwargs):
 
     ax = create_subplot((5, 5), **kwargs)
 
-    my_es = results.load_es(2014, 'de22', 'deflex')
-    my_es_2 = results.load_es(2014, 'de22', 'berlin_hp')
-    transmission = results.compare_transmission(my_es, my_es_2)
+    my_es1 = results.load_es('deflex', '2014', var='de21')
+    my_es2 = results.load_es('deflex', '2014', var='de22')
+    # my_es_2 = results.load_es(2014, 'de22', 'berlin_hp')
+    transmission = results.compare_transmission(my_es1, my_es2)
 
     # PLOTS
     transmission = transmission.div(1000)
@@ -196,7 +242,7 @@ def figure_district_heating_areas(**kwargs):
     return 'ew_fw_elec_share'
 
 
-def plot_upstream(**kwargs):
+def plot_upstream():
     year = 2014
     sc = fhg_sc.load_upstream_scenario_values()
     cols = ['deflex_{0}_de21_without_berlin', 'deflex_{0}_de22_without_berlin',
@@ -214,8 +260,7 @@ def plot_upstream(**kwargs):
     return 'upstream'
 
 
-def show_de21_de22_without_berlin(**kwargs):
-    # ax = create_subplot((7.8, 4), **kwargs)
+def show_de21_de22_without_berlin():
     figs = ('de21', 'Berlin', 'de22', 'de21_without_berlin')
 
     y_annotate = {
@@ -305,16 +350,7 @@ def show_de21_de22_without_berlin(**kwargs):
 
 
 def berlin_resources_time_series():
-    names = {
-        'lignite': 'Braunkohle',
-        'natural_gas': 'Erdgas',
-        'oil': 'Öl',
-        'hard_coal': 'Steinkohle',
-        'netto_import': 'Strom'
-    }
-
     seq = results.analyse_berlin_ressources()
-
     f, ax_ar = plt.subplots(5, 2, sharey='row', sharex=True, figsize=(9, 6))
     i = 0
     for c in ['lignite', 'natural_gas', 'oil', 'hard_coal', 'netto_import']:
@@ -325,8 +361,7 @@ def berlin_resources_time_series():
                   (c, 'berlin_up_deflex')]].multiply(1000).resample('M').mean(
             ).plot(ax=ax_ar[i][1], legend=False)
         ax.set_xlim([seq.index[0], seq.index[8759]])
-        txt = names[c]
-        ax.text(seq.index[8759], ax.get_ylim()[1]/2, txt, size=12,
+        ax.text(seq.index[8759], ax.get_ylim()[1]/2, NAMES[c], size=12,
                 verticalalignment='center', horizontalalignment='left',
                 rotation=270)
         i += 1
@@ -354,23 +389,34 @@ def berlin_resources_time_series():
 def berlin_resources(**kwargs):
     ax = create_subplot((7.8, 4), **kwargs)
 
-    names = {
-        'lignite': 'Braunkohle',
-        'natural_gas': 'Erdgas',
-        'oil': 'Öl',
-        'hard_coal': 'Steinkohle',
-        'netto_import': 'Strom'
-        }
-
     df = results.analyse_berlin_ressources_total()
-
 
     color_dict = my_reegis.plot.get_cdict_df(df)
 
-    df.plot(kind='bar', ax=ax,
-            color=[color_dict.get(x, '#bbbbbb') for x in df.columns])
+    ax = df.plot(kind='bar', ax=ax,
+                 color=[color_dict.get(x, '#bbbbbb') for x in df.columns])
     plt.subplots_adjust(right=0.79)
-    plt.legend(bbox_to_anchor=(1.3, 1), loc='upper right', ncol=1)
+
+    # Adapt legend
+    handles, labels = ax.get_legend_handles_labels()
+    new_labels = []
+    for label in labels:
+        new_labels.append(NAMES[label])
+    plt.legend(handles, new_labels, bbox_to_anchor=(1.3, 1),
+               loc='upper right', ncol=1)
+
+    # Adapt xticks
+    locs, labels = plt.xticks()
+    new_labels = []
+    for label in labels:
+        if 'up' in label.get_text():
+            new_labels.append(label.get_text().replace('up_', 'up_\n'))
+        else:
+            new_labels.append(label.get_text().replace('_', '_\n'))
+    plt.xticks(locs, new_labels, rotation=0)
+
+    plt.ylabel('Energiemenge 2014 [TWh]')
+    plt.subplots_adjust(right=0.78, left=0.08, bottom=0.12, top=0.98)
     return 'resource_use_berlin'
 
 
@@ -387,6 +433,7 @@ def plot_figure(number, save=False, path=None, show=False, **kwargs):
         '6.4': show_de21_de22_without_berlin,
         '6.5': berlin_resources,
         '6.6': berlin_resources_time_series,
+        '6.7': sankey_test,
     }
 
     filename = number_name[number](**kwargs)
@@ -408,4 +455,4 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
                     os.path.dirname(my_reegis.__file__)])
     p = '/home/uwe/git_local/monographie/figures/'
-    plot_figure('6.5', save=True, show=True, path=p)
+    plot_figure('6.1', save=True, show=True, path=p)
