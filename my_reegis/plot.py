@@ -198,13 +198,19 @@ def get_cdict_df(df):
 
 
 def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
-                     vmax=None, label_max=None, unit='GWh', size=None,
-                     ax=None, legend=True):
+                     vmax=None, label_min=None, label_max=None, unit='GWh',
+                     size=None, ax=None, legend=True, unit_to_label=False,
+                     divide=1, decimal=0, **kwargs):
 
     if size is None and ax is None:
         ax = plt.figure(figsize=(5, 5)).add_subplot(1, 1, 1)
     elif size is not None and ax is None:
         ax = plt.figure(figsize=size).add_subplot(1, 1, 1)
+
+    if unit_to_label is True:
+        label_unit = unit
+    else:
+        label_unit = ''
 
     lines = reegis_tools.geometries.load(
         cfg.get('paths', 'geometry'), cfg.get('geometry', 'de21_power_lines'))
@@ -212,7 +218,7 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
         cfg.get('paths', 'geometry'),
         cfg.get('geometry', 'de21_polygons_simple'))
 
-    lines = lines.merge(data, left_index=True, right_index=True)
+    lines = lines.merge(data.div(divide), left_index=True, right_index=True)
 
     lines['centroid'] = lines.centroid
 
@@ -235,14 +241,19 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
             polygons.loc[i, 'color'] = 0
 
     lines['reverse'] = lines[key] < 0
+
+    # if direction is False:
     lines.loc[lines['reverse'], key] = (
         lines.loc[lines['reverse'], key] * -1)
 
     if vmax is None:
         vmax = lines[key].max()
 
+    if label_min is None:
+        label_min = vmax * 0.5
+
     if label_max is None:
-        label_max = vmax * 0.5
+        label_max = float('inf')
 
     ax = polygons.plot(edgecolor='#9aa1a9', cmap=cmap_bg, column='color',
                        ax=ax)
@@ -254,18 +265,18 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
         x2 = v['geometry'].coords[1][0]
         y2 = v['geometry'].coords[1][1]
 
-        value = v[key] / vmax
-        mc = cmap_lines(value)
+        value_relative = v[key] / vmax
+        mc = cmap_lines(value_relative)
 
         orient = math.atan(abs(x1-x2)/abs(y1-y2))
 
-        if (y1 > y2) & (x1 > x2):
+        if (y1 > y2) & (x1 > x2) or (y1 < y2) & (x1 < x2):
             orient *= -1
 
         if v['reverse']:
             orient += math.pi
 
-        if round(v[key]) == 0 or not direction:
+        if v[key] == 0 or not direction:
             polygon = patches.RegularPolygon(
                 (v['centroid'].x, v['centroid'].y),
                 4,
@@ -283,15 +294,26 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
                 zorder=10)
         ax.add_patch(polygon)
 
-        if v[key] > label_max:
+        if decimal == 0:
+            value = int(round(v[key]))
+        else:
+            value = round(v[key], decimal)
+
+        if label_min <= value <= label_max:
+            if v['reverse'] is True and direction is False:
+                value *= -1
             ax.text(
                 v['centroid'].x, v['centroid'].y,
-                '{0} {1}'.format(round(v[key]), unit),
+                '{0} {1}'.format(value, label_unit),
                 color='#000000',
                 fontsize=9.5,
                 zorder=15,
                 path_effects=[
                     path_effects.withStroke(linewidth=3, foreground="w")])
+
+    for spine in plt.gca().spines.values():
+        spine.set_visible(False)
+    ax.axis('off')
 
     polygons.apply(lambda x: ax.annotate(
         x.name, xy=x.geometry.centroid.coords[0], ha='center'), axis=1)
