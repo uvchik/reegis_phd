@@ -320,7 +320,7 @@ def start_alternative_scenarios(checker, create_scenario=True):
 
 
 def start_berlin_single_scenarios(checker=True, create_scenario=True):
-    for year in [2014, 2013]:
+    for year in [2014, 2013, 2012]:
         up_sc = fhg_sc.load_upstream_scenario_values(
             ).columns.get_level_values(0).unique()
         up_sc = [x for x in up_sc if str(year) in x]
@@ -423,7 +423,8 @@ if __name__ == "__main__":
     
     stopwatch()
     startdir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
-    log_check(start_all_by_dir(start_dir=startdir))
+    # log_check(start_all_by_dir(start_dir=startdir))
+    log_check(start_berlin_single_scenarios())
     # log_check(start_berlin_single_scenarios())
     # log_check(start_all(create_scenario=True))
     # log_check(
