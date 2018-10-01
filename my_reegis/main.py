@@ -382,23 +382,26 @@ def start_all(checker=True, create_scenario=True):
 
 def start_all_by_dir(checker=True):
     # alternative_scenarios.multi_scenario_deflex()
-    start_dir = os.path.join(cfg.get('paths', 'scenario'), 'deflex',
-                             '2014_var_entsoe')
+    start_dir = os.path.join(cfg.get('paths', 'scenario'), 're')
 
-    sc = []
+    scenarios = []
     for root, directories, filenames in os.walk(start_dir):
         for d in directories:
-            sc.append(d)
+            scenarios.append(d)
 
-    logging.info("All scenarios: {0}".format(sorted(sc)))
+    logging.info("All scenarios: {0}".format(sorted(scenarios)))
+    logging.info("Number of found scenarios: {0}".format(len(scenarios)))
 
-    for d in sorted(sc):
+    remain = len(scenarios)
+    for d in sorted(scenarios):
         if d[-4:] == '_csv':
             name = d[:-4]
             try:
                 optimise_scenario(start_dir, name)
             except Exception as e:
                 checker = log_exception(e)
+        logging.info("Number of remaining scenarios: {0}".format(remain))
+        remain -= 1
     return checker
 
 
