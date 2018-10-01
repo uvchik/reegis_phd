@@ -249,13 +249,13 @@ def simple_deflex_de21_2014(subpath='new', factor=0.0):
 def multi_scenario_deflex():
     # Once re-create deflex scenario
     main.load_deflex_scenario(2014, create_scenario=True)
-
+    s = os.path.join('deflex', 're')
     for f in range(11):
-        create_scenario_XX_Nc00_Li05_HP00_GT(subpath='re', factor=f/10)
-        create_scenario_XX_Nc00_Li05_HP02_GT(subpath='re', factor=f/10)
-        create_scenario_XX_Nc00_Li05_HP00(subpath='re', factor=f/10)
-        create_scenario_XX_Nc00_Li05_HP02(subpath='re', factor=f/10)
-        simple_deflex_de21_2014(subpath='re', factor=f/10)
+        create_scenario_XX_Nc00_Li05_HP00_GT(subpath=s, factor=f/10)
+        create_scenario_XX_Nc00_Li05_HP02_GT(subpath=s, factor=f/10)
+        create_scenario_XX_Nc00_Li05_HP00(subpath=s, factor=f/10)
+        create_scenario_XX_Nc00_Li05_HP02(subpath=s, factor=f/10)
+        simple_deflex_de21_2014(subpath=s, factor=f/10)
 
 
 if __name__ == "__main__":
