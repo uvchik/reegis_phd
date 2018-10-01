@@ -106,7 +106,7 @@ def create_scenario_XX_Nc00_Li05_HP02(subpath='new', factor=0.0):
 
     more_heat_pumps(sc, heat_pump_fraction=0.2, cop=2)
 
-    sub = 'XX_Nc00_Li05_HP02_f{0}'.format(factor)
+    sub = 'XX_Nc00_Li05_HP02_f{0}'.format(str(factor).replace('.', ''))
 
     name = '{0}_{1}_{2}'.format('deflex', sub, cfg.get(
         'init', 'map'))
@@ -127,7 +127,7 @@ def create_scenario_XX_Nc00_Li05_HP00(subpath='new', factor=0.0):
 
     reduce_power_plants(sc, nuclear=0, lignite=0.5)
 
-    sub = 'XX_Nc00_Li05_HP00_f{0}'.format(factor)
+    sub = 'XX_Nc00_Li05_HP00_f{0}'.format(str(factor).replace('.', ''))
 
     name = '{0}_{1}_{2}'.format('deflex', sub, cfg.get(
         'init', 'map'))
@@ -175,7 +175,7 @@ def create_scenario_XX_Nc00_Li05_HP02_GT(subpath='new', factor=0.0):
 
     more_heat_pumps(sc, heat_pump_fraction=0.2, cop=2)
 
-    sub = 'XX_Nc00_Li05_HP02_GT_f{0}'.format(factor)
+    sub = 'XX_Nc00_Li05_HP02_GT_f{0}'.format(str(factor).replace('.', ''))
 
     name = '{0}_{1}_{2}'.format('deflex', sub, cfg.get(
         'init', 'map'))
@@ -221,7 +221,7 @@ def create_scenario_XX_Nc00_Li05_HP00_GT(subpath='new', factor=0.0):
 
     reduce_power_plants(sc, nuclear=0, lignite=0.5)
 
-    sub = 'XX_Nc00_Li05_HP00_GT_f{0}'.format(factor)
+    sub = 'XX_Nc00_Li05_HP00_GT_f{0}'.format(str(factor).replace('.', ''))
 
     name = '{0}_{1}_{2}'.format('deflex', sub, cfg.get(
         'init', 'map'))
@@ -236,7 +236,7 @@ def simple_deflex_de21_2014(subpath='new', factor=0.0):
 
     increase_re_share(sc, factor)
 
-    sub = 'de21_f{0}'.format(factor)
+    sub = 'de21_f{0}'.format(str(factor).replace('.', ''))
 
     name = '{0}_{1}_{2}'.format('deflex', sub, cfg.get(
         'init', 'map'))

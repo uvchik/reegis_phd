@@ -400,8 +400,8 @@ def start_all_by_dir(checker=True):
                 optimise_scenario(start_dir, name)
             except Exception as e:
                 checker = log_exception(e)
-        logging.info("Number of remaining scenarios: {0}".format(remain))
         remain -= 1
+        logging.info("Number of remaining scenarios: {0}".format(remain))
     return checker
 
 
