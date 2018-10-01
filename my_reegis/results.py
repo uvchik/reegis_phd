@@ -28,6 +28,7 @@ def compare_transmission(es1, es2, name1='es1', name2='es2', noreg='DE22'):
 
     results1 = es1.results['Main']
     results2 = es2.results['Main']
+    parameter = es1.results['Param']
 
     out_flow_lines = [x for x in results1.keys() if
                       ('line' in x[0].label.cat) &
@@ -57,29 +58,66 @@ def compare_transmission(es1, es2, name1='es1', name2='es2', noreg='DE22'):
         from1to2_es2 = results2[(line_a_2, bus_reg2_2)]['sequences']
         from2to1_es2 = results2[(line_b_2, bus_reg1_2)]['sequences']
 
+        line_capacity = (parameter[(line_a_1, bus_reg2_1)]['scalars']
+                         .nominal_value)
+
         line_name = '-'.join([line_a_1.label.subtag, line_a_1.label.region])
+
+        transmission.loc[line_name, 'capacity'] = line_capacity
 
         # Annual balance for each line and each energy system
         transmission.loc[line_name, name1] = float(from1to2_es1.sum() -
-                                                   from2to1_es1.sum())
+                                                   from2to1_es1.sum()) / 1000
         transmission.loc[line_name, name2] = float(from1to2_es2.sum() -
-                                                   from2to1_es2.sum())
+                                                   from2to1_es2.sum()) / 1000
+
+        relative_usage1 = (from1to2_es1 + from2to1_es1).div(
+            line_capacity).flow.fillna(0)
+        relative_usage2 = (from1to2_es2 + from2to1_es2).div(
+            line_capacity).flow.fillna(0)
+
+        # How many days of min 90% usage
+        transmission.loc[line_name, name1 + '_90+_usage'] = (
+            relative_usage1.multiply(10).astype(int).value_counts(
+                ).sort_index().iloc[9:].sum())
+        transmission.loc[line_name, name2 + '_90+_usage'] = (
+            relative_usage1.multiply(10).astype(int).value_counts(
+                ).sort_index().iloc[9:].sum())
+        transmission.loc[line_name, 'diff_2-1_90+_usage'] = (
+            transmission.loc[line_name, name2 + '_90+_usage'] -
+            transmission.loc[line_name, name1 + '_90+_usage'])
+
+        # How many days of min MAX usage
+        transmission.loc[line_name, name1 + '_max_usage'] = (
+            relative_usage1.multiply(10).astype(int).value_counts(
+                ).sort_index().iloc[10:].sum())
+        transmission.loc[line_name, name2 + '_max_usage'] = (
+            relative_usage1.multiply(10).astype(int).value_counts(
+                ).sort_index().iloc[10:].sum())
+        transmission.loc[line_name, 'diff_2-1_max_usage'] = (
+            transmission.loc[line_name, name2 + '_max_usage'] -
+            transmission.loc[line_name, name1 + '_max_usage'])
+
+        # Average relative usage
+        transmission.loc[line_name, name1 + '_avg_usage'] = (
+            relative_usage1.mean() * 100)
+        transmission.loc[line_name, name2 + '_avg_usage'] = (
+            relative_usage2.mean() * 100)
+        transmission.loc[line_name, 'diff_2-1_avg_usage'] = (
+            transmission.loc[line_name, name2 + '_avg_usage'] -
+            transmission.loc[line_name, name1 + '_avg_usage'])
 
         # Absolute annual flow for each line
         transmission.loc[line_name, name1 + '_abs'] = float(
-            from1to2_es1.sum() + from2to1_es1.sum())
+            from1to2_es1.sum() + from2to1_es1.sum() / 1000)
         transmission.loc[line_name, name2 + '_abs'] = float(
-            from1to2_es2.sum() + from2to1_es2.sum())
+            from1to2_es2.sum() + from2to1_es2.sum() / 1000)
 
         # Maximum peak value for each line and each energy system
         transmission.loc[line_name, name1 + '_max'] = float(
-            from1to2_es1.abs().max() - from2to1_es1.abs().max())
+            from1to2_es1.abs().max() - from2to1_es1.abs().max()) / 1000
         transmission.loc[line_name, name2 + '_max'] = float(
-            from1to2_es2.abs().max() - from2to1_es2.abs().max())
-
-    # transmission['diff_1-2'] = transmission[name1] - transmission[name2]
-
-    transmission = transmission.div(1000)
+            from1to2_es2.abs().max() - from2to1_es2.abs().max()) / 1000
 
     transmission['diff_2-1'] = transmission[name2] - transmission[name1]
     transmission['diff_2-1_max'] = (transmission[name2 + '_max'] -
