@@ -72,56 +72,173 @@ def fig_6_0(**kwargs):
     return 'anteil_import_stromverbrauch_berlin'
 
 
-def fig_6_1():
+def fig_power_lines():
     year = 2014
-    sets = {
-        'fraction': {
-            'key': 'fraction',
-            'vmax': 10,
-            'label_max': 1,
-            'unit': '%',
-            'order': 1},
-        'absolut': {
-            'key': 'diff_2-1',
-            'vmax': 300,
-            'label_max': 100,
-            'unit': 'GWh',
-            'order': 0},
-    }
 
-    cmp = LinearSegmentedColormap.from_list(
-        'mycmap', [
+    cm_gyr = LinearSegmentedColormap.from_list(
+        'gyr', [
             (0, '#aaaaaa'),
             (0.0001, 'green'),
             (0.5, '#d5b200'),
             (1, 'red')])
 
+    static = LinearSegmentedColormap.from_list(
+        'static', [
+            (0, 'red'),
+            (0.001, '#555555'),
+            (1, '#000000')])
+
+    sets = {
+        'capacity': {
+            'key': 'capacity',
+            'vmax': 10,
+            'label_min': 0,
+            'label_max': None,
+            'unit': '',
+            'order': 0,
+            'direction': False,
+            'cmap_lines': static,
+            'legend': False,
+            'unit_to_label': False,
+            'divide': 1000,
+            'decimal': 1,
+            'my_legend': False,
+            'part_title': 'Kapazität in MW'},
+        'absolut': {
+            'key': 'es1_90+_usage',
+            'vmax': 8760/2,
+            'label_min': 10,
+            'unit': '',
+            'order': 1,
+            'direction': False,
+            'cmap_lines': cm_gyr,
+            'legend': False,
+            'unit_to_label': False,
+            'divide': 1,
+            'my_legend': True,
+            'part_title': 'Stunden mit über 90% Auslastung \n'},
+    }
+
+    my_es1 = results.load_es('deflex', str(year), var='de22')
+    my_es2 = results.load_es('berlin_hp', str(year), var='de22')
+    transmission = results.compare_transmission(my_es1, my_es2)
+
     f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
-    my_es1 = results.load_es('deflex', str(year), var='de21')
+    for k, v in sets.items():
+        v['ax'] = ax_ar[v.pop('order')]
+        my_legend = v.pop('my_legend')
+        v['ax'].set_title(v.pop('part_title'))
+        plot.plot_power_lines(transmission, **v)
+        if my_legend is True:
+            plot.geopandas_colorbar_same_height(f, v['ax'], 0, v['vmax'],
+                                                v['cmap_lines'])
+        plt.title(v['unit'])
+    plt.subplots_adjust(right=0.96, left=0, wspace=0, bottom=0.03, top=0.96)
+
+    return 'netzkapazität_und_auslastung_de22'
+
+
+def fig_6_1():
+    year = 2014
+
+    cm_gyr = LinearSegmentedColormap.from_list(
+        'mycmap', [
+            (0, '#aaaaaa'),
+            (0.01, 'green'),
+            (0.5, '#d5b200'),
+            (1, 'red')])
+
+    sets = {
+        'fraction': {
+            'key': 'diff_2-1_avg_usage',
+            'vmax': 5,
+            'label_min': 1,
+            'label_max': None,
+            'unit': '%-Punkte',
+            'order': 1,
+            'direction': False,
+            'cmap_lines': cm_gyr,
+            'legend': False,
+            'unit_to_label': False},
+        'absolut': {
+            'key': 'diff_2-1',
+            'vmax': 500,
+            'label_min': 100,
+            'unit': 'GWh',
+            'order': 0,
+            'direction': True,
+            'cmap_lines': cm_gyr,
+            'legend': False,
+            'unit_to_label': False},
+    }
+
+    my_es1 = results.load_es('deflex', str(year), var='de22')
     my_es2 = results.load_es('berlin_hp', str(year), var='de22')
     transmission = results.compare_transmission(my_es1, my_es2).div(1)
 
+    f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
     for k, v in sets.items():
-        ax = ax_ar[v['order']]
-
-        if 'abs' in v['key']:
-            direct = False
-        else:
-            direct = True
-
-        plot.plot_power_lines(
-            transmission, v['key'], vmax=v['vmax'], unit='', ax=ax,
-            direction=direct, label_max=v['label_max'], cmap_lines=cmp,
-            legend=False)
-
-        for spine in plt.gca().spines.values():
-            spine.set_visible(False)
-        ax.axis('off')
-        plot.geopandas_colorbar_same_height(f, ax, 0, v['vmax'], cmp)
+        v['ax'] = ax_ar[v.pop('order')]
+        plot.plot_power_lines(transmission, **v)
+        plot.geopandas_colorbar_same_height(f, v['ax'], 0, v['vmax'],
+                                            v['cmap_lines'])
         plt.title(v['unit'])
     plt.subplots_adjust(right=0.97, left=0, wspace=0, bottom=0.03, top=0.96)
 
-    return 'name_6_1'
+    return 'veraenderung_energiefluesse_durch_kopplung'
+
+
+def fig_absolute_power_flows():
+    year = 2014
+
+    cm_gyr = LinearSegmentedColormap.from_list(
+        'mycmap', [
+            (0, '#aaaaaa'),
+            (0.01, 'green'),
+            (0.5, '#d5b200'),
+            (1, 'red')])
+
+    sets = {
+        'fraction': {
+            'key': 'es1',
+            'vmax': 500,
+            'label_min': 100,
+            'label_max': None,
+            'unit': 'GWh',
+            'order': 0,
+            'direction': True,
+            'cmap_lines': cm_gyr,
+            'legend': False,
+            'unit_to_label': False,
+            'part_title': 'es1'},
+        'absolut': {
+            'key': 'es2',
+            'vmax': 500,
+            'label_min': 100,
+            'unit': 'GWh',
+            'order': 1,
+            'direction': True,
+            'cmap_lines': cm_gyr,
+            'legend': False,
+            'unit_to_label': False,
+            'part_title': 'es2'},
+    }
+
+    my_es1 = results.load_es('deflex', str(year), var='de22')
+    my_es2 = results.load_es('berlin_hp', str(year), var='de22')
+    transmission = results.compare_transmission(my_es1, my_es2).div(1)
+
+    f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
+    for k, v in sets.items():
+        v['ax'] = ax_ar[v.pop('order')]
+        plot.plot_power_lines(transmission, **v)
+        plot.geopandas_colorbar_same_height(f, v['ax'], 0, v['vmax'],
+                                            v['cmap_lines'])
+        v['ax'].set_title(v.pop('part_title'))
+        plt.title(v['unit'])
+    plt.subplots_adjust(right=0.97, left=0, wspace=0, bottom=0.03, top=0.96)
+
+    return 'absolute_energiefluesse_vor_nach_kopplung'
 
 
 def fig_regionen(**kwargs):
@@ -333,10 +450,10 @@ def show_de21_de22_without_berlin():
         av = float(v['data'].iloc[5]['out', 'demand'].sum())
         print(float(v['data'].iloc[6]['out', 'demand'].sum()))
 
-        a = results.plot_bus_view(data=v['data'], ax=ax[k], legend=legend,
-                                  xlabel='', ylabel='Leistung [MW]',
-                                  title=v['title'], in_ol=ol,
-                                  out_ol=['demand'], smooth=False)
+        a = plot.plot_bus_view(data=v['data'], ax=ax[k], legend=legend,
+                               xlabel='', ylabel='Leistung [MW]',
+                               title=v['title'], in_ol=ol, out_ol=['demand'],
+                               smooth=False)
         a.annotate(str(int(av)), xy=(5, av), xytext=(12, av + y_annotate[k]),
                    arrowprops=dict(facecolor='black',
                                    arrowstyle='->',
@@ -433,7 +550,8 @@ def plot_figure(number, save=False, path=None, show=False, **kwargs):
         '6.4': show_de21_de22_without_berlin,
         '6.5': berlin_resources,
         '6.6': berlin_resources_time_series,
-        '6.7': sankey_test,
+        '6.7': fig_power_lines,
+        '6.8': fig_absolute_power_flows,
     }
 
     filename = number_name[number](**kwargs)
@@ -455,4 +573,4 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
                     os.path.dirname(my_reegis.__file__)])
     p = '/home/uwe/git_local/monographie/figures/'
-    plot_figure('6.1', save=True, show=True, path=p)
+    plot_figure('6.7', save=True, show=True, path=p)
