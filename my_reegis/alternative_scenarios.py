@@ -16,6 +16,7 @@ import reegis_tools.config as cfg
 import deflex
 from deflex import inhabitants
 import berlin_hp
+import main
 # import my_reegis
 # from my_reegis import results as sys_results
 
@@ -24,23 +25,6 @@ def stopwatch():
     if not hasattr(stopwatch, 'start'):
         stopwatch.start = datetime.now()
     return str(datetime.now() - stopwatch.start)[:-7]
-
-
-def load_deflex(year, sim_type='de21', create_scenario=True):
-    cfg.tmp_set('init', 'map', sim_type)
-    name = '{0}_{1}_{2}'.format('deflex', year, cfg.get('init', 'map'))
-    sc = deflex.Scenario(name=name, year=year)
-    scenario_path = os.path.join(cfg.get('paths', 'scenario'), str(year))
-    sc.location = os.path.join(scenario_path, '{0}_csv'.format(name))
-
-    if create_scenario or not os.path.isdir(sc.location):
-        logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
-        deflex.basic_scenario.create_basic_scenario(year, rmap=sim_type)
-
-    # Load scenario from csv-file
-    logging.info("Read scenario {0}: {1}".format(sc.name, stopwatch()))
-    sc.load_csv().check_table('time_series')
-    return sc
 
 
 def reduce_power_plants(sc, nuclear=None, lignite=None, hard_coal=None):
@@ -114,7 +98,7 @@ def create_scenario_XX_Nc00_Li05_HP02(subpath='new', factor=0.0):
     # reduce lignite by 50%
     # use massive heat_pumps
     """
-    sc = load_deflex(2014, sim_type='de21', create_scenario=False)
+    sc = main.load_deflex_scenario(2014, create_scenario=False)
 
     increase_re_share(sc, factor)
 
@@ -137,7 +121,7 @@ def create_scenario_XX_Nc00_Li05_HP00(subpath='new', factor=0.0):
     # reduce lignite by 50%
     # use massive heat_pumps
     """
-    sc = load_deflex(2014, sim_type='de21', create_scenario=False)
+    sc = main.load_deflex_scenario(2014, create_scenario=False)
 
     increase_re_share(sc, factor)
 
@@ -181,7 +165,7 @@ def create_scenario_XX_Nc00_Li05_HP02_GT(subpath='new', factor=0.0):
         'DE20': 0.0,
         'DE21': 0.0}
 
-    sc = load_deflex(2014, sim_type='de21', create_scenario=False)
+    sc = main.load_deflex_scenario(2014, create_scenario=False)
 
     increase_re_share(sc, factor)
 
@@ -229,7 +213,7 @@ def create_scenario_XX_Nc00_Li05_HP00_GT(subpath='new', factor=0.0):
         'DE20': 0.0,
         'DE21': 0.0}
 
-    sc = load_deflex(2014, sim_type='de21', create_scenario=False)
+    sc = main.load_deflex_scenario(2014, create_scenario=False)
 
     increase_re_share(sc, factor)
 
@@ -248,7 +232,7 @@ def create_scenario_XX_Nc00_Li05_HP00_GT(subpath='new', factor=0.0):
 
 
 def simple_deflex_de21_2014(subpath='new', factor=0.0):
-    sc = load_deflex(2014, sim_type='de21', create_scenario=False)
+    sc = main.load_deflex_scenario(2014, create_scenario=False)
 
     increase_re_share(sc, factor)
 
@@ -263,6 +247,9 @@ def simple_deflex_de21_2014(subpath='new', factor=0.0):
 
 
 def multi_scenario_deflex():
+    # Once re-create deflex scenario
+    main.load_deflex_scenario(2014, create_scenario=True)
+
     for f in range(11):
         create_scenario_XX_Nc00_Li05_HP00_GT(subpath='re', factor=f/10)
         create_scenario_XX_Nc00_Li05_HP02_GT(subpath='re', factor=f/10)
