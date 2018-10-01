@@ -380,9 +380,10 @@ def start_all(checker=True, create_scenario=True):
     return checker
 
 
-def start_all_by_dir(checker=True):
+def start_all_by_dir(checker=True, start_dir=None):
     # alternative_scenarios.multi_scenario_deflex()
-    start_dir = os.path.join(cfg.get('paths', 'scenario'), 're')
+    if start_dir is None:
+        start_dir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
 
     scenarios = []
     for root, directories, filenames in os.walk(start_dir):
@@ -421,7 +422,8 @@ if __name__ == "__main__":
     # exit(0)
     
     stopwatch()
-    log_check(start_all_by_dir())
+    startdir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
+    log_check(start_all_by_dir(start_dir=startdir))
     # log_check(start_berlin_single_scenarios())
     # log_check(start_all(create_scenario=True))
     # log_check(
