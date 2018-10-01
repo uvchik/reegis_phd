@@ -5,6 +5,7 @@ import geoplot
 import locale
 import datetime
 import deflex
+import transmission
 from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.patheffects as path_effects
@@ -83,34 +84,27 @@ def de21_region(custom_coordinates=False, draw_02_line=False):
     plt.show()
 
 
-def de21_grid():
+def de21_grid(rmap='de21'):
 
     plt.figure(figsize=(7, 8))
     plt.rc('legend', **{'fontsize': 16})
     plt.rcParams.update({'font.size': 16})
     plt.style.use('grayscale')
 
-    data = pd.read_csv(os.path.join(
-                           cfg.get('paths', 'data_de21'),
-                           cfg.get('static_sources', 'data_electricity_grid')),
-                       index_col=[0])
-
-    geo = pd.read_csv(os.path.join(cfg.get('paths', 'geometry'),
-                                   cfg.get('geometry', 'powerlines_lines')),
+    geo = pd.read_csv(os.path.join(cfg.get('paths', 'geo_deflex'),
+                                   cfg.get('geometry', 'powerlines').format(
+                                       type='lines', map=rmap)),
                       index_col='name')
 
-    print(geo)
-    print(data)
+    data = transmission.get_electrical_transmission_deflex(duplicate=False)
 
     lines = pd.DataFrame(pd.concat([data, geo], axis=1, join='inner'))
-    print(lines)
-    lines = geo
-    lines['capacity'] = 6000
 
-    background = pd.read_csv(os.path.join(
-                                 cfg.get('paths', 'geometry'),
-                                 cfg.get('geometry', 'region_polygon_simple')),
-                             index_col='gid').sort_index()
+    background = pd.read_csv(
+        os.path.join(
+            cfg.get('paths', 'geometry'),
+            cfg.get('geometry', 'region_polygon_simple').format(map=rmap)),
+        index_col='gid').sort_index()
 
     onshore = geoplot.postgis2shapely(
         background.iloc[0:18].geom)
@@ -130,7 +124,8 @@ def de21_grid():
     plotter_lines.data = lines.capacity
     plotter_lines.plot(edgecolor='data', linewidth=2, cmap=my_cmap)
     filename = os.path.join(cfg.get('paths', 'geometry'),
-                            cfg.get('geometry', 'powerlines_labels'))
+                            cfg.get('geometry', 'powerlines').format(
+                                type='labels', map=rmap))
     add_grid_labels(lines, plotter_lines, 'capacity', coord_file=filename)
     plt.tight_layout()
     plt.box(on=None)
@@ -256,9 +251,12 @@ def coastdat_plot(data, data_col=None, lmin=0, lmax=1, n=5, digits=50,
 def heatmap_pv_orientation():
     # import seaborn as sns
     from mpl_toolkits.axes_grid1 import make_axes_locatable
-    df = pd.read_csv(os.path.join(cfg.get('paths', 'analysis'),
-                                  'orientation_feedin_dc_high_resolution.csv'),
-                     index_col='Unnamed: 0')
+    # df = pd.read_csv(os.path.join(cfg.get('paths', 'analysis'),
+    #                               'orientation_feedin_dc_high_resolution.csv'),
+    #                  index_col='Unnamed: 0')
+    fn = '/home/uwe/express/reegis/data2/analysis/orientation_feedin_dc_high_resolution.csv'
+    df = pd.read_csv(fn, index_col='Unnamed: 0')
+
     df = df.transpose()
     df.index = df.index.map(int)
     df = df.sort_index(ascending=False)
@@ -720,6 +718,7 @@ if __name__ == "__main__":
     # plot_module_comparison()
     # plot_orientation_by_region()
     cfg.init(paths=[os.path.dirname(deflex.__file__)])
+    heatmap_pv_orientation()
     de21_region()
     de21_grid()
     # de21_region()
