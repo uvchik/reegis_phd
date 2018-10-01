@@ -72,8 +72,7 @@ def compute(sc, dump_graph=False, log_solver=True):
         sc.name, stopwatch()))
 
 
-def deflex_main(year, sim_type='de21', create_scenario=True, dump_graph=False,
-                extra_regions=None):
+def load_deflex_scenario(year, sim_type='de21', create_scenario=False):
     cfg.tmp_set('init', 'map', sim_type)
     name = '{0}_{1}_{2}'.format('deflex', year, cfg.get('init', 'map'))
     sc = deflex.Scenario(name=name, year=year)
@@ -82,9 +81,6 @@ def deflex_main(year, sim_type='de21', create_scenario=True, dump_graph=False,
     if 'without_berlin' in sim_type:
         scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp',
                                      str(year))
-
-    if extra_regions is not None:
-        sc.extra_regions = extra_regions
 
     sc.location = os.path.join(scenario_path, '{0}_csv'.format(name))
 
@@ -100,6 +96,16 @@ def deflex_main(year, sim_type='de21', create_scenario=True, dump_graph=False,
     # Load scenario from csv-file
     logging.info("Read scenario {0}: {1}".format(sc.name, stopwatch()))
     sc.load_csv().check_table('time_series')
+    return sc
+
+
+def deflex_main(year, sim_type='de21', create_scenario=True, dump_graph=False,
+                extra_regions=None):
+
+    sc = load_deflex_scenario(year, sim_type, create_scenario)
+
+    if extra_regions is not None:
+        sc.extra_regions = extra_regions
 
     # Create nodes and add them to the EnergySystem
     sc.table2es()
