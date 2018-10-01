@@ -12,6 +12,7 @@ __license__ = "GPLv3"
 
 # Python libraries
 import os
+import sys
 import logging
 from datetime import datetime
 import time
@@ -420,10 +421,10 @@ if __name__ == "__main__":
 
     # deflex_main(2014, sim_type='de21', create_scenario=False)
     # exit(0)
-    berlin_hp_main(2014)
+    sys.setrecursionlimit(50000)
     stopwatch()
     startdir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
-    # log_check(start_all_by_dir(start_dir=startdir))
+    log_check(start_all_by_dir(start_dir=startdir))
     # log_check(start_berlin_single_scenarios())
     # log_check(start_berlin_single_scenarios())
     # log_check(start_all(create_scenario=True))
