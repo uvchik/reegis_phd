@@ -102,7 +102,7 @@ def load_deflex_scenario(year, sim_type='de21', create_scenario=False):
 
 def deflex_main(year, sim_type='de21', create_scenario=True, dump_graph=False,
                 extra_regions=None):
-
+    logging.info("Start deflex: {0}".format(stopwatch()))
     sc = load_deflex_scenario(year, sim_type, create_scenario)
 
     if extra_regions is not None:
@@ -339,7 +339,7 @@ def start_berlin_single_scenarios(checker=True, create_scenario=True):
 def start_basic_scenarios(checker=True, create_scenario=True):
     for year in [2014, 2013, 2012]:
         # deflex and embedded
-        for t in ['de21', 'de22']:
+        for t in ['de02', 'de17', 'de21', 'de22']:
             if t == 'de22':
                 ex_reg = ['DE22']
             else:
@@ -348,10 +348,10 @@ def start_basic_scenarios(checker=True, create_scenario=True):
             try:
                 deflex_main(year, sim_type=t, create_scenario=create_scenario,
                             extra_regions=ex_reg)
-                embedded_main(
-                    year, sim_type=t, create_scenario=create_scenario)
-                deflex_main(year, sim_type=t + '_without_berlin',
-                            create_scenario=False)
+                # embedded_main(
+                #     year, sim_type=t, create_scenario=create_scenario)
+                # deflex_main(year, sim_type=t + '_without_berlin',
+                #             create_scenario=False)
             except Exception as e:
                 checker = log_exception(e)
     return checker
@@ -424,9 +424,9 @@ if __name__ == "__main__":
     sys.setrecursionlimit(50000)
     stopwatch()
     startdir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
-    log_check(start_all_by_dir(start_dir=startdir))
+    # log_check(start_all_by_dir(start_dir=startdir))
     # log_check(start_berlin_single_scenarios())
     # log_check(start_berlin_single_scenarios())
-    # log_check(start_all(create_scenario=True))
+    log_check(start_all(create_scenario=True))
     # log_check(
     #     start_alternative_scenarios(checker=True, create_scenario=True))
