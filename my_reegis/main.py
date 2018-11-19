@@ -40,7 +40,7 @@ def stopwatch():
     return str(datetime.now() - stopwatch.start)[:-7]
 
 
-def compute(sc, dump_graph=False, log_solver=True):
+def compute(sc, dump_graph=False, log_solver=True, duals=True):
     scenario_path = os.path.dirname(sc.location)
     results_path = os.path.join(scenario_path, 'results')
     os.makedirs(results_path, exist_ok=True)
@@ -61,6 +61,9 @@ def compute(sc, dump_graph=False, log_solver=True):
         filename = os.path.join(results_path, sc.name + '.log')
     else:
         filename = None
+
+    if duals is True:
+        sc.model.receive_duals()
 
     sc.solve(logfile=filename)
 
