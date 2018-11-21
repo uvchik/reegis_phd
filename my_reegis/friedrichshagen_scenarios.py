@@ -79,10 +79,14 @@ def fetch_upstream_scenario_values(full_file_name):
     upstream_values.to_csv(full_file_name)
 
 
-def load_upstream_scenario_values(overwrite=False):
-    path = cfg.get('paths', 'friedrichshagen')
-    filename = 'upstream_scenario_values.csv'
-    full_file_name = os.path.join(path, filename)
+def load_upstream_scenario_values(fn=None, overwrite=False):
+    if fn is None:
+        path = cfg.get('paths', 'friedrichshagen')
+        filename = 'upstream_scenario_values.csv'
+        full_file_name = os.path.join(path, filename)
+    else:
+        full_file_name = fn
+
     if not os.path.isfile(full_file_name) or overwrite:
         fetch_upstream_scenario_values(full_file_name)
     return pd.read_csv(
