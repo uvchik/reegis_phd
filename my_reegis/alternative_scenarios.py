@@ -16,7 +16,7 @@ import reegis_tools.config as cfg
 import deflex
 from deflex import inhabitants
 import berlin_hp
-import main
+from my_reegis import main
 # import my_reegis
 # from my_reegis import results as sys_results
 
