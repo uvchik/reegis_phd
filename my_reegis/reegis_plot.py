@@ -1,6 +1,9 @@
 import logging
+import os
 import numpy as np
-import results
+import pandas as pd
+import my_reegis
+from my_reegis import results
 import reegis_tools.config as cfg
 from matplotlib import pyplot as plt
 import matplotlib.patheffects as path_effects
@@ -13,10 +16,16 @@ import math
 import reegis_tools.geometries
 import oemof_visio as oev
 from oemof import outputlib
+import reegis_tools.gui as gui
+
+cfg.init(paths=[os.path.dirname(my_reegis.__file__)])
 
 ORDER_KEYS = ['hydro', 'geothermal', 'solar', 'pv', 'wind', 'chp', 'hp', 'pp',
               'import', 'shortage', 'power_line', 'demand',
               'heat_elec_decentralised', 'storage', 'export', 'excess']
+
+FN = os.path.join(cfg.get('paths', 'scenario'), 'deflex', '2014', 'results',
+                  'deflex_2014_de21.esys')
 
 
 def geopandas_colorbar_same_height(f, ax, vmin, vmax, cmap):
@@ -200,7 +209,7 @@ def get_cdict_df(df):
 def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
                      vmax=None, label_min=None, label_max=None, unit='GWh',
                      size=None, ax=None, legend=True, unit_to_label=False,
-                     divide=1, decimal=0, **kwargs):
+                     divide=1, decimal=0):
 
     if size is None and ax is None:
         ax = plt.figure(figsize=(5, 5)).add_subplot(1, 1, 1)
@@ -323,20 +332,21 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
 
 def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
                  column=None, cmap=None, label_col=None, color=None,
-                 edgecolor='#9aa1a9', legend=True, ax=None):
+                 edgecolor='#9aa1a9', legend=True, ax=None, offshore=None):
     if ax is None:
         ax = plt.figure().add_subplot(1, 1, 1)
 
-    polygons = reegis_tools.geometries.Geometry()
-
     if deflex_map is not None:
-        polygons.load(cfg.get('paths', 'geometry'),
-                      cfg.get('geometry', deflex_map))
+        polygons = reegis_tools.geometries.load(
+            cfg.get('paths', 'geo_deflex'),
+            cfg.get('geometry', 'deflex_polygon').format(
+                suffix='reegis', map=deflex_map, type='polygon'))
     elif fn is not None:
-        polygons.load(fullname=fn)
+        polygons = reegis_tools.geometries.load(fullname=fn)
     else:
-        polygons.load(cfg.get('paths', 'geometry'),
-                      cfg.get('geometry', 'de21_polygons_simple'))
+        polygons = reegis_tools.geometries.load(
+            cfg.get('paths', 'geometry'),
+            cfg.get('geometry', 'de21_polygons_simple'))
 
     if label_col is None:
         label_col = column
@@ -348,7 +358,17 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
         polygons.gdf = polygons.gdf.merge(data, left_index=True,
                                           right_index=True)
 
-    if cmap is None and color is None:
+    if offshore is not None:
+        polygons['onshore'] = 1
+        for o in offshore:
+            polygons.loc[o, 'onshore'] = 0
+        cmap = LinearSegmentedColormap.from_list(
+                'mycmap', [
+                    (0, '#a5bfdd'),
+                    (1, '#badd69')])
+        column = 'onshore'
+
+    if cmap is None and color is None and offshore is None:
         cmap = LinearSegmentedColormap.from_list(
                 'mycmap', [
                     # (0, '#aaaaaa'),
@@ -356,8 +376,8 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
                     (0.5, 'yellow'),
                     (1, 'red')])
 
-    ax = polygons.gdf.plot(edgecolor=edgecolor, cmap=cmap, vmin=0, ax=ax,
-                           legend=legend, column=column, color=color)
+    ax = polygons.plot(edgecolor=edgecolor, cmap=cmap, vmin=0, ax=ax,
+                       legend=legend, column=column, color=color)
 
     if textbox is True:
         bb = dict(boxstyle="round", alpha=.5, ec=(1, 1, 1), fc=(1, 1, 1))
@@ -367,7 +387,7 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
         bb = None
 
     if label_col is not None:
-        polygons.gdf.apply(
+        polygons.apply(
             lambda x: ax.text(
                 x.geometry.representative_point().x,
                 x.geometry.representative_point().y,
@@ -469,3 +489,112 @@ def plot_bus_view(es=None, bus=None, data=None, ax=None, legend=True,
     else:
         ax.set_title(title)
     return ax
+
+
+def plot_multiregion_io(es):
+    """
+
+    Parameters
+    ----------
+    es : solph.EnergySystem
+        An EnergySystem with results.
+
+    Returns
+    -------
+
+    Examples
+    --------
+    >>> my_es = results.load_es(FN)
+    >>> df = plot_multiregion_io(my_es)
+    """
+    multi_reg_res = results.get_multiregion_bus_balance(es).groupby(
+        level=[1, 2], axis=1).sum()
+
+    multi_reg_res[('out', 'losses')] = (multi_reg_res[('out', 'export')] -
+                                        multi_reg_res[('in', 'import')])
+    del multi_reg_res[('out', 'export')]
+    del multi_reg_res[('in', 'import')]
+
+    my_cdict = get_cdict_df(multi_reg_res['in'])
+    my_cdict.update(get_cdict_df(multi_reg_res['out']))
+
+    oev.plot.io_plot(df_in=multi_reg_res['in'],
+                     df_out=multi_reg_res['out'],
+                     smooth=True, cdict=my_cdict)
+    return multi_reg_res
+
+
+def show_region_values_gui(es):
+    data = results.get_multiregion_bus_balance(es).groupby(
+        level=[1, 2, 3, 4], axis=1).sum()
+    data = data.agg(['sum', 'min', 'max', 'mean'])
+    data = data.reorder_levels([1, 2, 0], axis=1)
+
+    data.sort_index(1, inplace=True)
+
+    key1 = gui.get_choice(data.columns.get_level_values(0).unique(),
+                          "Plot transmission lines", "Choose data column.")
+    key2 = gui.get_choice(data[key1].columns.get_level_values(0).unique(),
+                          "Plot transmission lines", "Choose data column.")
+    key3 = gui.get_choice(data.index.unique(),
+                          "Plot transmission lines", "Choose data column.")
+
+    plot_data = pd.DataFrame(data.loc[key3, (key1, key2)], columns=[key3])
+
+    plot_data = plot_data.div(1000).round().astype(int)
+
+    plot_regions(plot_data, key3)
+
+
+def analyse_plot(cost_values, merit_values, multiregion, demand_elec,
+                 demand_distr):
+    orderkeys = ['nuclear', 'lignite', 'hard_coal', 'natural_gas', 'other',
+                 'bioenergy', 'oil', 'natural_gas_add', 'phe_storage',
+                 'shortage']
+
+    in_list = get_orderlist_from_multiindex(multiregion['in'].columns,
+                                            orderkeys)
+    my_cdict = get_cdict_df(multiregion['in'])
+    my_cdict.update(get_cdict_df(multiregion['out']))
+    # print(my_cdict)
+
+    oplot = oev.plot.io_plot(df_in=multiregion['in'],
+                             df_out=multiregion['out'],
+                             smooth=True, inorder=in_list, cdict=my_cdict)
+
+    # ax = demand.plot()
+    ax = demand_elec.reset_index(drop=True).plot(
+        ax=oplot['ax'], color='g', legend=True)
+
+    # ax = demand.plot()
+    ax = demand_distr.reset_index(drop=True).plot(
+        ax=ax, color='m', legend=True)
+
+    # df.to_excel('/home/uwe/lcoe.xls')
+
+    # my_cols = pd.MultiIndex(levels=[[], [], []], labels=[[], [], []],
+    #                         names=[u'type', u'src', u'region'])
+    # ana_df = pd.DataFrame(columns=my_cols)
+
+    # for c in cost_values.columns:
+    #     ana_df[str(c)] = cost_values[c]
+    # ana_df = ana_df.groupby(level=[0, 1], axis=1).sum()
+
+    # ana_df[('chp', 'chp')] = ana_df['chp'].sum(axis=1)
+
+    # ana_x = ana_df.reset_index(drop=True).plot()
+    # ana_x .set_xlim(3000, 3200)
+
+    cost_values.reset_index(drop=True, inplace=True)
+    cost_values.name = 'cost_value (right)'
+    ax2 = cost_values.sum(axis=1).plot(
+        ax=ax, secondary_y=True, legend=True, color='#7cfff0')
+
+    merit_values.reset_index(drop=True, inplace=True)
+    merit_values.name = 'merit_value (right)'
+    merit_values.max(axis=1).plot(
+        ax=ax2, secondary_y=True, legend=True, color='#4ef3bc')
+
+    # ax2.set_ylim(0, 20)
+    # ax2.set_xlim(3000, 3200)
+    plt.show()
