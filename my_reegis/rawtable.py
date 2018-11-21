@@ -1,5 +1,5 @@
 import os
-import results
+from my_reegis import results
 import pandas as pd
 import my_reegis
 from oemof.tools import logger

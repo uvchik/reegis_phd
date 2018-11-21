@@ -5,7 +5,7 @@ import geoplot
 import locale
 import datetime
 import deflex
-import transmission
+from deflex import transmission
 from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.patheffects as path_effects
@@ -14,7 +14,7 @@ import demandlib.bdew as bdew
 import demandlib.particular_profiles as profiles
 
 from oemof.tools import logger
-from de21 import demand
+from deflex import demand
 from deflex import geometries
 
 import reegis_tools.config as cfg
