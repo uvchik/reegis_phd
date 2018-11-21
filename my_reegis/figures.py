@@ -2,11 +2,13 @@ import os
 import logging
 import pandas as pd
 import my_reegis
-import results
-import plot
+from my_reegis import results
+from my_reegis import reegis_plot as plot
+from my_reegis import regional_results
 from oemof.tools import logger
 from oemof import solph
 import berlin_hp
+import deflex
 import reegis_tools.config as cfg
 from matplotlib import pyplot as plt
 from reegis_tools import energy_balance
@@ -119,8 +121,8 @@ def fig_power_lines():
             'part_title': 'Stunden mit über 90% Auslastung \n'},
     }
 
-    my_es1 = results.load_es('deflex', str(year), var='de22')
-    my_es2 = results.load_es('berlin_hp', str(year), var='de22')
+    my_es1 = results.load_my_es('deflex', str(year), var='de22')
+    my_es2 = results.load_my_es('berlin_hp', str(year), var='de22')
     transmission = results.compare_transmission(my_es1, my_es2)
 
     f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
@@ -172,8 +174,8 @@ def fig_6_1():
             'unit_to_label': False},
     }
 
-    my_es1 = results.load_es('deflex', str(year), var='de22')
-    my_es2 = results.load_es('berlin_hp', str(year), var='de22')
+    my_es1 = results.load_my_es('deflex', str(year), var='de22')
+    my_es2 = results.load_my_es('berlin_hp', str(year), var='de22')
     transmission = results.compare_transmission(my_es1, my_es2).div(1)
 
     f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
@@ -186,6 +188,32 @@ def fig_6_1():
     plt.subplots_adjust(right=0.97, left=0, wspace=0, bottom=0.03, top=0.96)
 
     return 'veraenderung_energiefluesse_durch_kopplung'
+
+
+def fig_model_regions():
+    f, ax_ar = plt.subplots(1, 4, figsize=(11, 2.5))
+
+    # de = deflex.geometries.deflex_regions(rmap='de17').gdf
+    # de['label'] = de.representative_point()
+    maps = ['de02', 'de17', 'de21', 'de22']
+    offshore = {'de02': [2],
+                'de17': [17],
+                'de21': [19, 20, 21],
+                'de22': [19, 20, 21]}
+
+    i = 0
+    for rmap in maps:
+        ax = ax_ar[i]
+        plot.plot_regions(deflex_map=rmap, ax=ax, offshore=offshore[rmap],
+                          legend=False)
+        for spine in plt.gca().spines.values():
+            spine.set_visible(False)
+        ax.axis('off')
+        ax.set_title(rmap)
+        i += 1
+
+    plt.subplots_adjust(right=1, left=0, wspace=0, bottom=0, top=0.88)
+    return 'model_regions'
 
 
 def fig_absolute_power_flows():
@@ -224,8 +252,8 @@ def fig_absolute_power_flows():
             'part_title': 'es2'},
     }
 
-    my_es1 = results.load_es('deflex', str(year), var='de22')
-    my_es2 = results.load_es('berlin_hp', str(year), var='de22')
+    my_es1 = results.load_my_es('deflex', str(year), var='de22')
+    my_es2 = results.load_my_es('berlin_hp', str(year), var='de22')
     transmission = results.compare_transmission(my_es1, my_es2).div(1)
 
     f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
@@ -275,8 +303,8 @@ def fig_6_x_draft1(**kwargs):
 
     ax = create_subplot((5, 5), **kwargs)
 
-    my_es1 = results.load_es('deflex', '2014', var='de21')
-    my_es2 = results.load_es('deflex', '2014', var='de22')
+    my_es1 = results.load_my_es('deflex', '2014', var='de21')
+    my_es2 = results.load_my_es('deflex', '2014', var='de22')
     # my_es_2 = results.load_es(2014, 'de22', 'berlin_hp')
     transmission = results.compare_transmission(my_es1, my_es2)
 
@@ -377,6 +405,30 @@ def plot_upstream():
     return 'upstream'
 
 
+def ego_demand_plot():
+    ax = create_subplot((10.7, 9))
+
+    de = deflex.geometries.deflex_regions(rmap='de02')
+    de.gdf.drop('DE02', inplace=True)
+    ax = de.gdf.plot(ax=ax, alpha=0.5, color='white', edgecolor='#000000')
+
+    ego_demand = geometries.load_csv(cfg.get('paths', 'static_sources'),
+                                     cfg.get('open_ego', 'ego_input_file'))
+    ego_demand = geometries.create_geo_df(ego_demand, wkt_column='st_astext')
+    ax = ego_demand.plot(markersize=0.1, ax=ax, color='#272740')
+
+    print("Number of points: {0}".format(len(ego_demand)))
+
+    # Remove frame around plot
+    for spine in plt.gca().spines.values():
+        spine.set_visible(False)
+    ax.axis('off')
+
+    plt.subplots_adjust(right=1, left=0, bottom=0, top=1)
+
+    return 'open_ego_map'
+
+
 def show_de21_de22_without_berlin():
     figs = ('de21', 'Berlin', 'de22', 'de21_without_berlin')
 
@@ -410,7 +462,7 @@ def show_de21_de22_without_berlin():
 
     for var in ('de21', 'de22', 'de21_without_berlin'):
         data_sets[var] = {}
-        es = results.load_es(
+        es = results.load_my_es(
             'deflex', str(2014), var='{0}'.format(var))
         bus = [b[0] for b in es.results['Main'] if
                (b[0].label.region == 'DE01') &
@@ -428,7 +480,7 @@ def show_de21_de22_without_berlin():
 
     var = 'Berlin'
     data_sets[var] = {}
-    es = results.load_es(
+    es = results.load_my_es(
         'berlin_hp', str(2014), var='single_up_None')
     data = results.get_multiregion_bus_balance(es, 'district').groupby(
             axis=1, level=[1, 2, 3, 4]).sum()
@@ -467,7 +519,7 @@ def show_de21_de22_without_berlin():
 
 
 def berlin_resources_time_series():
-    seq = results.analyse_berlin_ressources()
+    seq = regional_results.analyse_berlin_ressources()
     f, ax_ar = plt.subplots(5, 2, sharey='row', sharex=True, figsize=(9, 6))
     i = 0
     for c in ['lignite', 'natural_gas', 'oil', 'hard_coal', 'netto_import']:
@@ -506,9 +558,9 @@ def berlin_resources_time_series():
 def berlin_resources(**kwargs):
     ax = create_subplot((7.8, 4), **kwargs)
 
-    df = results.analyse_berlin_ressources_total()
+    df = regional_results.analyse_berlin_ressources_total()
 
-    color_dict = my_reegis.plot.get_cdict_df(df)
+    color_dict = plot.get_cdict_df(df)
 
     ax = df.plot(kind='bar', ax=ax,
                  color=[color_dict.get(x, '#bbbbbb') for x in df.columns])
@@ -540,6 +592,8 @@ def berlin_resources(**kwargs):
 def plot_figure(number, save=False, path=None, show=False, **kwargs):
 
     number_name = {
+        '3.0': ego_demand_plot,
+        '3.1': fig_model_regions,
         '6.0': fig_6_0,
         '6.1': fig_6_1,
         '6.2': fig_regionen,
@@ -571,6 +625,7 @@ def plot_figure(number, save=False, path=None, show=False, **kwargs):
 if __name__ == "__main__":
     logger.define_logging()
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
-                    os.path.dirname(my_reegis.__file__)])
+                    os.path.dirname(my_reegis.__file__),
+                    os.path.dirname(deflex.__file__)])
     p = '/home/uwe/git_local/monographie/figures/'
-    plot_figure('6.7', save=True, show=True, path=p)
+    plot_figure('3.0', save=True, show=True, path=p)
