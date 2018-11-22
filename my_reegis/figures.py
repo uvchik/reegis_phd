@@ -259,10 +259,11 @@ def fig_absolute_power_flows():
     f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
     for k, v in sets.items():
         v['ax'] = ax_ar[v.pop('order')]
+        v['ax'].set_title(v.pop('part_title'))
         plot.plot_power_lines(transmission, **v)
         plot.geopandas_colorbar_same_height(f, v['ax'], 0, v['vmax'],
                                             v['cmap_lines'])
-        v['ax'].set_title(v.pop('part_title'))
+        # v['ax'].set_title(v.pop('part_title'))
         plt.title(v['unit'])
     plt.subplots_adjust(right=0.97, left=0, wspace=0, bottom=0.03, top=0.96)
 
@@ -288,7 +289,7 @@ def fig_regionen(**kwargs):
                    (1, '#a5bfdd')])
 
     ax = plot.plot_regions(edgecolor='#666666', data=data, legend=False,
-                           label_col='reg_id', fn=fn, column='class',
+                           label_col='reg_id', fn=fn, data_col='class',
                            cmap=cmap, ax=ax)
     plt.subplots_adjust(right=1, left=0, bottom=0, top=1)
 
@@ -470,7 +471,7 @@ def show_de21_de22_without_berlin():
                (isinstance(b[0], solph.Bus))][0]
         data = results.reshape_bus_view(es, bus)[bus.label.region]
 
-        results.check_excess_shortage(es.results['Main'])
+        results.check_excess_shortage(es)
         # if data.sum().sum() > 500000:
         #     data *= 0.5
         annual = round(data['out', 'demand'].sum().sum(), -2)
@@ -489,7 +490,7 @@ def show_de21_de22_without_berlin():
     data = data.iloc[period[0]:period[1]]
     data_sets[var]['data'] = data
     data_sets[var]['title'] = title_str[var].format(int(annual))
-    results.check_excess_shortage(es.results['Main'])
+    results.check_excess_shortage(es)
 
     i = 0
     for k in figs:
@@ -591,24 +592,7 @@ def berlin_resources(**kwargs):
 
 def plot_figure(number, save=False, path=None, show=False, **kwargs):
 
-    number_name = {
-        '3.0': ego_demand_plot,
-        '3.1': fig_model_regions,
-        '6.0': fig_6_0,
-        '6.1': fig_6_1,
-        '6.2': fig_regionen,
-        '6.3': plot_upstream,
-        '6.x': fig_6_x_draft1,
-        '5.3': figure_district_heating_areas,
-        '4.1': fig_4_1,
-        '6.4': show_de21_de22_without_berlin,
-        '6.5': berlin_resources,
-        '6.6': berlin_resources_time_series,
-        '6.7': fig_power_lines,
-        '6.8': fig_absolute_power_flows,
-    }
-
-    filename = number_name[number](**kwargs)
+    filename = get_number_name()[number](**kwargs)
 
     if save is True:
         if path is None:
@@ -622,10 +606,35 @@ def plot_figure(number, save=False, path=None, show=False, **kwargs):
         plt.show()
 
 
+def plot_all(save=False, path=None, show=False, **kwargs):
+    for number in get_number_name().keys():
+        plot_figure(number, save=save, path=path, show=show, **kwargs)
+
+
+def get_number_name():
+    return {
+            '3.0': ego_demand_plot,
+            '3.1': fig_model_regions,
+            '6.0': fig_6_0,
+            '6.1': fig_6_1,
+            '6.2': fig_regionen,
+            '6.3': plot_upstream,
+            '6.x': fig_6_x_draft1,
+            '5.3': figure_district_heating_areas,
+            '4.1': fig_4_1,
+            '6.4': show_de21_de22_without_berlin,
+            '6.5': berlin_resources,
+            '6.6': berlin_resources_time_series,
+            '6.7': fig_power_lines,
+            '6.8': fig_absolute_power_flows,
+        }
+
+
 if __name__ == "__main__":
     logger.define_logging()
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
                     os.path.dirname(my_reegis.__file__),
                     os.path.dirname(deflex.__file__)])
     p = '/home/uwe/git_local/monographie/figures/'
+    # plot_all(show=True)
     plot_figure('3.0', save=True, show=True, path=p)
