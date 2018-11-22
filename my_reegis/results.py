@@ -644,7 +644,16 @@ def load_my_es(*args, var=None, fn=None, scpath=None):
 
     Returns
     -------
+    solph.EnergySystem
 
+    Examples
+    --------
+    >>> es1 = load_my_es('deflex', '2014', var='de21')
+    >>> es2 = load_es(FN)
+    >>> l1 = list(es1.results['Main'].keys())[0][0].label
+    >>> l2 = list(es2.results['Main'].keys())[0][0].label
+    >>> l1 == l2
+    True
     """
     if scpath is None:
         path = os.path.join(cfg.get('paths', 'scenario'), *args, 'results')
