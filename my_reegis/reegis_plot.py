@@ -24,9 +24,6 @@ ORDER_KEYS = ['hydro', 'geothermal', 'solar', 'pv', 'wind', 'chp', 'hp', 'pp',
               'import', 'shortage', 'power_line', 'demand',
               'heat_elec_decentralised', 'storage', 'export', 'excess']
 
-FN = os.path.join(cfg.get('paths', 'scenario'), 'deflex', '2014', 'results',
-                  'deflex_2014_de21.esys')
-
 
 def geopandas_colorbar_same_height(f, ax, vmin, vmax, cmap):
     # Create colorbar
@@ -210,7 +207,29 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
                      vmax=None, label_min=None, label_max=None, unit='GWh',
                      size=None, ax=None, legend=True, unit_to_label=False,
                      divide=1, decimal=0):
+    """
+    Parameters
+    ----------
+    data
+    key
+    cmap_lines
+    cmap_bg
+    direction
+    vmax
+    label_min
+    label_max
+    unit
+    size
+    ax
+    legend
+    unit_to_label
+    divide
+    decimal
 
+    Returns
+    -------
+
+    """
     if size is None and ax is None:
         ax = plt.figure(figsize=(5, 5)).add_subplot(1, 1, 1)
     elif size is not None and ax is None:
@@ -331,8 +350,65 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
 
 
 def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
-                 column=None, cmap=None, label_col=None, color=None,
+                 data_col=None, cmap=None, label_col='data_col', color=None,
                  edgecolor='#9aa1a9', legend=True, ax=None, offshore=None):
+    """
+    Plot regions with special colors.
+
+    1. Plot offshore and onshore regions with different colors.
+    2. Plot all polygons with one color.
+    3. Color polygons with a data column and a cmap
+
+    Parameters
+    ----------
+    ax : matplotlib.axes
+    cmap : matplotlib.cmap
+        A color map.
+    color : str
+        A python color to draw all polygons in the given color. Overwrites
+        the data colors.
+    data : pd.DataFrame
+        A data table where the index has the name index as the map.
+    data_col : str
+        Column of the data table containing the data for the color map.
+    deflex_map : gpd.geoDataFrame
+        A map with polygons.
+    edgecolor : str
+        The color of the border between the polygons.
+    fn : str
+        A path to map with polygons (e.g. shp, csv).
+    label_col : None or str
+        Name of the column with the labels. By default the data_col is used. If
+        set to None or no data_col is specified no label is plotted. If 'index'
+        is used the index will be plotted as label.
+    legend : bool
+        Draw a legend.
+    offshore : list
+        All elements of the geoDataFrame index that should be colored as
+        offshore regions.
+    textbox : bool
+        Draw a box arround the label.
+
+    Returns
+    -------
+    matplotlib.axes
+
+    Examples
+    --------
+    >>> d = {'DE01': 0.7, 'DE02': 0.5, 'DE03': 2, 'DE04': 2, 'DE05': 1,
+    ...      'DE06': 1.5, 'DE07': 1.5, 'DE08': 2, 'DE09': 2.5, 'DE10': 3,
+    ...      'DE11': 2.5, 'DE12': 3, 'DE13': 0.1, 'DE14': 0.5, 'DE15': 1,
+    ...      'DE16': 2, 'DE17': 2.5, 'DE18': 3, 'DE19': 0, 'DE20': 0, 'DE21': 0
+    ...     }
+    >>> s = pd.Series(d)
+    >>> df = pd.DataFrame(s, columns=['value'])
+    >>> p1 = plot_regions(offshore=['DE21', 'DE20', 'DE19'], legend=False,
+    ...                   label_col='index', textbox=False)
+    >>> p2 = plot_regions(offshore=['DE21', 'DE20', 'DE19'], legend=False)
+    >>> p3 = plot_regions(data=df, data_col='value', label_col=None)
+    >>> plt.show()
+
+    """
     if ax is None:
         ax = plt.figure().add_subplot(1, 1, 1)
 
@@ -348,15 +424,14 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
             cfg.get('paths', 'geometry'),
             cfg.get('geometry', 'de21_polygons_simple'))
 
-    if label_col is None:
-        label_col = column
+    if label_col == 'data_col':
+        label_col = data_col
     elif label_col == 'index':
-        polygons.gdf['my_index'] = polygons.gdf.index
+        polygons['my_index'] = polygons.index
         label_col = 'my_index'
 
     if data is not None:
-        polygons.gdf = polygons.gdf.merge(data, left_index=True,
-                                          right_index=True)
+        polygons = polygons.merge(data, left_index=True, right_index=True)
 
     if offshore is not None:
         polygons['onshore'] = 1
@@ -366,18 +441,18 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
                 'mycmap', [
                     (0, '#a5bfdd'),
                     (1, '#badd69')])
-        column = 'onshore'
+        data_col = 'onshore'
 
     if cmap is None and color is None and offshore is None:
         cmap = LinearSegmentedColormap.from_list(
                 'mycmap', [
-                    # (0, '#aaaaaa'),
-                    (0.000000000, 'green'),
+                    (0, '#aaaaaa'),
+                    (0.00000001, 'green'),
                     (0.5, 'yellow'),
                     (1, 'red')])
 
     ax = polygons.plot(edgecolor=edgecolor, cmap=cmap, vmin=0, ax=ax,
-                       legend=legend, column=column, color=color)
+                       legend=legend, column=data_col, color=color)
 
     if textbox is True:
         bb = dict(boxstyle="round", alpha=.5, ec=(1, 1, 1), fc=(1, 1, 1))
@@ -399,7 +474,7 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
 
 
 def plot_bus(es, node_label, rm_list=None):
-    """benutzt ???"""
+    """benutzt ??? Siehe plot_bus_view()"""
 
     node = outputlib.views.node(es.results['Main'], node_label)
 
@@ -440,6 +515,15 @@ def plot_bus_view(es=None, bus=None, data=None, ax=None, legend=True,
     If bus is specified only this bus of the EnergySystem will be plotted.
 
     Last check: 09/18
+
+    Examples
+    --------
+    >>> es = results.get_test_es()
+    >>> bus = results.get_nodes_by_label(
+    ...     es, label_args=['bus', 'electricity', None, 'DE01'])
+    >>> p = plot_bus_view(es, bus=bus, legend=True, xlabel='',
+    ...         ylabel='Leistung [MW]', title='title', smooth=True)
+    >>> plt.show()
     """
 
     if ax is None:
@@ -493,6 +577,8 @@ def plot_bus_view(es=None, bus=None, data=None, ax=None, legend=True,
 
 def plot_multiregion_io(es):
     """
+    Ansatzweise redundant mit plot_bus_view().
+
 
     Parameters
     ----------
@@ -504,8 +590,9 @@ def plot_multiregion_io(es):
 
     Examples
     --------
-    >>> my_es = results.load_es(FN)
+    >>> my_es = results.get_test_es()
     >>> df = plot_multiregion_io(my_es)
+    >>> plt.show()
     """
     multi_reg_res = results.get_multiregion_bus_balance(es).groupby(
         level=[1, 2], axis=1).sum()
