@@ -395,22 +395,22 @@ def get_nodes_by_label(es, label_args):
 def check_excess_shortage(es):
     """Check if shortage or excess is used in the given EnergySystem."""
 
-    results = es.results['Main']
-    flows = [x for x in results.keys() if x[1] is not None]
+    result = es.results['Main']
+    flows = [x for x in result.keys() if x[1] is not None]
     ex_nodes = [x for x in flows if (x[1] is not None) &
                 ('excess' in x[1].label)]
     sh_nodes = [x for x in flows if 'shortage' in x[0].label]
     ex = 0
     sh = 0
     for node in ex_nodes:
-        f = outputlib.views.node(results, node[1])
+        f = outputlib.views.node(result, node[1])
         s = int(round(f['sequences'].sum()))
         if s > 0:
             print(node[1], ':', s)
             ex += 1
 
     for node in sh_nodes:
-        f = outputlib.views.node(results, node[0])
+        f = outputlib.views.node(result, node[0])
         s = int(round(f['sequences'].sum()))
         if s > 0:
             print(node[0], ':', s)
