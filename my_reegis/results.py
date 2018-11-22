@@ -508,9 +508,9 @@ def fullloadhours(es, grouplevel=None, dropnan=False):
     --------
     >>> es = load_es(FN)
     >>> df1 = fullloadhours(es, grouplevel = [0, 1, 2])
-    >>> df_sub1 = df1.loc['trsf', 'pp', 'lignite'])
+    >>> df_sub1 = df1.loc['trsf', 'pp', 'lignite']
     >>> df2 = fullloadhours(es)
-    >>> df_sub2 = df2.loc['trsf', 'pp', 'lignite', 'DE04'])
+    >>> df_sub2 = df2.loc['trsf', 'pp', 'lignite', 'DE04']
 
     """
     if grouplevel is None:
