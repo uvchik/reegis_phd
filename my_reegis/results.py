@@ -676,5 +676,9 @@ def load_my_es(*args, var=None, fn=None, scpath=None):
     return es
 
 
+def get_test_es():
+    return load_es(FN)
+
+
 if __name__ == "__main__":
     logger.define_logging()
