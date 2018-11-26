@@ -360,6 +360,24 @@ def start_basic_scenarios(checker=True, create_scenario=True):
     return checker
 
 
+def start_no_grid_limit_scenarios(checker=True, create_scenario=False):
+    for year in [2014, 2013, 2012]:
+        for t in ['de21', 'de22']:
+            if t == 'de22':
+                ex_reg = ['DE22']
+            else:
+                ex_reg = None
+            try:
+                t = t + '_no_grid_limit'
+                if create_scenario is True:
+                    alternative_scenarios.create_deflex_no_grid_limit(True)
+                deflex_main(year, sim_type=t, create_scenario=False,
+                            extra_regions=ex_reg)
+            except Exception as e:
+                checker = log_exception(e)
+    return checker
+
+
 def start_friedrichshagen(checker=True, create_scenario=True):
     try:
         friedrichshagen_main(2014, create_scenario=create_scenario)
@@ -426,10 +444,11 @@ if __name__ == "__main__":
     # exit(0)
     sys.setrecursionlimit(50000)
     stopwatch()
+    log_check(start_no_grid_limit_scenarios(create_scenario=True))
     startdir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
     # log_check(start_all_by_dir(start_dir=startdir))
     # log_check(start_berlin_single_scenarios())
     # log_check(start_berlin_single_scenarios())
-    log_check(start_all(create_scenario=True))
+    # log_check(start_all(create_scenario=True))
     # log_check(
     #     start_alternative_scenarios(checker=True, create_scenario=True))
