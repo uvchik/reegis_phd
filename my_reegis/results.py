@@ -573,6 +573,16 @@ def fullloadhours(es, grouplevel=None, dropnan=False):
     return new
 
 
+def get_electricity_duals(es):
+    """Get the dual variables of all electricity buses as DataFrame"""
+    e_buses = get_nodes_by_label(es, ('bus', 'electricity', None, None))
+    df = pd.DataFrame()
+    for bus in sorted(e_buses):
+        region = bus.label.region
+        df[region] = es.results['Main'][bus, None]['sequences']['duals']
+    return df
+
+
 def write_graph(es, fn, remove=None):
     """
     Write a graph to a given file. Add a list of substrings to remove nodes.
