@@ -258,20 +258,17 @@ def multi_scenario_deflex():
         simple_deflex_de21_2014(subpath=s, factor=f/10)
 
 
-def create_deflex_no_grid_limit(create_scenario=False):
-    for year in [2014]:
-        for rmap in ['de21', 'de22']:
-            sc = main.load_deflex_scenario(
-                year, sim_type=rmap, create_scenario=create_scenario)
-            cond = sc.table_collection[
-                       'transmission']['electrical', 'capacity'] > 0
-            sc.table_collection['transmission'].loc[
-                cond, ('electrical', 'capacity')] = float('inf')
-            sc.table_collection['transmission']['electrical', 'efficiency'] = 1
-            name = sc.name + '_no_grid_limit'
-            path = sc.location.replace(sc.location.split(os.sep)[-1], '')
-            sc.to_csv(os.path.join(path, name + '_csv'))
-            sc.to_excel(os.path.join(path, name + '.xls'))
+def create_deflex_no_grid_limit(year, rmap, create_scenario=False):
+    sc = main.load_deflex_scenario(
+        year, sim_type=rmap, create_scenario=create_scenario)
+    cond = sc.table_collection['transmission']['electrical', 'capacity'] > 0
+    sc.table_collection['transmission'].loc[
+        cond, ('electrical', 'capacity')] = float('inf')
+    sc.table_collection['transmission']['electrical', 'efficiency'] = 1
+    name = sc.name + '_no_grid_limit'
+    path = sc.location.replace(sc.location.split(os.sep)[-1], '')
+    sc.to_csv(os.path.join(path, name + '_csv'))
+    sc.to_excel(os.path.join(path, name + '.xls'))
 
 
 if __name__ == "__main__":

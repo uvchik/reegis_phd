@@ -361,7 +361,7 @@ def start_basic_scenarios(checker=True, create_scenario=True):
 
 
 def start_no_grid_limit_scenarios(checker=True, create_scenario=False):
-    for year in [2014, 2013, 2012]:
+    for year in [2013, 2012, 2014]:
         for t in ['de21', 'de22']:
             if t == 'de22':
                 ex_reg = ['DE22']
@@ -370,7 +370,8 @@ def start_no_grid_limit_scenarios(checker=True, create_scenario=False):
             try:
                 t = t + '_no_grid_limit'
                 if create_scenario is True:
-                    alternative_scenarios.create_deflex_no_grid_limit(True)
+                    alternative_scenarios.create_deflex_no_grid_limit(
+                        year, t, create_scenario=True)
                 deflex_main(year, sim_type=t, create_scenario=False,
                             extra_regions=ex_reg)
             except Exception as e:
