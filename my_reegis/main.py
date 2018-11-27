@@ -452,8 +452,17 @@ if __name__ == "__main__":
     # exit(0)
     sys.setrecursionlimit(50000)
     stopwatch()
-    log_check(start_no_grid_limit_scenarios(create_scenario=True))
-    startdir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
+    checker = True
+    cfg.tmp_set('general', 'solver', 'cbc')
+    checker = start_no_grid_limit_scenarios(checker=checker,
+                                            create_scenario=True)
+    checker = start_basic_scenarios(checker=checker, create_scenario=True)
+    cfg.tmp_set('general', 'solver', 'gurobi')
+    checker = start_no_grid_limit_scenarios(checker=checker,
+                                            create_scenario=False)
+    checker = start_basic_scenarios(checker=checker, create_scenario=False)
+    log_check(checker)
+    # startdir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
     # log_check(start_all_by_dir(start_dir=startdir))
     # log_check(start_berlin_single_scenarios())
     # log_check(start_berlin_single_scenarios())
