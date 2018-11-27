@@ -32,6 +32,7 @@ import my_reegis
 # from my_reegis import results as sys_results
 from my_reegis import alternative_scenarios
 from my_reegis import friedrichshagen_scenarios as fhg_sc
+from my_reegis import embedded_model
 
 
 def stopwatch():
@@ -346,7 +347,19 @@ def start_berlin_single_scenarios(checker=True, create_scenario=True):
     return checker
 
 
-def start_basic_scenarios(year, checker=True, create_scenario=True):
+def start_embedded_scenarios(year, checker=True, create_scenario=True):
+    for t in ['de21', 'de22']:
+        try:
+            embedded_main(
+                year, sim_type=t, create_scenario=create_scenario)
+            deflex_main(year, sim_type=t + '_without_berlin',
+                        create_scenario=False)
+        except Exception as e:
+            checker = log_exception(e)
+    return checker
+
+
+def start_deflex_scenarios(year, checker=True, create_scenario=True):
     # deflex and embedded
     for t in ['de02', 'de17', 'de21', 'de22']:
         if t == 'de22':
@@ -357,10 +370,6 @@ def start_basic_scenarios(year, checker=True, create_scenario=True):
         try:
             deflex_main(year, sim_type=t, create_scenario=create_scenario,
                         extra_regions=ex_reg)
-            embedded_main(
-                year, sim_type=t, create_scenario=create_scenario)
-            deflex_main(year, sim_type=t + '_without_berlin',
-                        create_scenario=False)
         except Exception as e:
             checker = log_exception(e)
     return checker
@@ -400,7 +409,8 @@ def start_all(checker=True, create_scenario=True):
 
     # checker = start_friedrichshagen(checker, create_scenario=create_scenario)
 
-    checker = start_basic_scenarios(checker, create_scenario=create_scenario)
+    checker = start_deflex_scenarios(
+        2014, checker, create_scenario=create_scenario)
 
     # checker = start_alternative_scenarios(
     #     checker, create_scenario=create_scenario)
@@ -446,8 +456,6 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(deflex.__file__),
                     os.path.dirname(berlin_hp.__file__)])
 
-    # deflex_main(2014, sim_type='de21', create_scenario=False)
-    # exit(0)
     sys.setrecursionlimit(50000)
     stopwatch()
     check = True
@@ -458,8 +466,10 @@ if __name__ == "__main__":
                 y, cfg.get('general', 'solver')))
             check = start_no_grid_limit_scenarios(y, checker=check,
                                                   create_scenario=True)
-            check = start_basic_scenarios(y, checker=check,
-                                          create_scenario=True)
+            check = start_deflex_scenarios(y, checker=check,
+                                           create_scenario=True)
+            check = start_embedded_scenarios(y, checker=check,
+                                             create_scenario=True)
     log_check(check)
     # startdir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
     # log_check(start_all_by_dir(start_dir=startdir))
