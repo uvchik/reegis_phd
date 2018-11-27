@@ -346,43 +346,41 @@ def start_berlin_single_scenarios(checker=True, create_scenario=True):
     return checker
 
 
-def start_basic_scenarios(checker=True, create_scenario=True):
-    for year in [2014, 2013, 2012]:
-        # deflex and embedded
-        for t in ['de02', 'de17', 'de21', 'de22']:
-            if t == 'de22':
-                ex_reg = ['DE22']
-            else:
-                ex_reg = None
+def start_basic_scenarios(year, checker=True, create_scenario=True):
+    # deflex and embedded
+    for t in ['de02', 'de17', 'de21', 'de22']:
+        if t == 'de22':
+            ex_reg = ['DE22']
+        else:
+            ex_reg = None
 
-            try:
-                deflex_main(year, sim_type=t, create_scenario=create_scenario,
-                            extra_regions=ex_reg)
-                embedded_main(
-                    year, sim_type=t, create_scenario=create_scenario)
-                deflex_main(year, sim_type=t + '_without_berlin',
-                            create_scenario=False)
-            except Exception as e:
-                checker = log_exception(e)
+        try:
+            deflex_main(year, sim_type=t, create_scenario=create_scenario,
+                        extra_regions=ex_reg)
+            embedded_main(
+                year, sim_type=t, create_scenario=create_scenario)
+            deflex_main(year, sim_type=t + '_without_berlin',
+                        create_scenario=False)
+        except Exception as e:
+            checker = log_exception(e)
     return checker
 
 
-def start_no_grid_limit_scenarios(checker=True, create_scenario=False):
-    for year in [2014, 2013, 2012]:
-        for t in ['de21', 'de22']:
-            if t == 'de22':
-                ex_reg = ['DE22']
-            else:
-                ex_reg = None
-            try:
-                if create_scenario is True:
-                    alternative_scenarios.create_deflex_no_grid_limit(
-                        year, t, create_scenario=True)
-                t = t + '_no_grid_limit'
-                deflex_main(year, sim_type=t, create_scenario=False,
-                            extra_regions=ex_reg)
-            except Exception as e:
-                checker = log_exception(e)
+def start_no_grid_limit_scenarios(year, checker=True, create_scenario=False):
+    for t in ['de21', 'de22', 'de17', 'de02']:
+        if t == 'de22':
+            ex_reg = ['DE22']
+        else:
+            ex_reg = None
+        try:
+            if create_scenario is True:
+                alternative_scenarios.create_deflex_no_grid_limit(
+                    year, t, create_scenario=True)
+            t = t + '_no_grid_limit'
+            deflex_main(year, sim_type=t, create_scenario=False,
+                        extra_regions=ex_reg)
+        except Exception as e:
+            checker = log_exception(e)
     return checker
 
 
@@ -452,16 +450,17 @@ if __name__ == "__main__":
     # exit(0)
     sys.setrecursionlimit(50000)
     stopwatch()
-    checker = True
-    cfg.tmp_set('general', 'solver', 'cbc')
-    checker = start_no_grid_limit_scenarios(checker=checker,
-                                            create_scenario=True)
-    checker = start_basic_scenarios(checker=checker, create_scenario=True)
-    cfg.tmp_set('general', 'solver', 'gurobi')
-    checker = start_no_grid_limit_scenarios(checker=checker,
-                                            create_scenario=False)
-    checker = start_basic_scenarios(checker=checker, create_scenario=False)
-    log_check(checker)
+    check = True
+    for y in [2014, 2013, 2012]:
+        for slv in ['gurobi', 'cbc']:
+            cfg.tmp_set('general', 'solver', slv)
+            logging.info("Start scenarios for {0} using the {1} solver".format(
+                y, cfg.get('general', 'solver')))
+            check = start_no_grid_limit_scenarios(y, checker=check,
+                                                  create_scenario=True)
+            check = start_basic_scenarios(y, checker=check,
+                                          create_scenario=True)
+    log_check(check)
     # startdir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
     # log_check(start_all_by_dir(start_dir=startdir))
     # log_check(start_berlin_single_scenarios())
