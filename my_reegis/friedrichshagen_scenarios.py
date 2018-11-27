@@ -283,9 +283,10 @@ def adapted(year, name, cost_scenario, cost_value, add_wp, add_bio, pp, fix_pp,
     if not os.path.isfile(excel_fn) or overwrite:
         berlin_hp.friedrichshagen.create_basic_scenario(year, excel=excel_fn)
 
-    os.makedirs(os.path.join(path, 'results'), exist_ok=True)
+    res_path_name = 'results_{0}'.format(cfg.get('general', 'solver'))
+    os.makedirs(os.path.join(path, res_path_name), exist_ok=True)
     src = os.path.join(path, '{0}.xls'.format(base_name))
-    dst = os.path.join(path, 'results', '{0}.xls'.format(base_name))
+    dst = os.path.join(path, res_path_name, '{0}.xls'.format(base_name))
     copyfile(src, dst)
 
     sc.load_excel(excel_fn)

@@ -42,7 +42,9 @@ def stopwatch():
 
 def compute(sc, dump_graph=False, log_solver=True, duals=True):
     scenario_path = os.path.dirname(sc.location)
-    results_path = os.path.join(scenario_path, 'results')
+
+    results_path = os.path.join(
+        scenario_path, 'results_{0}'.format(cfg.get('general', 'solver')))
     os.makedirs(results_path, exist_ok=True)
 
     # Save energySystem to '.graphml' file if dump_graph is True
@@ -92,9 +94,10 @@ def load_deflex_scenario(year, sim_type='de21', create_scenario=False):
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
         deflex.basic_scenario.create_basic_scenario(year, rmap=sim_type)
 
-    os.makedirs(os.path.join(scenario_path, 'results'), exist_ok=True)
+    res_path_name = 'results_{0}'.format(cfg.get('general', 'solver'))
+    os.makedirs(os.path.join(scenario_path, res_path_name), exist_ok=True)
     src = os.path.join(scenario_path, '{0}.xls'.format(sc.name))
-    dst = os.path.join(scenario_path, 'results', '{0}.xls'.format(sc.name))
+    dst = os.path.join(scenario_path, res_path_name, '{0}.xls'.format(sc.name))
     copyfile(src, dst)
 
     # Load scenario from csv-file
@@ -133,9 +136,10 @@ def berlin_hp_main(year, sim_type='single', create_scenario=True,
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
         berlin_hp.basic_scenario.create_basic_scenario(year)
 
-    os.makedirs(os.path.join(scenario_path, 'results'), exist_ok=True)
+    res_path_name = 'results_{0}'.format(cfg.get('general', 'solver'))
+    os.makedirs(os.path.join(scenario_path, res_path_name), exist_ok=True)
     src = os.path.join(scenario_path, '{0}.xls'.format(sc.name))
-    dst = os.path.join(scenario_path, 'results', '{0}.xls'.format(sc.name))
+    dst = os.path.join(scenario_path, res_path_name, '{0}.xls'.format(sc.name))
     copyfile(src, dst)
 
     # Load scenario from csv-file
@@ -176,9 +180,11 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
     sc_de.load_csv().check_table('time_series')
     nodes_de = sc_de.create_nodes()
 
-    os.makedirs(os.path.join(scenario_path, 'results'), exist_ok=True)
+    res_path_name = 'results_{0}'.format(cfg.get('general', 'solver'))
+    os.makedirs(os.path.join(scenario_path, res_path_name), exist_ok=True)
     src = os.path.join(scenario_path, '{0}.xls'.format(sc_de.name))
-    dst = os.path.join(scenario_path, 'results', '{0}.xls'.format(sc_de.name))
+    dst = os.path.join(scenario_path, res_path_name,
+                       '{0}.xls'.format(sc_de.name))
     copyfile(src, dst)
 
     # berlin_hp
@@ -201,7 +207,7 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
 
     src = os.path.join(scenario_path, '{0}.xls'.format(sc.name))
     dst = os.path.join(
-        scenario_path, 'results', '{0}_{1}.xls'.format(sc.name, sim_type))
+        scenario_path, res_path_name, '{0}_{1}.xls'.format(sc.name, sim_type))
     copyfile(src, dst)
 
     sc.add_nodes(nodes)
@@ -236,9 +242,10 @@ def friedrichshagen_main(year, create_scenario=True):
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
         berlin_hp.friedrichshagen.create_basic_scenario(year)
 
-    os.makedirs(os.path.join(scenario_path, 'results'), exist_ok=True)
+    res_path_name = 'results_{0}'.format(cfg.get('general', 'solver'))
+    os.makedirs(os.path.join(scenario_path, res_path_name), exist_ok=True)
     src = os.path.join(scenario_path, '{0}.xls'.format(sc.name))
-    dst = os.path.join(scenario_path, 'results', '{0}.xls'.format(sc.name))
+    dst = os.path.join(scenario_path, res_path_name, '{0}.xls'.format(sc.name))
     copyfile(src, dst)
 
     # Load scenario from csv-file
@@ -275,10 +282,10 @@ def optimise_scenario(path, name, create_fct=None, create_scenario=True,
             logging.info("Create scenario for {0}: {1}".format(stopwatch(),
                                                                name))
             create_fct()
-
-    os.makedirs(os.path.join(path, 'results'), exist_ok=True)
+    res_path_name = 'results_{0}'.format(cfg.get('general', 'solver'))
+    os.makedirs(os.path.join(path, res_path_name), exist_ok=True)
     src = os.path.join(path, '{0}.xls'.format(sc.name))
-    dst = os.path.join(path, 'results', '{0}.xls'.format(sc.name))
+    dst = os.path.join(path, res_path_name, '{0}.xls'.format(sc.name))
     copyfile(src, dst)
 
     # Load scenario from csv-file
@@ -351,17 +358,17 @@ def start_basic_scenarios(checker=True, create_scenario=True):
             try:
                 deflex_main(year, sim_type=t, create_scenario=create_scenario,
                             extra_regions=ex_reg)
-                # embedded_main(
-                #     year, sim_type=t, create_scenario=create_scenario)
-                # deflex_main(year, sim_type=t + '_without_berlin',
-                #             create_scenario=False)
+                embedded_main(
+                    year, sim_type=t, create_scenario=create_scenario)
+                deflex_main(year, sim_type=t + '_without_berlin',
+                            create_scenario=False)
             except Exception as e:
                 checker = log_exception(e)
     return checker
 
 
 def start_no_grid_limit_scenarios(checker=True, create_scenario=False):
-    for year in [2013, 2012, 2014]:
+    for year in [2014, 2013, 2012]:
         for t in ['de21', 'de22']:
             if t == 'de22':
                 ex_reg = ['DE22']

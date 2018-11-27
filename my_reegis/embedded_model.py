@@ -337,7 +337,8 @@ def main(year, rmap):
 
     # Dump the energy system with the results to disc
     logging.info("Solved. Dump results: {0}".format(stopwatch()))
-    res_path = os.path.join(scenario_path, 'results')
+    res_path = os.path.join(scenario_path, 'results_{0}'.format(
+        cfg.get('general', 'solver')))
     if not os.path.isdir(res_path):
         os.mkdir(res_path)
     sc_be.dump_es(os.path.join(res_path, 'berlin_hp_{0}.esys'.format(rmap)))
