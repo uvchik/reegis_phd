@@ -368,10 +368,10 @@ def start_no_grid_limit_scenarios(checker=True, create_scenario=False):
             else:
                 ex_reg = None
             try:
-                t = t + '_no_grid_limit'
                 if create_scenario is True:
                     alternative_scenarios.create_deflex_no_grid_limit(
                         year, t, create_scenario=True)
+                t = t + '_no_grid_limit'
                 deflex_main(year, sim_type=t, create_scenario=False,
                             extra_regions=ex_reg)
             except Exception as e:
