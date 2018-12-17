@@ -704,6 +704,146 @@ def load_my_es(*args, var=None, fn=None, scpath=None):
     return es
 
 
+def fetch_cost_emission(es, with_chp=True):
+    """
+    Fetch the costs and emissions per electricity unit for all power plants
+    and combined heat and power plants if with chp is True
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    idx = pd.MultiIndex(levels=[[], [], []], labels=[[], [], []])
+    parameter = pd.DataFrame(index=idx)
+    p = es.results['Param']
+    flows = [x for x in p if x[1] is not None]
+    cs = [x for x in flows if (x[0].label.tag == 'commodity') and
+          (x[0].label.cat == 'source')]
+
+    # Loop over commodity sources
+    for k in cs:
+        fuel = k[0].label.subtag
+        emission = p[k]['scalars'].emission
+        var_costs = p[k]['scalars'].variable_costs
+
+        # All power plants with the commodity source (cs)
+        pps = [x[1] for x in flows if x[0] == k[1] and x[1].label.tag == 'pp']
+        for pp in pps:
+            region = pp.label.region
+            key = 'conversion_factors_bus_electricity_all_{0}'.format(region)
+            cf = p[pp, None]['scalars'][key]
+            region = pp.label.region
+            parameter.loc[(fuel, region, 'pp'), 'emission'] = emission / cf
+            parameter.loc[(fuel, region, 'pp'), 'var_costs'] = var_costs / cf
+
+        # All chp plants with the commodity source (cs)
+        if with_chp is True:
+            chps = [
+                x[1] for x in flows if
+                x[0] == k[1] and x[1].label.tag == 'chp']
+            hps = [x[1] for x in flows if
+                   x[0] == k[1] and x[1].label.tag == 'hp']
+        else:
+            chps = []
+            hps = []
+
+        for chp in chps:
+            region = chp.label.region
+            eta = {}
+            hp = [x for x in hps if x.label.region == region]
+            if len(hp) == 1:
+                key = 'conversion_factors_bus_heat_district_{0}'.format(region)
+                eta['heat_hp'] = p[hp[0], None]['scalars'][key]
+                for o in chp.outputs:
+                    key = 'conversion_factors_{0}'.format(o)
+                    eta_key = o.label.tag
+                    eta_val = p[chp, None]['scalars'][key]
+                    eta[eta_key] = eta_val
+                alternative_resource_usage = (
+                        eta['heat'] / (eta['electricity'] * eta['heat_hp']))
+                chp_resource_usage = 1 / eta['electricity']
+
+                cf = 1 / (chp_resource_usage - alternative_resource_usage)
+                parameter.loc[
+                    (fuel, region, 'chp'), 'emission'] = emission / cf
+                parameter.loc[
+                    (fuel, region, 'chp'), 'var_costs'] = var_costs / cf
+
+                # eta['heat_ref'] = 0.9
+                # eta['elec_ref'] = 0.55
+                #
+                # pee = (1 / (eta['heat'] / eta['heat_ref']
+                #             + eta['electricity'] / eta['elec_ref'])) *\
+                #       (eta['electricity'] / eta['elec_ref'])
+                # parameter.loc[
+                #     (fuel, region, 'chp_fin'), 'emission'] = emission / pee
+                # parameter.loc[
+                #     (fuel, region, 'chp_fin'), 'var_costs'] = var_costs / pee
+            elif len(hp) > 1:
+                print('error')
+            else:
+                print('Missing hp: {0}'.format(str(chp)))
+                parameter.loc[
+                    (fuel, region, 'chp'), 'emission'] = float('nan')
+                parameter.loc[
+                    (fuel, region, 'chp'), 'var_costs'] = 0
+    return parameter
+
+
+def get_storage_efficiencies(es):
+    """Get the overall efficiency for all storages.
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    p = es.results['Param']
+    storages = [x for x in p if x[0].label.cat == 'storage' and x[1] is None]
+    storages_eff = pd.Series()
+    for s in storages:
+        sp = p[s]['scalars']
+        cf_in = sp.inflow_conversion_factor
+        cf_out = sp.outflow_conversion_factor
+        storages_eff[s[0]] = cf_in * cf_out
+    return storages_eff
+
+
+def fetch_cost_emission_with_storages(es, with_chp=True):
+    """
+    Fetch the costs and emissions per electricity unit for all power plants
+    and combined heat and power plants if with chp is True.
+
+    Additionally all emissions and cost will be divided by the efficiency of
+    all storage. The result is a Multiindex DataFrame with the name of the
+    storage in the first level and 'emission' or 'cost' in the second level.
+    For the emissions and cost without a storage the keyword 'no_storage is
+    used.
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    parameter = fetch_cost_emission(es, with_chp=with_chp)
+    storage_efficiencies = get_storage_efficiencies(es)
+    idx = pd.MultiIndex(levels=[[], []], labels=[[], []])
+    parameter_w_storage = pd.DataFrame(index=parameter.index, columns=idx)
+    for si, sv in storage_efficiencies.iteritems():
+        for pi, pv in parameter.iterrows():
+            parameter_w_storage.loc[
+                pi, (str(si), 'var_costs')] = pv.var_costs / sv
+            parameter_w_storage.loc[
+                pi, (str(si), 'emission')] = pv.emission / sv
+            parameter_w_storage.loc[pi, ('multip' + str(si), 'var_costs')] = (
+                    pv.var_costs * sv)
+            parameter_w_storage.loc[pi, ('multip' + str(si), 'emission')] = (
+                    pv.emission * sv)
+    for pi, pv in parameter.iterrows():
+        ns = 'no_storage'
+        parameter_w_storage.loc[pi, (ns, 'var_costs')] = pv.var_costs
+        parameter_w_storage.loc[pi, (ns, 'emission')] = pv.emission
+    return parameter_w_storage
+
+
 def get_test_es():
     fn1, fn2 = get_file_name_doctests()
     return load_es(fn1)
