@@ -17,16 +17,19 @@ import reegis_tools.gui as gui
 
 from deflex.scenario_tools import Label as Label
 
-FN = os.path.join(cfg.get('paths', 'scenario'), 'deflex', '2014', 'results',
-                  'deflex_2014_de21.esys')
-FN2 = os.path.join(cfg.get('paths', 'scenario'), 'deflex', '2013', 'results',
-                   'deflex_2013_de21.esys')
-
 
 def stopwatch():
     if not hasattr(stopwatch, 'start'):
         stopwatch.start = datetime.now()
     return str(datetime.now() - stopwatch.start)[:-7]
+
+
+def get_file_name_doctests():
+    fn1 = os.path.join(cfg.get('paths', 'scenario'), 'deflex', '2014',
+                       'results', 'deflex_2014_de21.esys')
+    fn2 = os.path.join(cfg.get('paths', 'scenario'), 'deflex', '2013',
+                       'results', 'deflex_2013_de21.esys')
+    return fn1, fn2
 
 
 def compare_transmission(es1, es2, name1='es1', name2='es2', noreg='DE22'):
@@ -52,8 +55,9 @@ def compare_transmission(es1, es2, name1='es1', name2='es2', noreg='DE22'):
 
     Examples
     --------
-    >>> my_es1 = load_es(FN)
-    >>> my_es2 = load_es(FN2)
+    >>> fn1, fn2 = get_file_name_doctests()
+    >>> my_es1 = load_es(fn1)
+    >>> my_es2 = load_es(fn2)
     >>> my_df = compare_transmission(my_es1, my_es2, noreg='DE22')
     >>> isinstance(my_df, pd.DataFrame)
     True
@@ -185,7 +189,8 @@ def reshape_bus_view(es, bus, data=None, aggregate_lines=True):
 
     Examples
     --------
-    >>> my_es = load_es(FN)
+    >>> fn1, fn2 = get_file_name_doctests()
+    >>> my_es = load_es(fn1)
     >>> my_bus = get_nodes_by_label(
     ...    my_es, ('bus', 'electricity', None, 'DE10'))
     >>> my_df = reshape_bus_view(my_es, my_bus).sum()
@@ -274,7 +279,8 @@ def get_multiregion_bus_balance(es, bus_substring=None):
 
     Examples
     --------
-    >>> my_es = load_es(FN)
+    >>> fn1, fn2 = get_file_name_doctests()
+    >>> my_es = load_es(fn1)
     >>> my_df = get_multiregion_bus_balance(
     ...    my_es, bus_substring='bus_electricity')
     >>> isinstance(my_df, pd.DataFrame)
@@ -315,7 +321,8 @@ def get_nominal_values(es, cat='bus', tag='electricity', subtag=None):
 
     Examples
     --------
-    >>> my_es = load_es(FN)
+    >>> fn1, fn2 = get_file_name_doctests()
+    >>> my_es = load_es(fn1)
     >>> my_df = get_nominal_values(my_es)
     >>> isinstance(my_df, pd.DataFrame)
     True
@@ -364,7 +371,8 @@ def get_nodes_by_label(es, label_args):
 
     Examples
     --------
-    >>> my_es = load_es(FN)
+    >>> fn1, fn2 = get_file_name_doctests()
+    >>> my_es = load_es(fn1)
     >>> my_bus = get_nodes_by_label(my_es, ('bus', 'electricity', None, None))
     >>> len(my_bus)
     21
@@ -441,7 +449,8 @@ def ee_analyser(es, ee_type):
 
     Examples
     --------
-    >>> s = ee_analyser(load_es(FN), 'solar')
+    >>> fn1, fn2 = get_file_name_doctests()
+    >>> s = ee_analyser(load_es(fn1), 'solar')
     >>> isinstance(s, pd.Series)
     True
     """
@@ -506,7 +515,8 @@ def fullloadhours(es, grouplevel=None, dropnan=False):
 
     Examples
     --------
-    >>> es = load_es(FN)
+    >>> fn1, fn2 = get_file_name_doctests()
+    >>> es = load_es(fn1)
     >>> df1 = fullloadhours(es, grouplevel = [0, 1, 2])
     >>> df_sub1 = df1.loc['trsf', 'pp', 'lignite']
     >>> df2 = fullloadhours(es)
@@ -600,7 +610,8 @@ def create_label_overview(es):
 
     Examples
     --------
-    >>> fulldf = create_label_overview(load_es(FN))
+    >>> fn1, fn2 = get_file_name_doctests()
+    >>> fulldf = create_label_overview(load_es(fn1))
     >>> subdf = fulldf.swaplevel(0, 3).sort_index().loc['DE01']
     >>> isinstance(subdf, pd.DataFrame)
     True
@@ -658,17 +669,23 @@ def load_my_es(*args, var=None, fn=None, scpath=None):
 
     Examples
     --------
+    >>> fn1, fn2 = get_file_name_doctests()
     >>> es1 = load_my_es('deflex', '2014', var='de21')
-    >>> es2 = load_es(FN)
+    >>> es2 = load_es(fn1)
     >>> l1 = list(es1.results['Main'].keys())[0][0].label
     >>> l2 = list(es2.results['Main'].keys())[0][0].label
     >>> l1 == l2
     True
     """
-    if scpath is None:
-        path = os.path.join(cfg.get('paths', 'scenario'), *args, 'results')
+    if cfg.has_option('results', 'dir'):
+        results_dir = cfg.get('results', 'dir')
     else:
-        path = os.path.join(scpath, *args, 'results')
+        results_dir = 'results'
+
+    if scpath is None:
+        path = os.path.join(cfg.get('paths', 'scenario'), *args, results_dir)
+    else:
+        path = os.path.join(scpath, *args, results_dir)
 
     if var is None:
         var = []
@@ -683,11 +700,13 @@ def load_my_es(*args, var=None, fn=None, scpath=None):
 
     es = load_es(fn)
     es.name = name
+    es.var = var[0]
     return es
 
 
 def get_test_es():
-    return load_es(FN)
+    fn1, fn2 = get_file_name_doctests()
+    return load_es(fn1)
 
 
 if __name__ == "__main__":
