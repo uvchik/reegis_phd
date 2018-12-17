@@ -1,6 +1,5 @@
 # Python libraries
 import os
-import logging
 from datetime import datetime
 # import time
 # import traceback
@@ -266,6 +265,16 @@ def create_deflex_no_grid_limit(year, rmap, create_scenario=False):
         cond, ('electrical', 'capacity')] = float('inf')
     sc.table_collection['transmission']['electrical', 'efficiency'] = 1
     name = sc.name + '_no_grid_limit'
+    path = sc.location.replace(sc.location.split(os.sep)[-1], '')
+    sc.to_csv(os.path.join(path, name + '_csv'))
+    sc.to_excel(os.path.join(path, name + '.xls'))
+
+
+def create_deflex_no_storage(year, rmap, create_scenario=False):
+    sc = main.load_deflex_scenario(
+        year, sim_type=rmap, create_scenario=False)
+    del sc.table_collection['storages']
+    name = sc.name + '_no_storage'
     path = sc.location.replace(sc.location.split(os.sep)[-1], '')
     sc.to_csv(os.path.join(path, name + '_csv'))
     sc.to_excel(os.path.join(path, name + '.xls'))
