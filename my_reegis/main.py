@@ -375,6 +375,24 @@ def start_deflex_scenarios(year, checker=True, create_scenario=True):
     return checker
 
 
+def start_no_storage_scenarios(year, checker=True, create_scenario=False):
+    for t in ['de21', 'de22', 'de17', 'de02']:
+        if t == 'de22':
+            ex_reg = ['DE22']
+        else:
+            ex_reg = None
+        try:
+            if create_scenario is True:
+                alternative_scenarios.create_deflex_no_storage(
+                    year, t, create_scenario=True)
+            t = t + '_no_storage'
+            deflex_main(year, sim_type=t, create_scenario=False,
+                        extra_regions=ex_reg)
+        except Exception as e:
+            checker = log_exception(e)
+    return checker
+
+
 def start_no_grid_limit_scenarios(year, checker=True, create_scenario=False):
     for t in ['de21', 'de22', 'de17', 'de02']:
         if t == 'de22':
@@ -464,12 +482,14 @@ if __name__ == "__main__":
             cfg.tmp_set('general', 'solver', slv)
             logging.info("Start scenarios for {0} using the {1} solver".format(
                 y, cfg.get('general', 'solver')))
-            check = start_no_grid_limit_scenarios(y, checker=check,
-                                                  create_scenario=True)
-            check = start_deflex_scenarios(y, checker=check,
-                                           create_scenario=True)
-            check = start_embedded_scenarios(y, checker=check,
-                                             create_scenario=True)
+            check = start_no_storage_scenarios(y, checker=check,
+                                               create_scenario=True)
+            # check = start_no_grid_limit_scenarios(y, checker=check,
+            #                                       create_scenario=True)
+            # check = start_deflex_scenarios(y, checker=check,
+            #                                create_scenario=True)
+            # check = start_embedded_scenarios(y, checker=check,
+            #                                  create_scenario=True)
     log_check(check)
     # startdir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
     # log_check(start_all_by_dir(start_dir=startdir))

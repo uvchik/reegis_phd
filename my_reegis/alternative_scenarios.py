@@ -272,7 +272,7 @@ def create_deflex_no_grid_limit(year, rmap, create_scenario=False):
 
 def create_deflex_no_storage(year, rmap, create_scenario=False):
     sc = main.load_deflex_scenario(
-        year, sim_type=rmap, create_scenario=False)
+        year, sim_type=rmap, create_scenario=create_scenario)
     del sc.table_collection['storages']
     name = sc.name + '_no_storage'
     path = sc.location.replace(sc.location.split(os.sep)[-1], '')
