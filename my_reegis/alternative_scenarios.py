@@ -280,6 +280,20 @@ def create_deflex_no_storage(year, rmap, create_scenario=False):
     sc.to_excel(os.path.join(path, name + '.xls'))
 
 
+def create_deflex_no_grid_limit_no_storage(year, rmap, create_scenario=False):
+    sc = main.load_deflex_scenario(
+        year, sim_type=rmap, create_scenario=create_scenario)
+    del sc.table_collection['storages']
+    cond = sc.table_collection['transmission']['electrical', 'capacity'] > 0
+    sc.table_collection['transmission'].loc[
+        cond, ('electrical', 'capacity')] = float('inf')
+    sc.table_collection['transmission']['electrical', 'efficiency'] = 1
+    name = sc.name + '_no_grid_limit_no_storage'
+    path = sc.location.replace(sc.location.split(os.sep)[-1], '')
+    sc.to_csv(os.path.join(path, name + '_csv'))
+    sc.to_excel(os.path.join(path, name + '.xls'))
+
+
 if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(deflex.__file__),
                     os.path.dirname(berlin_hp.__file__)])
