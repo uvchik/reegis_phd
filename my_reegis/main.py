@@ -385,15 +385,16 @@ def start_no_storage_scenarios(year, checker=True, create_scenario=False):
             if create_scenario is True:
                 alternative_scenarios.create_deflex_no_storage(
                     year, t, create_scenario=True)
-            t = t + '_no_storage'
-            deflex_main(year, sim_type=t, create_scenario=False,
-                        extra_regions=ex_reg)
+            deflex_main(year, sim_type=t + '_no_storage',
+                        create_scenario=False, extra_regions=ex_reg)
+        except Exception as e:
+            checker = log_exception(e)
+        try:
             if create_scenario is True:
                 alternative_scenarios.create_deflex_no_grid_limit_no_storage(
                     year, t, create_scenario=True)
-            t = t + '_no_grid_limit_no_storage'
-            deflex_main(year, sim_type=t, create_scenario=False,
-                        extra_regions=ex_reg)
+            deflex_main(year, sim_type=t + '_no_grid_limit_no_storage',
+                        create_scenario=False, extra_regions=ex_reg)
         except Exception as e:
             checker = log_exception(e)
     return checker
