@@ -247,8 +247,6 @@ def berlin_hp_main(year, sim_type='single', create_scenario=True,
     sc.name = sc.name + '_up_' + str(upstream_name)
 
     # Create concrete model, solve it and dump the results
-    print(sc.name)
-    exit(0)
     compute(sc, dump_graph=dump_graph)
 
 
