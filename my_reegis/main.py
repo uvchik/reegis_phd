@@ -31,8 +31,9 @@ import berlin_hp
 import my_reegis
 # from my_reegis import results as sys_results
 from my_reegis import alternative_scenarios
-from my_reegis import friedrichshagen_scenarios as fhg_sc
 from my_reegis import embedded_model
+from reegis_tools.scenario_tools import Label
+from my_reegis import upstream_analysis as upa
 
 
 def stopwatch():
@@ -122,8 +123,90 @@ def deflex_main(year, sim_type='de21', create_scenario=True, dump_graph=False,
     compute(sc, dump_graph=dump_graph)
 
 
+def remove_shortage_excess_electricity(nodes):
+    elec_nodes = [v for k, v in nodes.items() if v.label.tag == 'electricity']
+    for v in elec_nodes:
+        if v.label.cat == 'excess':
+            flow = next(iter(nodes[v.label].inputs.values()))
+            flow.nominal_value = 0
+        elif v.label.cat == 'shortage':
+            flow = next(iter(nodes[v.label].outputs.values()))
+            flow.nominal_value = 0
+
+
+def add_upstream_import_export(nodes, bus, upstream_prices):
+
+    if isinstance(upstream_prices, str):
+        if upstream_prices == 'no_costs':
+            export_costs = -0.000001
+            import_costs = 500
+        elif upstream_prices == 'ee':
+            remove_shortage_excess_electricity(nodes)
+            export_costs = 5000
+            import_costs = 5000
+        else:
+            export_costs = None
+            import_costs = None
+    else:
+        export_costs = upstream_prices * -0.99
+        import_costs = upstream_prices * 1.01
+
+    exp_label = Label('export', 'electricity', 'all', bus.label.region)
+    nodes[exp_label] = solph.Sink(
+                label=exp_label,
+                inputs={bus: solph.Flow(
+                    variable_costs=export_costs)})
+
+    imp_label = Label('import', 'electricity', 'all', bus.label.region)
+    nodes[imp_label] = solph.Source(
+                label=imp_label,
+                outputs={bus: solph.Flow(
+                    variable_costs=import_costs)})
+    return nodes
+
+
+def berlin_hp_with_upstream_sets(year, solver, method='mcp', checker=True,
+                                 create_scenario=True):
+    df = upa.get_upstream_set(solver, year, method)
+    for name, series in df.iteritems():
+        try:
+            berlin_hp_main(year, upstream_prices=series,
+                           create_scenario=create_scenario)
+            create_scenario = False
+        except Exception as e:
+            checker = log_exception(e)
+    return checker
+
+
+def berlin_hp_single_scenarios(year, checker=True, create_scenario=True):
+    for name in ['no_costs', 'ee', None]:
+        try:
+            berlin_hp_main(year, upstream_prices=name,
+                           create_scenario=create_scenario)
+            create_scenario = False
+        except Exception as e:
+            checker = log_exception(e)
+    return checker
+
+
+# def start_berlin_single_scenarios(checker=True, create_scenario=True):
+#     for year in [2014, 2013, 2012]:
+#         up_sc = fhg_sc.load_upstream_scenario_values(
+#             ).columns.get_level_values(0).unique()
+#         up_sc = [x for x in up_sc if str(year) in x]
+#         up_sc.append(None)
+#         for upstream in up_sc:
+#             # Run scenario
+#             try:
+#                 berlin_hp_main(year, create_scenario=create_scenario,
+#                                upstream=upstream)
+#             except Exception as e:
+#                 checker = log_exception(e)
+#     return checker
+
+
 def berlin_hp_main(year, sim_type='single', create_scenario=True,
-                   dump_graph=False, upstream=None):
+                   dump_graph=False, upstream_prices=None):
 
     cfg.tmp_set('init', 'map', sim_type)
 
@@ -149,16 +232,23 @@ def berlin_hp_main(year, sim_type='single', create_scenario=True,
 
     nodes = sc.create_nodes(region='BE')
 
-    if upstream is not None:
-        nodes = fhg_sc.add_import_export(nodes, cost_scenario=upstream,
-                                         value='meritorder', region='BE')
+    if upstream_prices is not None:
+        elec_bus = [v for k, v in nodes.items() if
+                    v.label.tag == 'electricity' and isinstance(v, solph.Bus)]
+        bus = elec_bus[0]
+        nodes = add_upstream_import_export(nodes, bus, upstream_prices)
+        upstream_name = upstream_prices.name
+    else:
+        upstream_name = None
 
     sc.es = sc.initialise_energy_system()
     sc.es.add(*nodes.values())
 
-    sc.name = sc.name + '_up_' + str(upstream)
+    sc.name = sc.name + '_up_' + str(upstream_name)
 
     # Create concrete model, solve it and dump the results
+    print(sc.name)
+    exit(0)
     compute(sc, dump_graph=dump_graph)
 
 
@@ -331,22 +421,6 @@ def start_alternative_scenarios(checker, create_scenario=True):
     return checker
 
 
-def start_berlin_single_scenarios(checker=True, create_scenario=True):
-    for year in [2014, 2013, 2012]:
-        up_sc = fhg_sc.load_upstream_scenario_values(
-            ).columns.get_level_values(0).unique()
-        up_sc = [x for x in up_sc if str(year) in x]
-        up_sc.append(None)
-        for upstream in up_sc:
-            # Run scenario
-            try:
-                berlin_hp_main(year, create_scenario=create_scenario,
-                               upstream=upstream)
-            except Exception as e:
-                checker = log_exception(e)
-    return checker
-
-
 def start_embedded_scenarios(year, checker=True, create_scenario=True):
     for t in ['de21', 'de22']:
         try:
@@ -489,8 +563,10 @@ if __name__ == "__main__":
             cfg.tmp_set('general', 'solver', slv)
             logging.info("Start scenarios for {0} using the {1} solver".format(
                 y, cfg.get('general', 'solver')))
-            check = start_no_storage_scenarios(y, checker=check,
-                                               create_scenario=True)
+            check = berlin_hp_with_upstream_sets(y, slv, checker=check)
+            check = berlin_hp_single_scenarios(y, checker=check)
+            # check = start_no_storage_scenarios(y, checker=check,
+            #                                    create_scenario=True)
             # check = start_no_grid_limit_scenarios(y, checker=check,
             #                                       create_scenario=True)
             # check = start_deflex_scenarios(y, checker=check,
