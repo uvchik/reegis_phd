@@ -105,19 +105,20 @@ def fetch_mcp_for_all_scenarios(path, solver, year=None):
     return mcp
 
 
-def get_mcp_for_all_scenarios(path, solver, year):
+def get_mcp_for_all_scenarios(path, solver, year, overwrite=False):
     if path is None:
         path = os.path.join(cfg.get('paths', 'scenario'), 'deflex')
-    fn = dump_mcp_for_all_scenarios(path, solver, year=year)
+    fn = dump_mcp_for_all_scenarios(path, solver, year=year,
+                                    overwrite=overwrite)
     return pd.read_csv(fn.format(year, solver), index_col=[0],
                        header=[0, 1, 2])
 
 
-def dump_mcp_for_all_scenarios(path, solver, year=None):
+def dump_mcp_for_all_scenarios(path, solver, year=None, overwrite=False):
     filename = 'market_clearing_price_{0}_{1}.csv'
     if year is not None:
         if not os.path.isfile(os.path.join(path, filename.format(
-                year, solver))):
+                year, solver))) or overwrite:
             mcp = fetch_mcp_for_all_scenarios(path, solver, year)
         else:
             mcp = {}
@@ -128,7 +129,7 @@ def dump_mcp_for_all_scenarios(path, solver, year=None):
     return os.path.join(path, filename)
 
 
-def get_upstream_set(solver, year, method):
-    df = get_mcp_for_all_scenarios(None, solver, year)
+def get_upstream_set(solver, year, method, overwrite=True):
+    df = get_mcp_for_all_scenarios(None, solver, year, overwrite=overwrite)
     base = 'deflex_{0}'.format(solver)
     return df.swaplevel(axis=1).sort_index(1)[base, method]
