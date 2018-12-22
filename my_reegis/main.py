@@ -34,6 +34,7 @@ from my_reegis import alternative_scenarios
 from my_reegis import embedded_model
 from reegis_tools.scenario_tools import Label
 from my_reegis import upstream_analysis as upa
+from my_reegis import alternative_scenarios as alt
 
 
 def stopwatch():
@@ -123,6 +124,23 @@ def deflex_main(year, sim_type='de21', create_scenario=True, dump_graph=False,
     compute(sc, dump_graph=dump_graph)
 
 
+def deflex_alternative_scenarios(year):
+    alt.create_XX_scenario_set(year)
+    scenario_list = alt.fetch_XX_scenarios(year)
+    n = len(scenario_list)
+    logging.info("Number of scenarios: {0}".format(n))
+    i = 0
+    for scenario_path in scenario_list:
+        i += 1
+        name = scenario_path.split(os.sep)[-1][:-4]
+        logging.info("Start scenario {0} from {1}: {2}".format(i, n, name))
+        sc = deflex.Scenario(name=name, year=year)
+        sc.location = scenario_path
+        sc.load_csv().check_table('time_series')
+        sc.table2es()
+        compute(sc, dump_graph=False)
+
+
 def remove_shortage_excess_electricity(nodes):
     elec_nodes = [v for k, v in nodes.items() if v.label.tag == 'electricity']
     for v in elec_nodes:
@@ -167,7 +185,7 @@ def add_upstream_import_export(nodes, bus, upstream_prices):
 
 def berlin_hp_with_upstream_sets(year, solver, method='mcp', checker=True,
                                  create_scenario=True):
-    df = upa.get_upstream_set(solver, year, method)
+    df = upa.get_upstream_set(solver, year, method, overwrite=True)
     for name, series in df.iteritems():
         try:
             berlin_hp_main(year, upstream_prices=series,
@@ -187,22 +205,6 @@ def berlin_hp_single_scenarios(year, checker=True, create_scenario=True):
         except Exception as e:
             checker = log_exception(e)
     return checker
-
-
-# def start_berlin_single_scenarios(checker=True, create_scenario=True):
-#     for year in [2014, 2013, 2012]:
-#         up_sc = fhg_sc.load_upstream_scenario_values(
-#             ).columns.get_level_values(0).unique()
-#         up_sc = [x for x in up_sc if str(year) in x]
-#         up_sc.append(None)
-#         for upstream in up_sc:
-#             # Run scenario
-#             try:
-#                 berlin_hp_main(year, create_scenario=create_scenario,
-#                                upstream=upstream)
-#             except Exception as e:
-#                 checker = log_exception(e)
-#     return checker
 
 
 def berlin_hp_main(year, sim_type='single', create_scenario=True,
@@ -556,6 +558,10 @@ if __name__ == "__main__":
     sys.setrecursionlimit(50000)
     stopwatch()
     check = True
+    cfg.tmp_set('general', 'solver', 'cbc')
+    deflex_alternative_scenarios(2014)
+    log_check(check)
+    exit(0)
     for y in [2014, 2013, 2012]:
         for slv in ['gurobi', 'cbc']:
             cfg.tmp_set('general', 'solver', slv)

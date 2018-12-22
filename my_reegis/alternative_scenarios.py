@@ -4,13 +4,14 @@ from datetime import datetime
 # import time
 # import traceback
 # from shutil import copyfile
-
+import pandas as pd
 # oemof packages
 from oemof.tools import logger
 # from oemof import solph
 
 # internal modules
 import reegis_tools.config as cfg
+from reegis_tools import Scenario
 # import reegis_tools.scenario_tools
 import deflex
 from deflex import inhabitants
@@ -30,7 +31,6 @@ def reduce_power_plants(sc, nuclear=None, lignite=None, hard_coal=None):
     sc.table_collection['transformer'] = sc.table_collection[
         'transformer'].swaplevel(axis=1).sort_index(axis=1)
     # remove nuclear power (by law)
-
     if nuclear is not None:
         if nuclear == 0:
             sc.table_collection['transformer'].drop(
@@ -61,7 +61,7 @@ def more_heat_pumps(sc, heat_pump_fraction, cop):
     heat_pump = abs_decentr_heat * heat_pump_fraction
     sc.table_collection['time_series']['DE_demand'] *= (1 - heat_pump_fraction)
 
-    inhab = inhabitants.get_ew_by_deflex(2014)
+    inhab = inhabitants.get_ew_by_deflex(2014, rmap=sc.map)
     inhab_fraction = inhab.div(inhab.sum())
 
     for region in inhab_fraction.index:
@@ -75,7 +75,7 @@ def increase_re_share(sc, factor):
     t = sc.table_collection['volatile_source']
     for region in t.columns.get_level_values(0).unique():
         for vs in t[region].columns:
-            t[region, vs] += t[region, vs] * factor
+            t[region, vs] = t[region, vs] * factor
 
 
 def add_simple_gas_turbine(sc, nom_val, efficiency=0.39):
@@ -90,6 +90,88 @@ def add_simple_gas_turbine(sc, nom_val, efficiency=0.39):
                 int(5 * round((nom_val[region] / 100 + 2.5) / 5) * 100))
         sc.table_collection['transformer'].loc[
             'limit_elec_pp', (region, 'natural gas add')] = 'inf'
+
+
+def add_one_gas_turbine(sc, nominal_value, efficiency=0.39):
+    sc.table_collection['commodity_source'][('DE', 'natural gas add')] = (
+        sc.table_collection['commodity_source'][('DE', 'natural gas')])
+
+    region = sc.table_collection['transformer'].columns.get_level_values(
+        0).unique()[0]
+
+    sc.table_collection['transformer'].loc[
+            'efficiency', (region, 'natural gas add')] = efficiency
+    sc.table_collection['transformer'].loc[
+        'capacity', (region, 'natural gas add')] = nominal_value
+    sc.table_collection['transformer'].loc[
+        'limit_elec_pp', (region, 'natural gas add')] = 'inf'
+
+
+def find_scenarios(path, year, sub='', notsub='ß'):
+    scenarios = []
+    for root, directories, filenames in os.walk(path):
+        for d in directories:
+            if (d[-4:] == '_csv' and sub in d and
+                    notsub not in d and str(year) in d):
+                scenarios.append(os.path.join(root, d))
+    return scenarios
+
+
+def fetch_XX_scenarios(year):
+    path = os.path.join(cfg.get('paths', 'scenario'), 'deflex')
+    substring = '_XX_'
+    return find_scenarios(path, year, substring)
+
+
+def create_XX_scenario_set(year):
+    fetch_XX_scenarios(year)
+    path = os.path.join(cfg.get('paths', 'scenario'), 'deflex')
+    substring = 'no_grid_limit_no_storage'
+    notsub = '_XX_'
+    base_scenarios = find_scenarios(path, year, substring, notsub)
+    nuclear = 0
+    for fn in base_scenarios:
+        sc_name = fn.split(os.sep)[-1][:-4]
+        sc_map = str(sc_name).split('_')[2]
+        sc = Scenario(name=sc_name)
+        sc.map = sc_map
+        sc.year = year
+        for lignite_set in [(1, 0), (0.5, 30000)]:
+            lignite = lignite_set[0]
+            gas_capacity = lignite_set[1]
+            for hp_frac in [0, 0.2]:
+                for ee in range(0, 11):
+                    ee_f = 1 + ee / 10
+                    sc.load_csv(fn)
+                    create_XX_scenarios(
+                        sc, ee_f, gas_capacity, nuclear, lignite, hp_frac)
+
+
+def create_XX_scenarios(sc, ee_f, gas_capacity, nuclear, lignite, hp_frac):
+    """Only for scenarios with one electricity market."""
+
+    if ee_f > 1:
+        increase_re_share(sc, ee_f)
+
+    if gas_capacity > 0:
+        add_one_gas_turbine(sc, gas_capacity)
+
+    if nuclear != 1 or lignite != 1:
+        reduce_power_plants(sc, nuclear, lignite)
+
+    if hp_frac > 0:
+        more_heat_pumps(sc, heat_pump_fraction=0.2, cop=2)
+
+    sub = 'XX_Nc{0}_Li{1}_HP{2}_GT{3}_f{4}'.format(
+        str(nuclear).replace('.', ''), str(lignite).replace('.', ''),
+        str(hp_frac).replace('.', ''), int(gas_capacity / 1000),
+        str(ee_f).replace('.', ''))
+
+    name = '{0}_{1}_{2}'.format(sc.name, 'alt', sub)
+    path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(sc.year))
+    sc.to_excel(os.path.join(path, name + '.xls'))
+    csv_path = os.path.join(path, '{0}_csv'.format(name))
+    sc.to_csv(csv_path)
 
 
 def create_scenario_XX_Nc00_Li05_HP02(subpath='new', factor=0.0):
@@ -164,6 +246,9 @@ def create_scenario_XX_Nc00_Li05_HP02_GT(subpath='new', factor=0.0):
         'DE20': 0.0,
         'DE21': 0.0}
 
+    print(pd.Series(nom_val).sum())
+    exit(0)
+
     sc = main.load_deflex_scenario(2014, create_scenario=False)
 
     increase_re_share(sc, factor)
@@ -184,7 +269,8 @@ def create_scenario_XX_Nc00_Li05_HP02_GT(subpath='new', factor=0.0):
     sc.to_csv(csv_path)
 
 
-def create_scenario_XX_Nc00_Li05_HP00_GT(subpath='new', factor=0.0):
+def create_scenario_XX_Nc00_Li05_HP00_GT(
+        sc, subpath='alternative', factor=0.0):
     """remove nuclear
     # reduce lignite by 50%
     # use massive heat_pumps
@@ -211,8 +297,6 @@ def create_scenario_XX_Nc00_Li05_HP00_GT(subpath='new', factor=0.0):
         'DE19': 0.0,
         'DE20': 0.0,
         'DE21': 0.0}
-
-    sc = main.load_deflex_scenario(2014, create_scenario=False)
 
     increase_re_share(sc, factor)
 
@@ -245,9 +329,9 @@ def simple_deflex_de21_2014(subpath='new', factor=0.0):
     sc.to_csv(csv_path)
 
 
-def multi_scenario_deflex():
+def multi_scenario_deflex(year):
     # Once re-create deflex scenario
-    main.load_deflex_scenario(2014, create_scenario=True)
+    main.load_deflex_scenario(year, create_scenario=True)
     s = os.path.join('deflex', 're')
     for f in range(11):
         create_scenario_XX_Nc00_Li05_HP00_GT(subpath=s, factor=f/10)
@@ -298,6 +382,10 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(deflex.__file__),
                     os.path.dirname(berlin_hp.__file__)])
     logger.define_logging()
-    create_deflex_no_grid_limit()
-    # multi_scenario_deflex()
+    # sc = main.load_deflex_scenario(2014, create_scenario=False)
+    # create_XX_scenario_set(2014)
+    print(fetch_XX_scenarios(2014))
+    exit(0)
+    # create_deflex_no_grid_limit()
+    multi_scenario_deflex(2014)
     stopwatch()
