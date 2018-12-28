@@ -196,7 +196,6 @@ def berlin_hp_no_exit_multi(d):
     meta = d['meta']
     series = d['series']
     create_scenario = d['create_scenario']
-
     global CHECKER
     try:
         berlin_hp_main(year, meta, upstream_prices=series,
@@ -211,14 +210,13 @@ def berlin_hp_with_upstream_sets(year, solver, method='mcp', checker=True):
 
     berlin_hp.basic_scenario.create_basic_scenario(year)
 
-    df = upa.get_upstream_set(solver, year, method, overwrite=True)
+    df = upa.get_upstream_set(solver, year, method, overwrite=False)
 
     sc_files = results.fetch_scenarios(
         os.path.join(cfg.get('paths', 'scenario'), 'deflex'),
         sc_filter={'solver': solver, 'year': year})
     scenarios = []
     for fn in sc_files:
-        manager = multiprocessing.Manager().dict()
         sc = Scenario(results_fn=fn)
         meta_up = sc.meta
         my_upstream = {
@@ -249,12 +247,12 @@ def berlin_hp_with_upstream_sets(year, solver, method='mcp', checker=True):
         base = 'deflex_{0}_'.format(year)
         name = str(fn.split(os.sep)[-1][:-5]).replace(base, '')
         series = df[name]
+        scenarios.append({
+            'year': year,
+            'meta': my_meta,
+            'series': series,
+            'create_scenario': False})
 
-        manager['year'] = year,
-        manager['meta'] = my_meta,
-        manager['series'] = series,
-        manager['create_scenario'] = False
-        scenarios.append(manager)
     p = multiprocessing.Pool(int(multiprocessing.cpu_count() / 2))
     p.map(berlin_hp_no_exit_multi, scenarios)
     p.close()
