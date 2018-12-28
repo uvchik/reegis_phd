@@ -52,14 +52,15 @@ p = '/home/uwe/express/reegis/scenarios_lux'
 # for s in sl:
 #     print(s)
 # exit(0)
+import pprint as pp
 filt = {'map': 'berlin',
         'storage': True,
         'solver': 'gurobi',
-        'year': 2014,
-        'upstream': {'map': 'de21'}}
+        'year': 2014}
 sl = results.fetch_scenarios(p, filt)
 for s in sl:
-    print(s)
+    sc = Scenario(results_fn=s)
+    pp.pprint(sc.meta)
 
 exit(0)
 p = '/home/uwe/express/reegis/scenarios_lux'
