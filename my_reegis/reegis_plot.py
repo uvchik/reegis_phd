@@ -1,8 +1,6 @@
 import logging
-import os
 import numpy as np
 import pandas as pd
-import my_reegis
 from my_reegis import results
 import reegis_tools.config as cfg
 from matplotlib import pyplot as plt
@@ -18,7 +16,6 @@ import oemof_visio as oev
 from oemof import outputlib
 import reegis_tools.gui as gui
 
-cfg.init(paths=[os.path.dirname(my_reegis.__file__)])
 
 ORDER_KEYS = ['hydro', 'geothermal', 'solar', 'pv', 'wind', 'chp', 'hp', 'pp',
               'import', 'shortage', 'power_line', 'demand',
@@ -544,7 +541,7 @@ def plot_bus_view(es=None, bus=None, data=None, ax=None, legend=True,
         default_title = None
 
     if period is not None:
-        data = data.iloc[period[0]:period[1]]
+        data = data.loc[period[0]:period[1]]
 
     my_colors = get_cdict(data['in'])
     my_colors.update(get_cdict(data['out']))
