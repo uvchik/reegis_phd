@@ -421,22 +421,22 @@ class LCOEAnalyzerCHP(Analyzer):
         label = args
 
         if isinstance(args[1], solph.Transformer):
-            # eta = {}
+            eta = {}
             label = args[1].label
             if len(args[1].outputs) == 2:
-                pass
-                # for o in args[1].outputs:
-                #     key = 'conversion_factors_{0}'.format(o)
-                #     eta_key = o.label.split('_')[-2]
-                #     eta_val = self.psc((args[1], None))[key]
-                #     eta[eta_key] = eta_val
-                # eta['heat_ref'] = 0.9
-                # eta['elec_ref'] = 0.55
-                #
-                # pee = (1 / (eta['heat'] / eta['heat_ref'] + eta['elec'] /
-                #             eta['elec_ref'])) * (eta['elec'] / eta['elec_ref'])
-                #
-                # cost_flow = self.rsq(args) * pee
+                # pass
+                for o in args[1].outputs:
+                    key = 'conversion_factors_{0}'.format(o)
+                    eta_key = o.label.split('_')[-2]
+                    eta_val = self.psc((args[1], None))[key]
+                    eta[eta_key] = eta_val
+                eta['heat_ref'] = 0.9
+                eta['elec_ref'] = 0.55
+
+                pee = (1 / (eta['heat'] / eta['heat_ref'] + eta['elec'] /
+                            eta['elec_ref'])) * (eta['elec'] / eta['elec_ref'])
+
+                cost_flow = self.rsq(args) * pee
 
             elif len(args[1].outputs) == 1:
                 t_out = [o for o in args[1].outputs][0].label.tag

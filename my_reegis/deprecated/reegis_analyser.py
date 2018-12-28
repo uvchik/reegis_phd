@@ -50,22 +50,22 @@ def analyze(args, result, up_dict, demand, r, p):
 
     if (isinstance(args[1], solph.Transformer) and
             args[0].label.tag != 'electricity'):
-        # eta = {}
+        eta = {}
         label = args[1].label
         if len(args[1].outputs) == 2:
-            pass
-            # for o in args[1].outputs:
-            #     key = 'conversion_factors_{0}'.format(o)
-            #     eta_key = o.label.split('_')[-2]
-            #     eta_val = self.psc((args[1], None))[key]
-            #     eta[eta_key] = eta_val
-            # eta['heat_ref'] = 0.9
-            # eta['elec_ref'] = 0.55
-            #
-            # pee = (1 / (eta['heat'] / eta['heat_ref'] + eta['elec'] /
-            #             eta['elec_ref'])) * (eta['elec'] / eta['elec_ref'])
-            #
-            # cost_flow = self.rsq(args) * pee
+            for o in args[1].outputs:
+                key = 'conversion_factors_{0}'.format(o)
+                eta_key = o.label.tag
+                eta_val = p[(args[1], None)]['scalars'][key]
+                eta[eta_key] = eta_val
+            eta['heat_ref'] = 0.9
+            eta['elec_ref'] = 0.55
+            pee = (1 / (eta['heat'] / eta['heat_ref'] + eta['electricity'] /
+                        eta['elec_ref'])) * (
+                    eta['electricity'] / eta['elec_ref'])
+
+            flow = r[args]['sequences'] * pee
+            conversion_factor = eta['electricity'] / pee
 
         elif len(args[1].outputs) == 1:
             t_out = [o for o in args[1].outputs][0].label.tag
@@ -76,7 +76,7 @@ def analyze(args, result, up_dict, demand, r, p):
                     if 'conversion_factors' in k and 'electricity' in k:
                         conversion_factor = v
             else:
-                flow = None
+                flow = pd.Series()
                 conversion_factor = None
 
         else:
@@ -111,7 +111,7 @@ def analyze(args, result, up_dict, demand, r, p):
         flow = r[args]['sequences']
         conversion_factor = 0.1
 
-    if flow is not None:
+    if conversion_factor is not None:
         for value in ['cost', 'emission']:
             result[value][label] = flow * up_dict[args[0]][value]
             result[value][label] = result[value][label]['flow'].div(demand)
@@ -154,7 +154,7 @@ def sorted_results(i, sort_res, r):
 
 def analyse_system_costs(es, plot_cost=False):
     back = namedtuple('res', ['levelized', 'meritorder', 'emission',
-                              'emission_last'])
+                              'emission_last', 'mo_full'])
     multi_res = reshape_multiregion_df(es)
 
     demand = multi_res['out', 'demand', 'electricity', 'all']
@@ -177,11 +177,12 @@ def analyse_system_costs(es, plot_cost=False):
 
     if plot_cost is True:
         sorted_flows = iter_res.misc
+        print(c_values['trsf', 'pp'].sort_index(axis=1))
         plot.analyse_plot(c_values, mo_values, multi_res, sorted_flows[
             'demand_electricity'], sorted_flows['demand_heat'])
 
     return back(c_values.sum(axis=1), mo_values.max(axis=1),
-                e_values.sum(axis=1), emission_last)
+                e_values.sum(axis=1), emission_last, mo_values)
 
 
 def reshape_multiregion_df(es):
@@ -287,7 +288,7 @@ def multi_analyse_fhg_emissions():
 def analyse_fhg_emissions(upstream_name, fn_local):
     res = namedtuple('e', ('total', 'optional_export', 'optional_import',
                            'displaced', 'supplement'))
-    local_es = results.load_my_es(fn=fn_local)
+    local_es = results.load_es(fn_local)
     local_emissions = results.emissions(local_es)  # a)
     label = 'chp_ext'
     bus_balnc = results.get_multiregion_bus_balance(local_es)
