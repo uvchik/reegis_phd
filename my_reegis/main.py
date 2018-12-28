@@ -18,6 +18,7 @@ from datetime import datetime
 import time
 import traceback
 from shutil import copyfile
+import multiprocessing
 
 # oemof packages
 from oemof.tools import logger
@@ -26,6 +27,7 @@ from oemof import solph
 # internal modules
 import reegis_tools.config as cfg
 import reegis_tools.scenario_tools
+from reegis_tools import Scenario
 import deflex
 import berlin_hp
 import my_reegis
@@ -35,6 +37,10 @@ from my_reegis import embedded_model
 from reegis_tools.scenario_tools import Label
 from my_reegis import upstream_analysis as upa
 from my_reegis import alternative_scenarios as alt
+from my_reegis import results
+
+
+CHECKER = None
 
 
 def stopwatch():
@@ -75,6 +81,8 @@ def compute(sc, dump_graph=False, log_solver=True, duals=True):
     logging.info("Solved. Dump results: {0}".format(stopwatch()))
     out_file = os.path.join(results_path, sc.name + '.esys')
     logging.info("Dump file to {0}".format(out_file))
+    sc.meta['end_time'] = datetime.now()
+    sc.meta['filename'] = sc.name + '.esys'
     sc.dump_es(out_file)
 
     logging.info("All done. {0} finished without errors: {0}".format(
@@ -183,23 +191,101 @@ def add_upstream_import_export(nodes, bus, upstream_prices):
     return nodes
 
 
-def berlin_hp_with_upstream_sets(year, solver, method='mcp', checker=True,
-                                 create_scenario=True):
+def berlin_hp_no_exit_multi(d):
+    year = d['year']
+    meta = d['meta']
+    series = d['series']
+    create_scenario = d['create_scenario']
+
+    global CHECKER
+    try:
+        berlin_hp_main(year, meta, upstream_prices=series,
+                       create_scenario=create_scenario)
+    except Exception as e:
+        CHECKER = log_exception(e)
+
+
+def berlin_hp_with_upstream_sets(year, solver, method='mcp', checker=True):
+    global CHECKER
+    CHECKER = checker
+
+    berlin_hp.basic_scenario.create_basic_scenario(year)
+
     df = upa.get_upstream_set(solver, year, method, overwrite=True)
-    for name, series in df.iteritems():
-        try:
-            berlin_hp_main(year, upstream_prices=series,
-                           create_scenario=create_scenario)
-            create_scenario = False
-        except Exception as e:
-            checker = log_exception(e)
+
+    sc_files = results.fetch_scenarios(
+        os.path.join(cfg.get('paths', 'scenario'), 'deflex'),
+        sc_filter={'solver': solver, 'year': year})
+    scenarios = []
+    for fn in sc_files:
+        manager = multiprocessing.Manager().dict()
+        sc = Scenario(results_fn=fn)
+        meta_up = sc.meta
+        my_upstream = {
+            'ee_factor': meta_up['ee_factor'],
+            'gas_turbine': meta_up['gas_turbine'],
+            'grid_limit': meta_up['grid_limit'],
+            'heat_pump': meta_up['heat_pump'],
+            'lignite': meta_up['lignite'],
+            'map': meta_up['map'],
+            'nuclear': meta_up['nuclear'],
+            'storage': meta_up['storage']},
+        my_meta = {
+            'ee_factor': 1.0,
+            'excluded': None,
+            'filename': None,
+            'gas_turbine': 0,
+            'grid_limit': True,
+            'heat_pump': 0.0,
+            'lignite': 1.0,
+            'map': 'berlin',
+            'model_base': 'berlin_hp',
+            'nuclear': 1.0,
+            'solver': cfg.get('general', 'solver'),
+            'storage': True,
+            'upstream': my_upstream,
+            'year': year,
+            'start_time': datetime.now()}
+        base = 'deflex_{0}_'.format(year)
+        name = str(fn.split(os.sep)[-1][:-5]).replace(base, '')
+        series = df[name]
+
+        manager['year'] = year,
+        manager['meta'] = my_meta,
+        manager['series'] = series,
+        manager['create_scenario'] = False
+        scenarios.append(manager)
+    p = multiprocessing.Pool(int(multiprocessing.cpu_count() / 2))
+    p.map(berlin_hp_no_exit_multi, scenarios)
+    p.close()
+    p.join()
+    checker = CHECKER
     return checker
 
 
-def berlin_hp_single_scenarios(year, checker=True, create_scenario=True):
+def berlin_hp_single_scenarios(year, meta=None, checker=True,
+                               create_scenario=True):
+    if meta is None:
+        meta = {
+            'ee_factor': 1.0,
+            'excluded': None,
+            'filename': None,
+            'gas_turbine': 0,
+            'grid_limit': True,
+            'heat_pump': 0.0,
+            'lignite': 1.0,
+            'map': 'berlin',
+            'model_base': 'berlin_hp',
+            'nuclear': 1.0,
+            'solver': cfg.get('general', 'solver'),
+            'storage': True,
+            'upstream': None,
+            'year': year,
+            'start_time': datetime.now()}
+
     for name in ['no_costs', 'ee', None]:
         try:
-            berlin_hp_main(year, upstream_prices=name,
+            berlin_hp_main(year, meta, upstream_prices=name,
                            create_scenario=create_scenario)
             create_scenario = False
         except Exception as e:
@@ -207,13 +293,13 @@ def berlin_hp_single_scenarios(year, checker=True, create_scenario=True):
     return checker
 
 
-def berlin_hp_main(year, sim_type='single', create_scenario=True,
+def berlin_hp_main(year, meta, sim_type='single', create_scenario=True,
                    dump_graph=False, upstream_prices=None):
 
     cfg.tmp_set('init', 'map', sim_type)
 
     name = '{0}_{1}_{2}'.format('berlin_hp', year, cfg.get('init', 'map'))
-    sc = berlin_hp.Scenario(name=name, year=year, debug=False)
+    sc = berlin_hp.Scenario(name=name, year=year, debug=False, meta=meta)
     scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp',
                                  str(year))
     sc.location = os.path.join(scenario_path, '{0}_csv'.format(name))
@@ -559,11 +645,11 @@ if __name__ == "__main__":
     stopwatch()
     check = True
     cfg.tmp_set('general', 'solver', 'cbc')
-    deflex_alternative_scenarios(2014)
-    log_check(check)
-    exit(0)
+    # deflex_alternative_scenarios(2014)
+    # log_check(check)
+    # exit(0)
     for y in [2014, 2013, 2012]:
-        for slv in ['gurobi', 'cbc']:
+        for slv in ['cbc', 'gurobi']:
             cfg.tmp_set('general', 'solver', slv)
             logging.info("Start scenarios for {0} using the {1} solver".format(
                 y, cfg.get('general', 'solver')))
