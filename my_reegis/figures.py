@@ -1,7 +1,7 @@
 import os
 import logging
 import pandas as pd
-import my_reegis
+
 from my_reegis import results
 from my_reegis import reegis_plot as plot
 from my_reegis import regional_results
@@ -633,8 +633,8 @@ def get_number_name():
 if __name__ == "__main__":
     logger.define_logging()
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
-                    os.path.dirname(my_reegis.__file__),
                     os.path.dirname(deflex.__file__)])
+    cfg.tmp_set('results', 'dir', 'results_cbc')
     p = '/home/uwe/git_local/monographie/figures/'
     # plot_all(show=True)
-    plot_figure('3.0', save=True, show=True, path=p)
+    plot_figure('3.1', save=True, show=True, path=p)
