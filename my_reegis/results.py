@@ -9,11 +9,10 @@ from oemof.tools import logger
 from oemof import solph as solph
 from oemof import outputlib
 
-from my_reegis import analyzer
-
 import pandas as pd
 import reegis_tools.config as cfg
 import reegis_tools.gui as gui
+from reegis_tools import Scenario
 
 from deflex.scenario_tools import Label as Label
 
@@ -25,10 +24,12 @@ def stopwatch():
 
 
 def get_file_name_doctests():
+    cfg.tmp_set('results', 'dir', 'results_cbc')
+
     fn1 = os.path.join(cfg.get('paths', 'scenario'), 'deflex', '2014',
-                       'results', 'deflex_2014_de21.esys')
+                       'results_cbc', 'deflex_2014_de21.esys')
     fn2 = os.path.join(cfg.get('paths', 'scenario'), 'deflex', '2013',
-                       'results', 'deflex_2013_de21.esys')
+                       'results_cbc', 'deflex_2013_de21.esys')
     return fn1, fn2
 
 
@@ -433,40 +434,6 @@ def find_input_flow(out_flow, nodes):
     return [x for x in list(nodes.keys()) if x[1] == out_flow[0][0]]
 
 
-def ee_analyser(es, ee_type):
-    """Get aggregated time series of one feed-in source type.
-
-    Parameters
-    ----------
-    es : solph.EnergySystem
-        An EnergySystem with results.
-    ee_type : str
-        An ee type such as wind or solar.
-
-    Returns
-    -------
-    pd.Series
-
-    Examples
-    --------
-    >>> fn1, fn2 = get_file_name_doctests()
-    >>> s = ee_analyser(load_es(fn1), 'solar')
-    >>> isinstance(s, pd.Series)
-    True
-    """
-    results = es.results
-    analysis = analyzer.Analysis(
-        results['Main'], results['Param'],
-        iterator=analyzer.FlowNodeIterator)
-    ee = analyzer.FlowFilterSubstring(ee_type, position=0)
-    analysis.add_analyzer(ee)
-    analysis.analyze()
-
-    df = pd.concat(ee.result, axis=1)
-    df.columns = df.columns.droplevel(-1)
-    return df.sum(axis=1)
-
-
 def emissions(es):
     """Get emissions of all commodity sources."""
     r = es.results['Main']
@@ -702,6 +669,90 @@ def load_my_es(*args, var=None, fn=None, scpath=None):
     es.name = name
     es.var = var[0]
     return es
+
+
+def _inner_filter(meta, fn, filterd, upstream=False):
+    """An internal function to compare filter values."""
+    for k, v in filterd.items():
+        if k in meta:
+            if v != meta.get(k):
+                return False
+        else:
+            if upstream is True:
+                k = 'upstream.' + str(k)
+            logging.warning("Key {0} not found in {1}".format(k, fn))
+    return True
+
+
+def fetch_scenarios(path, sc_filter=None):
+    """Fetch all scenarios in a given path. A filter can be used to get a
+    subset. At the moment all filter values are connected with a logic AND. So
+    a scenario will be appended to the resulting list if all values fit.
+
+    my_filter = {
+        'map': 'berlin',
+        'storage': True,
+        'solver': 'cbc',
+        'year': 2014,
+        'upstream': {'map': 'de21'}}
+
+    Use ``'upstream': {}`` as a wildcard for all scenarios with an upstream
+    scenario and ``'upstream': None`` for all scenarios without an upstream
+    scenario. As shown above it is also possible to search for specific
+    upstream scenarios.
+
+    my_filter = {
+        'map': 'de21',
+        'storage': True,
+        'solver': 'cbc',
+        'year': 2014}
+
+    Print out 'sc.meta' in the example below to get all possible keys to
+    filter.
+
+    Parameters
+    ----------
+    path : str
+        The base path where to search for result files recursively.
+    sc_filter : dict
+        A dictionary with the keys and values to filter.
+
+    Returns
+    -------
+    List
+
+    >>> fn1, fn2 = get_file_name_doctests()
+    >>> sc = Scenario(results_fn=fn1)
+    >>> isinstance(sc.meta, dict)
+    True
+    """
+    scenarios = []
+    # find all files and directories in the given path recursively
+    for root, directories, filenames in os.walk(path):
+        # use only the files, ignore directories
+        for f in filenames:
+            # use only files with the '.esys' suffix
+            if f[-5:] == '.esys':
+                append = True
+                fn = os.path.join(root, f)
+                # append all files if no filter is used (sc_filter=None)
+                if sc_filter is not None:
+                    # Compare the filter values and append only if all values
+                    # are equal.
+                    sc_filter_cp = sc_filter.copy()
+                    sc = Scenario(results_fn=fn)
+                    meta = sc.meta
+                    if (isinstance(sc_filter.get('upstream'), dict) &
+                            isinstance(meta.get('upstream'), dict)):
+                        append = _inner_filter(meta['upstream'], fn,
+                                               sc_filter_cp.pop('upstream'),
+                                               upstream=True)
+                    if append is True:
+                        append = _inner_filter(meta, fn, sc_filter_cp)
+
+                if append is True:
+                    scenarios.append(fn)
+    return scenarios
 
 
 def fetch_cost_emission(es, with_chp=True):
