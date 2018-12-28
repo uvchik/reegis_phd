@@ -31,7 +31,6 @@ def fetch_duals_max_min(es, var=None):
         del df[cl]
     df['max'] = df.max(axis=1)
     df['min'] = df.min(axis=1)
-    print('sum', df['max'].sum())
     if round((df['max'] - df['min']).sum(), 1) == 0:
         df['uniform'] = df['max']
     else:
@@ -133,3 +132,9 @@ def get_upstream_set(solver, year, method, overwrite=True):
     df = get_mcp_for_all_scenarios(None, solver, year, overwrite=overwrite)
     base = 'deflex_{0}'.format(solver)
     return df.swaplevel(axis=1).sort_index(1)[base, method]
+
+
+if __name__ == "__main__":
+    from matplotlib import pyplot as plt
+    get_upstream_set('cbc', 2014, 'mcp', overwrite=False).plot()
+    plt.show()
