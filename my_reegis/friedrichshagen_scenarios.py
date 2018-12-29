@@ -396,10 +396,9 @@ def basic_ee_wrapper(scenario):
     scenario['meta']['start_time'] = datetime.now()
     scenario['meta']['map'] = 'fhg'
     scenario['meta']['model_base'] = 'fhg'
-    scenario['overwrite'] = not scenario.pop('create_scenario')
+    scenario['overwrite'] = scenario.pop('create_scenario')
     scenario['upstream_prices'] = scenario.pop('series')
     global CHECKER
-    adapted(**scenario)
     try:
         adapted(**scenario)
     except Exception as e:
