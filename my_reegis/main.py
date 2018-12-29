@@ -227,7 +227,7 @@ def berlin_hp_with_upstream_sets(year, solver, method='mcp', checker=True):
             'lignite': meta_up['lignite'],
             'map': meta_up['map'],
             'nuclear': meta_up['nuclear'],
-            'storage': meta_up['storage']},
+            'storage': meta_up['storage']}
         my_meta = {
             'ee_factor': 1.0,
             'excluded': None,
@@ -283,6 +283,7 @@ def berlin_hp_single_scenarios(year, meta=None, checker=True,
 
     for name in ['no_costs', 'ee', None]:
         try:
+            meta['upstream'] = name
             berlin_hp_main(year, meta, upstream_prices=name,
                            create_scenario=create_scenario)
             create_scenario = False
@@ -323,7 +324,10 @@ def berlin_hp_main(year, meta, sim_type='single', create_scenario=True,
                     v.label.tag == 'electricity' and isinstance(v, solph.Bus)]
         bus = elec_bus[0]
         nodes = add_upstream_import_export(nodes, bus, upstream_prices)
-        upstream_name = upstream_prices.name
+        if not isinstance(upstream_prices, str):
+            upstream_name = upstream_prices.name
+        else:
+            upstream_name = upstream_prices
     else:
         upstream_name = None
 
@@ -651,8 +655,9 @@ if __name__ == "__main__":
             cfg.tmp_set('general', 'solver', slv)
             logging.info("Start scenarios for {0} using the {1} solver".format(
                 y, cfg.get('general', 'solver')))
-            check = berlin_hp_with_upstream_sets(y, slv, checker=check)
-            check = berlin_hp_single_scenarios(y, checker=check)
+            # check = berlin_hp_with_upstream_sets(y, slv, checker=check)
+            check = berlin_hp_single_scenarios(y, checker=check,
+                                               create_scenario=False)
             # check = start_no_storage_scenarios(y, checker=check,
             #                                    create_scenario=True)
             # check = start_no_grid_limit_scenarios(y, checker=check,
