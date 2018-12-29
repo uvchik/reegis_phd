@@ -326,7 +326,9 @@ def adapted(year, name, variant, meta, upstream_prices, add_wp, add_bio, pp,
         vs_str = 'vs'
         if volatile_src is not None:
             for k, v in volatile_src.items():
-                vs_str += '_{0}{1}'.format(k, v)
+                if k != 'set':
+                    vs_str += '_{0}{1}'.format(k, str(round(v, 1)).replace(
+                        '.', ''))
 
         name = '_'.join([add_wp, add_bio, pp, fix_pp, vs_str, ee_invest,
                          variant, 'up', upstream_name])
@@ -397,7 +399,7 @@ def basic_ee_wrapper(scenario):
     scenario['overwrite'] = not scenario.pop('create_scenario')
     scenario['upstream_prices'] = scenario.pop('series')
     global CHECKER
-
+    adapted(**scenario)
     try:
         adapted(**scenario)
     except Exception as e:
@@ -429,9 +431,11 @@ def basic_ee_scenario(year, solver, method='mcp', checker=True):
                 'pp': 'chp_fuel',
                 'ee_invest': 'ee_invest0',
                 'volatile_src': {'wind': wind, 'solar': pv, 'set': True}})
+            ups['meta']['wind'] = wind
+            ups['meta']['pv'] = pv
             scenario_list.append(ups)
 
-    p = multiprocessing.Pool(4)
+    p = multiprocessing.Pool(1)
     p.map(basic_ee_wrapper, scenario_list)
     p.close()
     p.join()
