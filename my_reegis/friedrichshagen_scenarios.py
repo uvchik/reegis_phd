@@ -16,7 +16,11 @@ import deflex
 
 from my_reegis import results
 from my_reegis import main
+from deprecated import reegis_analyser
 import multiprocessing
+
+
+CHECKER = None
 
 
 def stopwatch():
@@ -74,7 +78,7 @@ def fetch_upstream_scenario_values(full_file_name):
         tmp_es.restore(root, fn)
         for val in ['levelized', 'meritorder', 'emission', 'emission_last']:
             upstream_values[fn[:-5], val] = (
-                getattr(results.analyse_system_costs(tmp_es), val))
+                getattr(reegis_analyser.analyse_system_costs(tmp_es), val))
         number -= 1
     upstream_values.to_csv(full_file_name)
 
@@ -100,7 +104,8 @@ def load_upstream_overall_values():
     if not os.path.isfile(full_file_name):
         fetch_upstream_overall_values(full_file_name)
     return pd.read_csv(
-        full_file_name, index_col=[0, 1], squeeze=True, header=None).sort_index()
+        full_file_name, index_col=[0, 1],
+        squeeze=True, header=None).sort_index()
 
 
 def remove_shortage_excess_electricity(nodes):
@@ -259,21 +264,14 @@ def choose_pp(nodes, fuel):
     return nodes
 
 
-def adapted(year, name, cost_scenario, cost_value, add_wp, add_bio, pp, fix_pp,
-            volatile_src=None, ee_invest='ee_invest0', overwrite=False):
-    if name is None:
-        vs_str = 'vs'
-        if volatile_src is not None:
-            for k, v in volatile_src.items():
-                vs_str += '_{0}{1}'.format(k, v)
-
-        name = '_'.join([cost_value, cost_scenario, add_wp, add_bio, pp,
-                         fix_pp, vs_str, ee_invest])
+def adapted(year, name, variant, meta, upstream_prices, add_wp, add_bio, pp,
+            fix_pp, volatile_src=None, ee_invest='ee_invest0',
+            overwrite=False):
 
     stopwatch()
     base_name = '{0}_{1}_{2}'.format('friedrichshagen', year, 'single')
-    scenario_name = '{0}_{1}_{2}'.format('friedrichshagen', year, name)
-    sc = berlin_hp.Scenario(name=scenario_name, year=year, debug=False)
+
+    sc = berlin_hp.Scenario(year=year, debug=False, meta=meta)
 
     path = os.path.join(cfg.get('paths', 'scenario'), 'friedrichshagen')
 
@@ -300,7 +298,18 @@ def adapted(year, name, cost_scenario, cost_value, add_wp, add_bio, pp, fix_pp,
 
     if add_wp == 'wp02':
         nodes = add_dectrl_wp(nodes)
-    nodes = add_import_export(nodes, cost_scenario, value=cost_value)
+
+    if upstream_prices is not None:
+        elec_bus = [v for k, v in nodes.items() if
+                    v.label.tag == 'electricity' and isinstance(v, solph.Bus)]
+        bus = elec_bus[0]
+        nodes = main.add_upstream_import_export(nodes, bus, upstream_prices)
+        if not isinstance(upstream_prices, str):
+            upstream_name = upstream_prices.name
+        else:
+            upstream_name = upstream_prices
+    else:
+        upstream_name = None
 
     if add_bio == 'bio1':
         nodes = add_bio_powerplant(nodes)
@@ -313,6 +322,16 @@ def adapted(year, name, cost_scenario, cost_value, add_wp, add_bio, pp, fix_pp,
     if volatile_src is not None:
         nodes = add_volatile_sources(nodes, volatile_src)
 
+    if name is None:
+        vs_str = 'vs'
+        if volatile_src is not None:
+            for k, v in volatile_src.items():
+                vs_str += '_{0}{1}'.format(k, v)
+
+        name = '_'.join([add_wp, add_bio, pp, fix_pp, vs_str, ee_invest,
+                         variant, 'up', upstream_name])
+
+    sc.name = '{0}_{1}_{2}'.format('friedrichshagen', year, name)
     sc.es = sc.initialise_energy_system()
     sc.es.add(*nodes.values())
 
@@ -372,36 +391,51 @@ def basic_chp_extension_scenario(scen):
 
 
 def basic_ee_wrapper(scenario):
-    adapted(**scenario)
+    scenario['meta']['start_time'] = datetime.now()
+    scenario['meta']['map'] = 'fhg'
+    scenario['meta']['model_base'] = 'fhg'
+    scenario['overwrite'] = not scenario.pop('create_scenario')
+    scenario['upstream_prices'] = scenario.pop('series')
+    global CHECKER
+
+    try:
+        adapted(**scenario)
+    except Exception as e:
+        CHECKER = main.log_exception(e)
 
 
-def basic_ee_scenario():
+def basic_ee_scenario(year, solver, method='mcp', checker=True):
     pv_flh = 895.689228779882
     wind_flh = 1562.51612773669
     demand = 60586.6486548771
+
+    global CHECKER
+    CHECKER = checker
+    # berlin_hp.basic_scenario.create_basic_scenario(year)
+    up_scenarios = main.create_upstream_sets(year, solver, method)
 
     scenario_list = []
     for frac in range(11):
         pv = demand / pv_flh * frac / 10
         wind = demand / wind_flh * (1 - frac / 10)
 
-        scenario = {
-            'name': None,
-            'cost_scenario': 'ee',
-            'cost_value': 'meritorder',
-            'fix_pp': 'fix0',
-            'add_wp': 'wp00',
-            'add_bio': 'bio0',
-            'pp': 'chp_fuel',
-            'year': 2014,
-            'ee_invest': 'ee_invest0',
-            'volatile_src': {'wind': wind, 'solar': pv, 'set': True}}
-        scenario_list.append(scenario)
+        for ups in up_scenarios:
+            ups.update({
+                'name': None,
+                'variant': 'ee',
+                'fix_pp': 'fix0',
+                'add_wp': 'wp00',
+                'add_bio': 'bio0',
+                'pp': 'chp_fuel',
+                'ee_invest': 'ee_invest0',
+                'volatile_src': {'wind': wind, 'solar': pv, 'set': True}})
+            scenario_list.append(ups)
 
-    p = multiprocessing.Pool(multiprocessing.cpu_count())
+    p = multiprocessing.Pool(4)
     p.map(basic_ee_wrapper, scenario_list)
     p.close()
     p.join()
+    main.log_check(CHECKER)
 
 
 def my_scenarios():
@@ -433,17 +467,5 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(deflex.__file__),
                     os.path.dirname(berlin_hp.__file__)])
     stopwatch()
-    load_upstream_scenario_values(overwrite=True)
-    print(fetch_esys_files())
-    exit(0)
-    # load_upstream_scenario_values().columns.get_level_values(0).unique()
-    basic_ee_scenario()
-    # my_scenarios()
-    # basic_chp_extension_scenario('hard_coal')
-    #
-    # for fuel in ['hard_coal', 'natural_gas']:
-    #     Process(target=basic_chp_extension_scenario,
-    #             args=(fuel, cost_scenario)).start()
-
-    # compute_adapted_scenarios()
+    basic_ee_scenario(2014, 'cbc')
     logging.info("Done: {0}".format(stopwatch()))
