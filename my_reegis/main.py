@@ -196,6 +196,9 @@ def berlin_hp_no_exit_multi(d):
     meta = d['meta']
     series = d['series']
     create_scenario = d['create_scenario']
+    meta['start_time'] = datetime.now()
+    meta['map'] = 'berlin'
+    meta['model_base'] = 'berlin_hp'
     global CHECKER
     try:
         berlin_hp_main(year, meta, upstream_prices=series,
@@ -204,11 +207,7 @@ def berlin_hp_no_exit_multi(d):
         CHECKER = log_exception(e)
 
 
-def berlin_hp_with_upstream_sets(year, solver, method='mcp', checker=True):
-    global CHECKER
-    CHECKER = checker
-
-    berlin_hp.basic_scenario.create_basic_scenario(year)
+def create_upstream_sets(year, solver, method='mcp'):
 
     df = upa.get_upstream_set(solver, year, method, overwrite=False)
 
@@ -228,6 +227,7 @@ def berlin_hp_with_upstream_sets(year, solver, method='mcp', checker=True):
             'map': meta_up['map'],
             'nuclear': meta_up['nuclear'],
             'storage': meta_up['storage']}
+
         my_meta = {
             'ee_factor': 1.0,
             'excluded': None,
@@ -236,14 +236,14 @@ def berlin_hp_with_upstream_sets(year, solver, method='mcp', checker=True):
             'grid_limit': True,
             'heat_pump': 0.0,
             'lignite': 1.0,
-            'map': 'berlin',
-            'model_base': 'berlin_hp',
+            'map': None,
+            'model_base': None,
             'nuclear': 1.0,
             'solver': cfg.get('general', 'solver'),
             'storage': True,
             'upstream': my_upstream,
             'year': year,
-            'start_time': datetime.now()}
+            'start_time': None}
         base = 'deflex_{0}_'.format(year)
         name = str(fn.split(os.sep)[-1][:-5]).replace(base, '')
         series = df[name]
@@ -252,7 +252,14 @@ def berlin_hp_with_upstream_sets(year, solver, method='mcp', checker=True):
             'meta': my_meta,
             'series': series,
             'create_scenario': False})
+    return scenarios
 
+
+def berlin_hp_with_upstream_sets(year, solver, method='mcp', checker=True):
+    global CHECKER
+    CHECKER = checker
+    berlin_hp.basic_scenario.create_basic_scenario(year)
+    scenarios = create_upstream_sets(year, solver, method)
     p = multiprocessing.Pool(int(multiprocessing.cpu_count() / 2))
     p.map(berlin_hp_no_exit_multi, scenarios)
     p.close()
