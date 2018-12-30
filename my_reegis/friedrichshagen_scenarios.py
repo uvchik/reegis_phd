@@ -434,7 +434,7 @@ def basic_ee_scenario(year, solver, method='mcp', checker=True):
             ups['meta']['pv'] = pv
             scenario_list.append(ups)
 
-    p = multiprocessing.Pool(1)
+    p = multiprocessing.Pool(4)
     p.map(basic_ee_wrapper, scenario_list)
     p.close()
     p.join()
