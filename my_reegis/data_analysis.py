@@ -10,6 +10,7 @@ import deflex
 import datetime
 import logging
 from oemof.tools import logger
+from matplotlib import pyplot as plt
 
 
 START = datetime.datetime.now()
@@ -41,7 +42,7 @@ def pv_orientation(key, geom, weather, system):
     temp_air = weather['temp_air'] - 273.15
 
     orientation = sorted(
-        set((x, y) for x in range(30, 41) for y in range(170, 200)))
+        set((x, y) for x in range(30, 46) for y in range(176, 211)))
     s = pd.Series(index=pd.MultiIndex(levels=[[], []], labels=[[], []]))
     for tilt, azimuth in orientation:
         system['surface_azimuth'] = azimuth
@@ -62,7 +63,7 @@ def pv_orientation(key, geom, weather, system):
                                  system['module'])
         ac = pvlib.pvsystem.snlinverter(dc['v_mp'], dc['p_mp'],
                                         system['inverter'])
-        s[tilt, azimuth] = ac.sum()
+        s[tilt, azimuth] = ac.sum() / system['installed_capacity']
     s.to_csv(os.path.join(path, str(key) + '.csv'))
     logging.info("{0}: {1} - {2}".format(
         year, key, datetime.datetime.now() - START))
@@ -72,10 +73,7 @@ def _pv_orientation(d):
     pv_orientation(**d)
 
 
-def optimal_pv_orientation():
-    global START
-    START = datetime.datetime.now()
-
+def get_coastdat_onshore_polygons():
     cstd = geometries.load(
         cfg.get('paths', 'geometry'),
         cfg.get('coastdat', 'coastdatgrid_polygon'),
@@ -91,8 +89,15 @@ def optimal_pv_orientation():
 
     cstd_pt = geometries.spatial_join_with_buffer(
         cstd_pt, de02, 'coastdat', limit=0)
-    reduced = cstd_pt.loc[cstd_pt.coastdat == 1]
-    reduced.sort_index(inplace=True)
+    reduced = cstd.loc[cstd_pt.coastdat == 1]
+    return reduced.sort_index()
+
+
+def optimal_pv_orientation():
+    global START
+    START = datetime.datetime.now()
+
+    reduced = get_coastdat_onshore_polygons()
 
     sandia_modules = pvlib.pvsystem.retrieve_sam('SandiaMod')
     sapm_inverters = pvlib.pvsystem.retrieve_sam('cecinverter')
@@ -132,7 +137,24 @@ def optimal_pv_orientation():
         p.join()
 
 
+def collect_orientation_files():
+    year = 2014
+    path = os.path.join(
+        cfg.get('paths', 'analysis'), 'pv_orientation', str(year))
+
+    for file in os.listdir(path):
+        df = pd.read_csv(os.path.join(path, file), index_col=[0, 1],
+                         squeeze=True, header=None).sort_index()
+        df.swaplevel().sort_index().plot(kind='bar')
+        plt.show()
+
+        exit(0)
+    get_coastdat_onshore_polygons().to_file('/home/uwe/shp/dsaf.shp')
+
+
 if __name__ == "__main__":
     logger.define_logging()
     cfg.init(paths=[os.path.dirname(deflex.__file__)])
     optimal_pv_orientation()
+    # collect_orientation_files()
+    # plt.show()
