@@ -46,12 +46,12 @@ def pv_orientation(key, geom, weather, system, orientation, path):
     temp_air = weather['temp_air'].values - 273.15
 
     s = pd.Series(index=pd.MultiIndex(levels=[[], []], labels=[[], []]))
-    fix_tilt = 0.0
+    fix_tilt = -0.1
     for tilt, azimuth in orientation:
-        if tilt == fix_tilt:
+        if tilt > fix_tilt:
             dt = datetime.datetime.now() - START
+            fix_tilt = tilt
             logging.info("{0} - {1}".format(tilt, dt))
-            fix_tilt += 0.1
         system['surface_azimuth'] = azimuth
         system['surface_tilt'] = tilt
         aoi = pvlib.irradiance.aoi(
