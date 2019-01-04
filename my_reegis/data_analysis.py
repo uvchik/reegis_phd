@@ -19,12 +19,15 @@ START = datetime.datetime.now()
 def pv_orientation(key, geom, weather, system):
     year = weather.index[0].year
     path = os.path.join(
-        cfg.get('paths', 'analysis'), 'pv_orientation_alt', str(year))
+        cfg.get('paths', 'analysis'), 'pv_orientation_minus30', str(year))
     os.makedirs(path, exist_ok=True)
     latitude = geom.y
     longitude = geom.x
-    naive_times = pd.DatetimeIndex(
-        start=str(year), end=str(year+1), freq='1h')[1:]
+
+    start = datetime.datetime(year-1, 12, 31, 23, 30)
+    end = datetime.datetime(year, 12, 31, 22, 30)
+    naive_times = pd.DatetimeIndex(start=start, end=end, freq='1h')
+
     location = pvlib.location.Location(latitude=latitude, longitude=longitude)
     times = naive_times.tz_localize('Etc/GMT-1')
     solpos = pvlib.solarposition.get_solarposition(times, latitude, longitude)
@@ -34,15 +37,15 @@ def pv_orientation(key, geom, weather, system):
     am_abs = pvlib.atmosphere.get_absolute_airmass(airmass, pressure)
 
     # weather
-    dhi = weather['dhi']
-    ghi = dhi + weather['dirhi']
+    dhi = weather['dhi'].values
+    ghi = dhi + weather['dirhi'].values
     dni = pvlib.irradiance.dni(ghi, dhi, solpos['zenith'],
                                clearsky_dni=None).fillna(0)
-    wind_speed = weather['v_wind']
-    temp_air = weather['temp_air'] - 273.15
+    wind_speed = weather['v_wind'].values
+    temp_air = weather['temp_air'].values - 273.15
 
     orientation = sorted(
-        set((x, y) for x in range(30, 46) for y in range(176, 211)))
+        set((x, y) for x in range(30, 46) for y in range(168, 193)))
     s = pd.Series(index=pd.MultiIndex(levels=[[], []], labels=[[], []]))
     for tilt, azimuth in orientation:
         system['surface_azimuth'] = azimuth
