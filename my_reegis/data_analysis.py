@@ -19,12 +19,12 @@ START = datetime.datetime.now()
 def pv_orientation(key, geom, weather, system):
     year = weather.index[0].year
     path = os.path.join(
-        cfg.get('paths', 'analysis'), 'pv_orientation', str(year))
+        cfg.get('paths', 'analysis'), 'pv_orientation_alt', str(year))
     os.makedirs(path, exist_ok=True)
     latitude = geom.y
     longitude = geom.x
     naive_times = pd.DatetimeIndex(
-        start=str(year), end=str(year+1), freq='1h')[:-1]
+        start=str(year), end=str(year+1), freq='1h')[1:]
     location = pvlib.location.Location(latitude=latitude, longitude=longitude)
     times = naive_times.tz_localize('Etc/GMT-1')
     solpos = pvlib.solarposition.get_solarposition(times, latitude, longitude)
