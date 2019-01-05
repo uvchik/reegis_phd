@@ -12,6 +12,7 @@ import logging
 from oemof.tools import logger
 from matplotlib import pyplot as plt
 import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
 
 
 START = datetime.datetime.now()
@@ -115,10 +116,14 @@ def pv_yield_by_orientation():
     system['installed_capacity'] = (system['module']['Impo'] *
                                     system['module']['Vmpo'])
 
-    orientation = sorted(
-        set((x/10, y/10) for x in range(0, 901) for y in range(0, 3601)))
-    # orientation = sorted(
-    #     set((x, y) for x in range(0, 91) for y in range(0, 361)))
+    orientation_sets = []
+    for n in range(90):
+        ts = n * 10
+        te = (n + 1) * 10
+        if te == 900:
+            te = 901
+        orientation_sets.append(sorted(
+            set((x/10, y/10) for x in range(ts, te) for y in range(0, 3601))))
 
     year = 2014
     key = 1129089
@@ -131,12 +136,26 @@ def pv_yield_by_orientation():
     weather = pd.read_hdf(weather_file_name, mode='r', key='/A' + str(key))
 
     path = os.path.join(
-            cfg.get('paths', 'analysis'), 'pv_yield_by_orientation', str(year))
+            cfg.get('paths', 'analysis'), 'pv_yield_by_orientation', '{0}')
 
     point = reduced.centroid[key]
-    print(point)
 
-    pv_orientation(key, point, weather, system, orientation, path)
+    # pv_orientation(key, point, weather, system, orientation, path)
+    coastdat_fields = []
+    for orientation in orientation_sets:
+        d = "tilt_{0}".format(str(orientation[0][0]).replace('.', ''))
+        coastdat_fields.append({
+            'key': key,
+            'geom': point,
+            'weather': weather,
+            'system': system,
+            'orientation': orientation,
+            'path': path.format(d),
+        })
+    p = multiprocessing.Pool(1)
+    p.map(_pv_orientation, coastdat_fields)
+    p.close()
+    p.join()
 
 
 def optimal_pv_orientation():
@@ -200,16 +219,16 @@ def collect_orientation_files(year=None):
     else:
         years = [year]
 
-    for year in years:
-        print(year)
-        full_path = os.path.join(base_path, str(year))
+    for y in years:
+        print(y)
+        full_path = os.path.join(base_path, str(y))
         if os.path.isdir(full_path):
             for file in os.listdir(full_path):
                 s = pd.read_csv(os.path.join(full_path, file),
                                 index_col=[0, 1], squeeze=True,
                                 header=None).sort_index()
                 key = file[:-4]
-                df[key, year] = s
+                df[key, y] = s
 
     keys = df.columns.get_level_values(0).unique()
 
@@ -224,9 +243,14 @@ def collect_orientation_files(year=None):
     new_df.to_csv(os.path.join(base_path, outfile))
 
 
+def collect_single_orientation_files():
+    for year in YEARS:
+        collect_orientation_files(year=year)
+
+
 def analyse_multi_files():
     path = os.path.join(cfg.get('paths', 'analysis'), 'pv_orientation_minus30')
-    fn = os.path.join(path, '2014_sum.csv')
+    fn = os.path.join(path, 'multiyear_yield_sum.csv')
     df = pd.read_csv(fn, index_col=[0, 1])
     gdf = get_coastdat_onshore_polygons()
     gdf.geometry = gdf.buffer(0.005)
@@ -241,35 +265,57 @@ def analyse_multi_files():
         gdf.loc[key, 'longitude'] = p.geometry.centroid.x
         gdf.loc[key, 'latitude'] = p.geometry.centroid.y
         gdf.loc[key, 'tilt_calc'] = round(p.geometry.centroid.y - 15)
+        gdf.loc[key, 'tilt_diff'] = (gdf.loc[key, 'tilt_calc'] -\
+                                     gdf.loc[key, 'tilt'])
     cmap = plt.get_cmap('viridis', 12)
+    cm_gyr = LinearSegmentedColormap.from_list(
+        'mycmap', [
+            (0, 'red'),
+            (0.25, 'yellow'),
+            (0.5, 'green'),
+            (0.75, 'yellow'),
+            (1, 'red')], 10)
     print(gdf.azimuth.max(), gdf.azimuth.min())
     print(gdf.tilt.max(), gdf.tilt.min())
     gdf.plot('azimuth', legend=True, cmap=cmap, vmin=172.5, vmax=184.5)
     gdf.plot('tilt', legend=True)
     gdf.plot('tilt_calc', legend=True)
+    gdf.plot('tilt_diff', legend=True, vmin=-5, vmax=5, cmap=cm_gyr)
     plt.show()
-    # scatter(gdf['longitude'], gdf['latitude'], gdf['tilt'], gdf['azimuth'])
-
-    # results.to_csv(os.path.join(path, 'optimal_orientation_multi_year.csv'))
 
 
-def scatter(x, y, c, s):
+def polar_plot():
+    fn = os.path.join(cfg.get('paths', 'analysis'), 'pv_yield_by_orientation',
+                      str(2014), '{0}.csv'.format(1129089))
 
-    # Fixing random state for reproducibility
-    np.random.seed(19680801)
+    df = pd.read_csv(fn, index_col=[0, 1], header=None)
+    df.reset_index(inplace=True)
 
-    # x = np.arange(0.0, 50.0, 2.0)
-    # y = x ** 1.3 + np.random.rand(*x.shape) * 30.0
-    # s = np.random.rand(*x.shape) * 800 + 500
+    # Data
+    tilt = df[0]
+    azimuth = df[1] / 180 * np.pi
+    colors = df[2] / df[2].max()
 
-    print(x, len(x))
-    print(y, len(y))
-    print(s, len(s))
+    # Colormap
+    cmap = plt.get_cmap('viridis', 8)
 
-    plt.scatter(x, y, c=c, s=s)
-    plt.xlabel("Leprechauns")
-    plt.ylabel("Gold")
-    plt.legend(loc='upper left')
+    # Plot
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, projection='polar')
+    sc = ax.scatter(azimuth, tilt, c=colors, cmap=cmap, alpha=1, vmin=0.2)
+
+    # Colorbar
+    label = "Anteil vom maximalen Ertrag"
+    cax = fig.add_axes([0.89, 0.05, 0.03, 0.92])
+    fig.colorbar(sc, cax=cax, label=label, ticks=[0, 0.2, 0.4, 0.6, 0.8, 1])
+    ax.set_theta_zero_location('S', offset=0)
+
+    # Adjust radius
+    ax.set_rmax(90)
+    ax.set_rlabel_position(110)
+
+    # Adjust margins
+    plt.subplots_adjust(right=0.94, left=0, bottom=0.08, top=0.93)
     plt.show()
 
 
@@ -279,6 +325,8 @@ if __name__ == "__main__":
     # optimal_pv_orientation()
     pv_yield_by_orientation()
     # collect_orientation_files()
+    # collect_single_orientation_files()
     # plt.show()
     # scatter()
     # analyse_multi_files()
+    # polar_plot()
