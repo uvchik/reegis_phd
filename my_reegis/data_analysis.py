@@ -117,13 +117,16 @@ def pv_yield_by_orientation():
                                     system['module']['Vmpo'])
 
     orientation_sets = []
-    for n in range(90):
+
+    n = 2
+
+    for n in range(18):
         ts = n * 10
         te = (n + 1) * 10
-        if te == 900:
-            te = 901
+        if te == 90:
+            te = 91
         orientation_sets.append(sorted(
-            set((x/10, y/10) for x in range(ts, te) for y in range(0, 3601))))
+            set((x/2, y/2) for x in range(ts, te) for y in range(0, 721))))
 
     year = 2014
     key = 1129089
@@ -136,7 +139,7 @@ def pv_yield_by_orientation():
     weather = pd.read_hdf(weather_file_name, mode='r', key='/A' + str(key))
 
     path = os.path.join(
-            cfg.get('paths', 'analysis'), 'pv_yield_by_orientation', '{0}')
+            cfg.get('paths', 'analysis'), 'pv_yield_by_orientation_c', '{0}')
 
     point = reduced.centroid[key]
 
@@ -152,7 +155,7 @@ def pv_yield_by_orientation():
             'orientation': orientation,
             'path': path.format(d),
         })
-    p = multiprocessing.Pool(1)
+    p = multiprocessing.Pool(6)
     p.map(_pv_orientation, coastdat_fields)
     p.close()
     p.join()
@@ -248,6 +251,21 @@ def collect_single_orientation_files():
         collect_orientation_files(year=year)
 
 
+def combine_large_orientation_files():
+    p = os.path.join(cfg.get('paths', 'analysis'), 'pv_yield_by_orientation')
+    dfs = []
+    key = None
+    for root, dirs, files in os.walk(p):
+        for f in files:
+            if f[-4:] == '.csv':
+                key = f[:-4]
+                dfs.append(pd.read_csv(os.path.join(root, f),
+                                       index_col=[0, 1], header=None))
+    df = pd.concat(dfs).sort_index()
+    df.to_csv(os.path.join(p, '{0}_combined.csv'.format(key)))
+    print(df)
+
+
 def analyse_multi_files():
     path = os.path.join(cfg.get('paths', 'analysis'), 'pv_orientation_minus30')
     fn = os.path.join(path, 'multiyear_yield_sum.csv')
@@ -265,28 +283,35 @@ def analyse_multi_files():
         gdf.loc[key, 'longitude'] = p.geometry.centroid.x
         gdf.loc[key, 'latitude'] = p.geometry.centroid.y
         gdf.loc[key, 'tilt_calc'] = round(p.geometry.centroid.y - 15)
-        gdf.loc[key, 'tilt_diff'] = (gdf.loc[key, 'tilt_calc'] -\
+        gdf.loc[key, 'tilt_diff'] = (gdf.loc[key, 'tilt_calc'] -
                                      gdf.loc[key, 'tilt'])
-    cmap = plt.get_cmap('viridis', 12)
+    cmap = plt.get_cmap('viridis', 8)
     cm_gyr = LinearSegmentedColormap.from_list(
         'mycmap', [
             (0, 'red'),
             (0.25, 'yellow'),
             (0.5, 'green'),
             (0.75, 'yellow'),
-            (1, 'red')], 10)
+            (1, 'red')], 11)
     print(gdf.azimuth.max(), gdf.azimuth.min())
     print(gdf.tilt.max(), gdf.tilt.min())
-    gdf.plot('azimuth', legend=True, cmap=cmap, vmin=172.5, vmax=184.5)
-    gdf.plot('tilt', legend=True)
-    gdf.plot('tilt_calc', legend=True)
-    gdf.plot('tilt_diff', legend=True, vmin=-5, vmax=5, cmap=cm_gyr)
+    print(gdf.tilt_diff.max(), gdf.tilt_diff.min())
+    f, ax_ar = plt.subplots(1, 3, figsize=(15, 3))
+    # gdf.plot('azimuth', legend=True, cmap=cmap, vmin=172.5, vmax=184.5,
+    #              ax=ax_ar[0])
+    gdf.plot('tilt', legend=True, ax=ax_ar[1], vmin=32.5, vmax=40.5, cmap=cmap)
+    gdf.plot('tilt_calc', legend=True, ax=ax_ar[0], vmin=32.5, vmax=40.5,
+             cmap=cmap)
+    gdf.plot(
+        'tilt_diff', legend=True, vmin=-5.5, vmax=5.5,
+        cmap=cm_gyr, ax=ax_ar[2])
     plt.show()
 
 
 def polar_plot():
-    fn = os.path.join(cfg.get('paths', 'analysis'), 'pv_yield_by_orientation',
-                      str(2014), '{0}.csv'.format(1129089))
+    key = 1129089
+    p = os.path.join(cfg.get('paths', 'analysis'), 'pv_yield_by_orientation')
+    fn = os.path.join(p, '{0}_combined.csv'.format(key))
 
     df = pd.read_csv(fn, index_col=[0, 1], header=None)
     df.reset_index(inplace=True)
@@ -316,12 +341,13 @@ def polar_plot():
 
     # Adjust margins
     plt.subplots_adjust(right=0.94, left=0, bottom=0.08, top=0.93)
-    plt.show()
+    plt.savefig(os.path.join(p, 'polar_plot_{0}.png'.format(key)))
 
 
 if __name__ == "__main__":
     logger.define_logging()
     cfg.init(paths=[os.path.dirname(deflex.__file__)])
+    # combine_large_orientation_files()
     # optimal_pv_orientation()
     pv_yield_by_orientation()
     # collect_orientation_files()
