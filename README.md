@@ -8,5 +8,5 @@ sudo apt-get install python3-dev proj-bin libproj-dev libgeos-dev python3-tk lib
 virtualenv -p /usr/bin/python3 your_env_name
 source your_env_name/bin/activate
 
-pip install cython descartes oemof windpowerlib reegis_tools deflex berlin_hp
+pip install cython descartes oemof windpowerlib reegis deflex berlin_hp
 ```

@@ -5,16 +5,54 @@ import my_reegis
 from oemof.tools import logger
 import berlin_hp
 import deflex
-import reegis_tools.config as cfg
-from reegis_tools import inhabitants
-from reegis_tools import bmwi
+import reegis.config as cfg
+from reegis import inhabitants
+from reegis import bmwi
+from reegis import openego as oego
 
 from berlin_hp import friedrichshagen
 
 
+def table_demand_federal_states(outpath):
+    ego_year = 2014
+
+    path = cfg.get('paths', 'data_my_reegis')
+    filename = 'lak_electricity_demand_federal_states.csv'
+    lak = pd.read_csv(os.path.join(path, filename), index_col=[0, 1], sep=';')
+    lak = lak.swaplevel()
+    ego = oego.get_ego_demand_by_federal_states(bmwi=False).groupby(
+        'federal_states').sum()['consumption']
+    ego_sum = ego.sum()
+
+    lak = lak.rename(index=cfg.get_dict('STATES'))
+    lak['Strom'] = pd.to_numeric(lak['Strom'], errors='coerce')
+
+    new_table = pd.DataFrame(
+        columns=pd.MultiIndex(levels=[[], []], codes=[[], []]),
+        index=ego.index)
+
+    new_table[('openEgo', ego_year)] = ego
+
+    print(new_table)
+
+    for y in [2010, 2011, 2012, 2013, 2014]:
+        key = ('lak', y)
+        new_table[key] = lak.loc[y]['Strom'] / 3.6
+        f = new_table[key].sum() / ego_sum
+        new_table[('frac', y)] = (((new_table[('openEgo', ego_year)] * f) -
+                                  new_table[key]) / new_table[key])
+
+    fk = new_table[('lak', ego_year)].sum() / ego_sum
+    new_table[('openEgo', ego_year)] = new_table[('openEgo', ego_year)] * fk
+    new_table.sort_index(axis=1, inplace=True)
+    new_table.to_excel(
+        os.path.join(outpath, 'federal_states_demand_ego_lak.xls'))
+    print(new_table)
+
+
 def table_model_regions(path, year=2014):
     table = pd.DataFrame(
-        columns=pd.MultiIndex(levels=[[], []], labels=[[], []]))
+        columns=pd.MultiIndex(levels=[[], []], codes=[[], []]))
 
     # table = pd.read_excel(
     #     os.path.join(path, 'kennzahlen_modellregionen' + '.xlsx'),
@@ -91,6 +129,8 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
                     os.path.dirname(my_reegis.__file__),
                     os.path.dirname(deflex.__file__)])
-    p = '/home/uwe/git_local/monographie/tables/'
+    p = '/home/uwe/chiba/Promotion/Monographie/tables'
+    table_demand_federal_states(p)
+    exit(0)
     berlin_ressources(p)
     table_model_regions(p)

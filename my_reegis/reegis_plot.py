@@ -2,7 +2,7 @@ import logging
 import numpy as np
 import pandas as pd
 from my_reegis import results
-import reegis_tools.config as cfg
+import reegis.config as cfg
 from matplotlib import pyplot as plt
 import matplotlib.patheffects as path_effects
 import matplotlib.patches as patches
@@ -11,10 +11,10 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib import cm
 from matplotlib.colors import Normalize
 import math
-import reegis_tools.geometries
+import reegis.geometries
 import oemof_visio as oev
 from oemof import outputlib
-import reegis_tools.gui as gui
+import reegis.gui as gui
 
 
 ORDER_KEYS = ['hydro', 'geothermal', 'solar', 'pv', 'wind', 'chp', 'hp', 'pp',
@@ -32,6 +32,20 @@ def geopandas_colorbar_same_height(f, ax, vmin, vmax, cmap):
     n_cmap.set_array(np.array([]))
 
     f.colorbar(n_cmap, cax=cax)
+
+
+def add_geopandas_label_coordinates(gdf, column='coords',
+                                    representative_point=False):
+    """Add a column with coordinates of centroid or representative point."""
+    if representative_point:
+        gdf[column] = gdf.geometry.apply(
+            lambda x: x.representative_point().coords[:])
+    else:
+        gdf[column] = gdf.geometry.apply(
+            lambda x: x.centroid.coords[:])
+
+    gdf[column] = [coords[0] for coords in gdf['coords']]
+    return gdf
 
 
 def shape_legend(node, rm_list, reverse=False, **kwargs):
@@ -237,9 +251,9 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
     else:
         label_unit = ''
 
-    lines = reegis_tools.geometries.load(
+    lines = reegis.geometries.load(
         cfg.get('paths', 'geometry'), cfg.get('geometry', 'de21_power_lines'))
-    polygons = reegis_tools.geometries.load(
+    polygons = reegis.geometries.load(
         cfg.get('paths', 'geometry'),
         cfg.get('geometry', 'de21_polygons_simple'))
 
@@ -388,7 +402,7 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
 
     Returns
     -------
-    matplotlib.axes
+    matplotlib.axes._subplots.AxesSubplot
 
     Examples
     --------
@@ -410,14 +424,14 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
         ax = plt.figure().add_subplot(1, 1, 1)
 
     if deflex_map is not None:
-        polygons = reegis_tools.geometries.load(
+        polygons = reegis.geometries.load(
             cfg.get('paths', 'geo_deflex'),
             cfg.get('geometry', 'deflex_polygon').format(
                 suffix='reegis', map=deflex_map, type='polygon'))
     elif fn is not None:
-        polygons = reegis_tools.geometries.load(fullname=fn)
+        polygons = reegis.geometries.load(fullname=fn)
     else:
-        polygons = reegis_tools.geometries.load(
+        polygons = reegis.geometries.load(
             cfg.get('paths', 'geometry'),
             cfg.get('geometry', 'de21_polygons_simple'))
 

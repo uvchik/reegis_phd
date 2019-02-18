@@ -25,16 +25,16 @@ from oemof.tools import logger
 from oemof import solph
 
 # internal modules
-import reegis_tools.config as cfg
-import reegis_tools.scenario_tools
-from reegis_tools import Scenario
+import reegis.config as cfg
+import reegis.scenario_tools
+from reegis import Scenario
 import deflex
 import berlin_hp
 import my_reegis
 # from my_reegis import results as sys_results
 from my_reegis import alternative_scenarios
 from my_reegis import embedded_model
-from reegis_tools.scenario_tools import Label
+from reegis.scenario_tools import Label
 from my_reegis import upstream_analysis as upa
 from my_reegis import alternative_scenarios as alt
 from my_reegis import results
@@ -407,7 +407,7 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
 
 
 def add_import_export_nodes(bus, import_costs, export_costs):
-    nodes = reegis_tools.scenario_tools.NodeDict()
+    nodes = reegis.scenario_tools.NodeDict()
     nodes['import'] = solph.Source(
         label='import_elec_fhg',
         outputs={bus: solph.Flow(emission=0, variable_costs=import_costs)})

@@ -6,7 +6,7 @@ from oemof import solph
 from oemof.tools import logger
 from my_reegis import results
 from my_reegis import friedrichshagen_scenarios as fsc
-import reegis_tools.config as cfg
+import reegis.config as cfg
 from matplotlib import pyplot as plt
 
 
@@ -32,12 +32,12 @@ def collect_berlin_ressource_data(year=2014):
                           'region': 'BE'}
         }
     df = pd.DataFrame(columns=pd.MultiIndex(levels=[[], [], []],
-                                            labels=[[], [], []]),
+                                            codes=[[], [], []]),
                       index=['bioenergy', 'hard_coal', 'lignite',
                              'natural_gas', 'oil', 'waste', 'other', 're'])
 
     ms = pd.Series(index=pd.MultiIndex(levels=[[], []],
-                                       labels=[[], []]))
+                                       codes=[[], []]))
 
     for k, v in scenarios.items():
         logging.info("Process: {0}".format(k))

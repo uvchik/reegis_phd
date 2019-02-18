@@ -10,5 +10,5 @@ setup(name='my_reegis',
       package_dir={'my_reegis': 'my_reegis'},
       install_requires=['oemof >= 0.1.0',
                         'pandas >= 0.17.0',
-                        'matplotlib', 'numpy']
+                        'matplotlib', 'numpy', 'reegis']
       )

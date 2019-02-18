@@ -4,7 +4,7 @@ from my_reegis import results
 from oemof.tools import logger
 import pandas as pd
 import datetime
-import reegis_tools.config as cfg
+import reegis.config as cfg
 from my_reegis import upstream_analysis as upa
 
 

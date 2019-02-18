@@ -5,8 +5,8 @@ from shutil import copyfile
 
 import pandas as pd
 
-import reegis_tools.config as cfg
-from reegis_tools.scenario_tools import Label
+import reegis.config as cfg
+from reegis.scenario_tools import Label
 
 import oemof.tools.logger as logger
 from oemof import solph
@@ -42,7 +42,7 @@ def fetch_esys_files():
 
 def fetch_upstream_overall_values(full_file_name):
     esys_files = fetch_esys_files()
-    idx = pd.MultiIndex(levels=[[], []], labels=[[], []])
+    idx = pd.MultiIndex(levels=[[], []], codes=[[], []])
     upstream_values = pd.Series(index=idx)
     number = len(esys_files)
     ref_es = solph.EnergySystem()
@@ -68,7 +68,7 @@ def fetch_upstream_overall_values(full_file_name):
 
 def fetch_upstream_scenario_values(full_file_name):
     esys_files = fetch_esys_files()
-    idx = pd.MultiIndex(levels=[[], []], labels=[[], []])
+    idx = pd.MultiIndex(levels=[[], []], codes=[[], []])
     upstream_values = pd.DataFrame(columns=idx)
     number = len(esys_files)
     for root, fn in esys_files:

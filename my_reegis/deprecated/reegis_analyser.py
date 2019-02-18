@@ -7,8 +7,8 @@ from my_reegis import reegis_plot as plot
 from my_reegis import friedrichshagen_scenarios as fsc
 from matplotlib import pyplot as plt
 from collections import namedtuple
-import reegis_tools.config as cfg
-import reegis_tools.gui as gui
+import reegis.config as cfg
+import reegis.gui as gui
 
 
 def results_iterator(es, demand):

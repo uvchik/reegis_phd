@@ -10,9 +10,9 @@ from oemof import solph as solph
 from oemof import outputlib
 
 import pandas as pd
-import reegis_tools.config as cfg
-import reegis_tools.gui as gui
-from reegis_tools import Scenario
+import reegis.config as cfg
+import reegis.gui as gui
+from reegis import Scenario
 
 from deflex.scenario_tools import Label as Label
 
@@ -198,7 +198,7 @@ def reshape_bus_view(es, bus, data=None, aggregate_lines=True):
     """
     if data is None:
         m_cols = pd.MultiIndex(levels=[[], [], [], [], []],
-                               labels=[[], [], [], [], []])
+                               codes=[[], [], [], [], []])
         data = pd.DataFrame(columns=m_cols)
 
     if not isinstance(bus, list):
@@ -334,7 +334,7 @@ def get_nominal_values(es, cat='bus', tag='electricity', subtag=None):
                if ('shortage' in x[0].label.cat) &
                ('electricity' in x[0].label.tag)]
 
-    midx = pd.MultiIndex(levels=[[], [], [], []], labels=[[], [], [], []])
+    midx = pd.MultiIndex(levels=[[], [], [], []], codes=[[], [], [], []])
     dt = pd.DataFrame(index=midx, columns=['nominal_value'])
     for region in sorted(set(regions)):
         node = get_nodes_by_label(es, (cat, tag, subtag, region))
@@ -497,7 +497,7 @@ def fullloadhours(es, grouplevel=None, dropnan=False):
     p = es.results['Param']
 
     idx = pd.MultiIndex(levels=[[], [], [], [], []],
-                        labels=[[], [], [], [], []])
+                        codes=[[], [], [], [], []])
     cols = ['nominal_value', 'summed_flow']
     sort_results = pd.DataFrame(index=idx, columns=cols)
     logging.info('Start')
@@ -587,7 +587,7 @@ def create_label_overview(es):
     True
     """
     idx = pd.MultiIndex(levels=[[], [], [], []],
-                        labels=[[], [], [], []])
+                        codes=[[], [], [], []])
     cols = ['solph_class']
     label_overview = pd.DataFrame(index=idx, columns=cols)
     for node in es.nodes:
@@ -764,7 +764,7 @@ def fetch_cost_emission(es, with_chp=True):
     -------
     pd.DataFrame
     """
-    idx = pd.MultiIndex(levels=[[], [], []], labels=[[], [], []])
+    idx = pd.MultiIndex(levels=[[], [], []], codes=[[], [], []])
     parameter = pd.DataFrame(index=idx)
     p = es.results['Param']
     flows = [x for x in p if x[1] is not None]
@@ -876,7 +876,7 @@ def fetch_cost_emission_with_storages(es, with_chp=True):
     """
     parameter = fetch_cost_emission(es, with_chp=with_chp)
     storage_efficiencies = get_storage_efficiencies(es)
-    idx = pd.MultiIndex(levels=[[], []], labels=[[], []])
+    idx = pd.MultiIndex(levels=[[], []], codes=[[], []])
     parameter_w_storage = pd.DataFrame(index=parameter.index, columns=idx)
     for si, sv in storage_efficiencies.iteritems():
         for pi, pv in parameter.iterrows():

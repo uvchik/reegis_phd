@@ -1,9 +1,9 @@
 import os
 import pandas as pd
 import geopandas as gpd
-from reegis_tools import coastdat
-from reegis_tools import geometries
-import reegis_tools.config as cfg
+from reegis import coastdat
+from reegis import geometries
+import reegis.config as cfg
 import multiprocessing
 import pvlib
 import deflex
@@ -46,7 +46,7 @@ def pv_orientation(key, geom, weather, system, orientation, path):
     wind_speed = weather['v_wind'].values
     temp_air = weather['temp_air'].values - 273.15
 
-    s = pd.Series(index=pd.MultiIndex(levels=[[], []], labels=[[], []]))
+    s = pd.Series(index=pd.MultiIndex(levels=[[], []], codes=[[], []]))
     fix_tilt = -0.1
     for tilt, azimuth in orientation:
         if tilt > fix_tilt:
@@ -214,7 +214,7 @@ def optimal_pv_orientation():
 def collect_orientation_files(year=None):
     base_path = os.path.join(cfg.get('paths', 'analysis'),
                              'pv_orientation_minus30')
-    multi = pd.MultiIndex(levels=[[], []], labels=[[], []])
+    multi = pd.MultiIndex(levels=[[], []], codes=[[], []])
     df = pd.DataFrame(columns=multi, index=multi)
 
     if year is None:
@@ -252,7 +252,7 @@ def collect_single_orientation_files():
 
 
 def combine_large_orientation_files():
-    p = os.path.join(cfg.get('paths', 'analysis'), 'pv_yield_by_orientation')
+    p = os.path.join(cfg.get('paths', 'analysis'), 'pv_yield_by_orientation_c')
     dfs = []
     key = None
     for root, dirs, files in os.walk(p):
@@ -283,65 +283,117 @@ def analyse_multi_files():
         gdf.loc[key, 'longitude'] = p.geometry.centroid.x
         gdf.loc[key, 'latitude'] = p.geometry.centroid.y
         gdf.loc[key, 'tilt_calc'] = round(p.geometry.centroid.y - 15)
-        gdf.loc[key, 'tilt_diff'] = (gdf.loc[key, 'tilt_calc'] -
+        gdf.loc[key, 'tilt_diff'] = abs(gdf.loc[key, 'tilt_calc'] -
                                      gdf.loc[key, 'tilt'])
-    cmap = plt.get_cmap('viridis', 8)
+        gdf.loc[key, 'tilt_diff_c'] = abs(gdf.loc[key, 'tilt'] - 36.5)
+        gdf.loc[key, 'azimuth_diff'] = abs(gdf.loc[key, 'azimuth'] - 178.5)
+
+    cmap_t = plt.get_cmap('viridis', 8)
+    cmap_az = plt.get_cmap('viridis', 7)
     cm_gyr = LinearSegmentedColormap.from_list(
         'mycmap', [
-            (0, 'red'),
-            (0.25, 'yellow'),
-            (0.5, 'green'),
-            (0.75, 'yellow'),
-            (1, 'red')], 11)
-    print(gdf.azimuth.max(), gdf.azimuth.min())
-    print(gdf.tilt.max(), gdf.tilt.min())
-    print(gdf.tilt_diff.max(), gdf.tilt_diff.min())
-    f, ax_ar = plt.subplots(1, 3, figsize=(15, 3))
-    # gdf.plot('azimuth', legend=True, cmap=cmap, vmin=172.5, vmax=184.5,
-    #              ax=ax_ar[0])
-    gdf.plot('tilt', legend=True, ax=ax_ar[1], vmin=32.5, vmax=40.5, cmap=cmap)
-    gdf.plot('tilt_calc', legend=True, ax=ax_ar[0], vmin=32.5, vmax=40.5,
-             cmap=cmap)
-    gdf.plot(
-        'tilt_diff', legend=True, vmin=-5.5, vmax=5.5,
-        cmap=cm_gyr, ax=ax_ar[2])
+            (0, 'green'),
+            (0.5, 'yellow'),
+            (1, 'red')], 6)
+
+    f, ax_ar = plt.subplots(2, 3, sharey=True, sharex=True, figsize=(13, 6))
+
+    ax_ar[0][0].set_title("Azimuth (optimal)", loc='center', y=1)
+    gdf.plot('azimuth', legend=True, cmap=cmap_az, vmin=173, vmax=187,
+             ax=ax_ar[0][0])
+
+    ax_ar[0][1].set_title("Neigung (optimal)", loc='center', y=1)
+    gdf.plot('tilt', legend=True, vmin=32.5, vmax=40.5, cmap=cmap_t,
+             ax=ax_ar[0][1])
+
+    ax_ar[0][2].set_title("Neigung (nach Breitengrad)", loc='center', y=1)
+    gdf.plot('tilt_calc', legend=True, vmin=32.5, vmax=40.5, cmap=cmap_t,
+             ax=ax_ar[0][2])
+
+    ax_ar[1][0].set_title(
+        "Azimuth (Differenz - optimal zu 180°)", loc='center', y=1)
+    gdf.plot('azimuth_diff', legend=True, vmin=-0.5, vmax=5.5, cmap=cm_gyr,
+             ax=ax_ar[1][0])
+
+    ax_ar[1][1].set_title(
+        "Neigung (Differenz - optimal zu Breitengrad)", loc='center', y=1)
+    gdf.plot('tilt_diff', legend=True, vmin=-0.5, vmax=5.5, cmap=cm_gyr,
+             ax=ax_ar[1][1])
+
+    ax_ar[1][2].set_title(
+        "Neigung (Differenz - optimal zu 36,5°)", loc='center', y=1)
+    gdf.plot('tilt_diff_c', legend=True, vmin=-0.5, vmax=5.5, cmap=cm_gyr,
+             ax=ax_ar[1][2])
+
+    plt.subplots_adjust(right=1, left=0.03, bottom=0.05, top=0.95)
     plt.show()
 
 
 def polar_plot():
     key = 1129089
-    p = os.path.join(cfg.get('paths', 'analysis'), 'pv_yield_by_orientation')
+    p = os.path.join(cfg.get('paths', 'analysis'),
+                     'pv_yield_by_orientation')
     fn = os.path.join(p, '{0}_combined.csv'.format(key))
 
-    df = pd.read_csv(fn, index_col=[0, 1], header=None)
+    df = pd.read_csv(fn, index_col=[0, 1])
     df.reset_index(inplace=True)
+    df['rel'] = df['2'] / df['2'].max()
+
+    azimuth_opt = float(df[df['2'] == df['2'].max()]['1'])
+    tilt_opt = float(df[df['2'] == df['2'].max()]['0'])
+    print(azimuth_opt, tilt_opt)
+    print(tilt_opt-5)
+    print(df[(df['1'] == azimuth_opt+5) & (df['0'] == tilt_opt+5)])
+    print(df[(df['1'] == azimuth_opt-5) & (df['0'] == tilt_opt+5)])
+    print(df[(df['1'] == azimuth_opt+5) & (df['0'] == round(tilt_opt-5, 1))])
+    print(df[(df['1'] == azimuth_opt-5) & (df['0'] == round(tilt_opt-5, 1))])
 
     # Data
-    tilt = df[0]
-    azimuth = df[1] / 180 * np.pi
-    colors = df[2] / df[2].max()
+    tilt = df['0']
+    azimuth = df['1'] / 180 * np.pi
+    colors = df['2'] / df['2'].max()
 
     # Colormap
-    cmap = plt.get_cmap('viridis', 8)
+    cmap = plt.get_cmap('viridis', 20)
 
     # Plot
-    fig = plt.figure(figsize=(8, 6))
+    fig = plt.figure(figsize=(9, 4))
     ax = fig.add_subplot(111, projection='polar')
-    sc = ax.scatter(azimuth, tilt, c=colors, cmap=cmap, alpha=1, vmin=0.2)
+    sc = ax.scatter(azimuth, tilt, c=colors, cmap=cmap, alpha=1, vmin=0.8)
 
     # Colorbar
     label = "Anteil vom maximalen Ertrag"
-    cax = fig.add_axes([0.89, 0.05, 0.03, 0.92])
+    cax = fig.add_axes([0.89, 0.15, 0.02, 0.75])
     fig.colorbar(sc, cax=cax, label=label, ticks=[0, 0.2, 0.4, 0.6, 0.8, 1])
     ax.set_theta_zero_location('S', offset=0)
 
     # Adjust radius
-    ax.set_rmax(90)
+    # ax.set_rmax(90)
     ax.set_rlabel_position(110)
+    t_upper = tilt_opt + 5
+    t_lower = tilt_opt - 5
+    az_upper = azimuth_opt + 5
+    az_lower = azimuth_opt - 5
+    bbox_props = dict(boxstyle="round", fc="white", alpha=0.5, lw=0)
+    ax.annotate(">0.996",
+                xy=((az_upper-5)/180 * np.pi, t_upper),
+                xytext=((az_upper+3)/180 * np.pi, t_upper+3),
+                # textcoords='figure fraction',
+                arrowprops=dict(facecolor='black', arrowstyle="-"),
+                horizontalalignment='left',
+                verticalalignment='bottom', bbox=bbox_props)
 
+    az = (np.array([az_lower, az_lower, az_upper, az_upper, az_lower]) /
+          180 * np.pi)
+    t = np.array([t_lower, t_upper, t_upper, t_lower, t_lower])
+    ax.plot(az, t)
+
+    ax.set_rmax(50)
+    ax.set_rmin(20)
+    ax.set_thetamin(90)
+    ax.set_thetamax(270)
     # Adjust margins
-    plt.subplots_adjust(right=0.94, left=0, bottom=0.08, top=0.93)
-    plt.savefig(os.path.join(p, 'polar_plot_{0}.png'.format(key)))
+    plt.subplots_adjust(right=0.94, left=0, bottom=-0.2, top=1.2)
 
 
 if __name__ == "__main__":
@@ -349,10 +401,10 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(deflex.__file__)])
     # combine_large_orientation_files()
     # optimal_pv_orientation()
-    pv_yield_by_orientation()
+    # pv_yield_by_orientation()
     # collect_orientation_files()
     # collect_single_orientation_files()
     # plt.show()
     # scatter()
     # analyse_multi_files()
-    # polar_plot()
+    polar_plot()

@@ -11,13 +11,13 @@ import pandas as pd
 from oemof.tools import logger
 
 # reegis modules
-import reegis_tools.geometries as geometries
+import reegis.geometries as geometries
 
 
 def time_analysis():
     df = pd.read_csv('/home/uwe/log_time_test.csv', parse_dates=True)
     print(df.index)
-    idx = pd.MultiIndex(levels=[[], [], []], labels=[[], [], []])
+    idx = pd.MultiIndex(levels=[[], [], []], codes=[[], [], []])
     time_results = pd.DataFrame(index=idx)
     df['t_value'] = df.index
     df['delta'] = (df['t_value']-df['t_value'].shift()).fillna(0)

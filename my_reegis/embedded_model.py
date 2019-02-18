@@ -24,8 +24,8 @@ from oemof.tools import logger
 import oemof.solph as solph
 
 # internal modules
-import reegis_tools.config as cfg
-import reegis_tools.scenario_tools
+import reegis.config as cfg
+import reegis.scenario_tools
 import berlin_hp
 import deflex
 
@@ -69,7 +69,7 @@ def create_reduced_de22_scenario(year):
 
     name = '{0}_{1}_{2}'.format('deflex', year, 'de22_without_berlin')
 
-    sce = reegis_tools.scenario_tools.Scenario(
+    sce = reegis.scenario_tools.Scenario(
         table_collection=de.table_collection, name=name, year=year)
     path = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp', str(year))
     sce.to_excel(os.path.join(path, name + '.xls'))
@@ -218,14 +218,14 @@ def create_reduced_de21_scenario(year):
     sub = pd.DataFrame(
         columns=['DE_orig', 'DE01_orig', 'BE', 'DE01_new', 'DE_new'])
 
-    import reegis_tools.powerplants
-    pwp = reegis_tools.powerplants.get_pp_by_year(
+    import reegis.powerplants
+    pwp = reegis.powerplants.get_pp_by_year(
         year, overwrite_capacity=True, capacity_in=True)
 
     table_collect = deflex.basic_scenario.powerplants(
         pwp, {}, year, region_column='federal_states')
 
-    heat_b = reegis_tools.powerplants.get_chp_share_and_efficiency_states(year)
+    heat_b = reegis.powerplants.get_chp_share_and_efficiency_states(year)
 
     heat_b['BE']['fuel_share'].rename(columns={'re': 'bioenergy'},
                                       inplace=True)
@@ -269,7 +269,7 @@ def create_reduced_de21_scenario(year):
     ct.to_excel(os.path.join(
         cfg.get('paths', 'messages'), 'summery_embedded_model.xls'))
     name = '{0}_{1}_{2}'.format('deflex', year, 'de21_without_berlin')
-    sce = reegis_tools.scenario_tools.Scenario(
+    sce = reegis.scenario_tools.Scenario(
         table_collection=de.table_collection,
         name=name,
         year=year)
@@ -281,7 +281,7 @@ def create_reduced_de21_scenario(year):
 
 def connect_electricity_buses(bus1, bus2, es):
     label = berlin_hp.Label
-    nodes = reegis_tools.scenario_tools.NodeDict()
+    nodes = reegis.scenario_tools.NodeDict()
     lines = [(bus1, bus2), (bus2, bus1)]
     for line in lines:
         line_label = label('line', 'electricity', line[0], line[1])

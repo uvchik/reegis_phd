@@ -17,7 +17,7 @@ from oemof.tools import logger
 from deflex import demand
 from deflex import geometries
 
-import reegis_tools.config as cfg
+import reegis.config as cfg
 
 
 def add_grid_labels(data, plotter, label=None,
@@ -630,6 +630,8 @@ def demand_share_of_sector_and_region():
         wspace=0.29, left=0.06, right=0.92, bottom=0.12, top=0.95)
     demand_de21 = demand.prepare_ego_demand()
 
+    print(demand_de21)
+
     share_relative = pd.DataFrame()
 
     for region in demand_de21.index:
@@ -712,15 +714,16 @@ def demand_share_of_sector_and_region():
 
 if __name__ == "__main__":
     # heatmap_pv_orientation()
-    # demand_share_of_sector_and_region()
-    # demand_plots()
+    cfg.init(paths=[os.path.dirname(deflex.__file__)])
+    demand_share_of_sector_and_region()
+    demand_plots()
     # plot_full_load_hours(2008)
     # plot_module_comparison()
     # plot_orientation_by_region()
-    cfg.init(paths=[os.path.dirname(deflex.__file__)])
-    heatmap_pv_orientation()
-    de21_region()
-    de21_grid()
+    # cfg.init(paths=[os.path.dirname(deflex.__file__)])
+    # heatmap_pv_orientation()
+    # de21_region()
+    # de21_grid()
     # de21_region()
     # plot_inverter_comparison()
     # plot_geocsv(os.path.join(

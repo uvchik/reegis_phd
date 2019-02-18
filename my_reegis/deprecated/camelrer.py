@@ -1,4 +1,4 @@
-from reegis_tools import Scenario
+from reegis import Scenario
 import datetime
 import os
 from oemof import solph

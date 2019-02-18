@@ -10,9 +10,9 @@ from oemof.tools import logger
 # from oemof import solph
 
 # internal modules
-import reegis_tools.config as cfg
-from reegis_tools import Scenario
-# import reegis_tools.scenario_tools
+import reegis.config as cfg
+from reegis import Scenario
+# import reegis.scenario_tools
 import deflex
 from deflex import inhabitants
 import berlin_hp

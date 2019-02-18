@@ -2,7 +2,7 @@ import os
 import logging
 from my_reegis import results
 import pandas as pd
-import reegis_tools.config as cfg
+import reegis.config as cfg
 
 
 OFFSHORE = {'de02': ['DE02'],
@@ -87,7 +87,7 @@ def fetch_scenarios(path, solver, year=None):
 def fetch_mcp_for_all_scenarios(path, solver, year=None):
     mcp = {}
     df = pd.DataFrame(columns=pd.MultiIndex(
-        levels=[[], [], []], labels=[[], [], []]))
+        levels=[[], [], []], codes=[[], [], []]))
     scenarios = fetch_scenarios(path, solver, year=year)
     logging.info("{0} sceanrios found".format(len(scenarios)))
     for root, fn in scenarios:
