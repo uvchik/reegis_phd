@@ -587,10 +587,11 @@ def start_no_grid_limit_scenarios(year, checker=True, create_scenario=False):
     return checker
 
 
-def start_deflex_without_scenarios(year, checker=True, create_scenario=False):
+def start_deflex_without_scenarios(year, checker=True, raise_errors=False):
     start_dir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(year))
     sc_filter = 'without'
-    checker = start_all_by_dir(checker, start_dir, sc_filter)
+    checker = start_all_by_dir(checker, start_dir, sc_filter,
+                               raise_errors=raise_errors)
     return checker
 
 
@@ -619,7 +620,8 @@ def start_all(checker=True, create_scenario=True):
     return checker
 
 
-def start_all_by_dir(checker=True, start_dir=None, sc_filter=None):
+def start_all_by_dir(checker=True, start_dir=None, sc_filter=None,
+                     raise_errors=False):
     # alternative_scenarios.multi_scenario_deflex()
     if start_dir is None:
         start_dir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
@@ -640,10 +642,13 @@ def start_all_by_dir(checker=True, start_dir=None, sc_filter=None):
     for d in sorted(scenarios):
         if d[-4:] == '_csv':
             name = d[:-4]
-            try:
+            if not raise_errors:
+                try:
+                    optimise_scenario(start_dir, name)
+                except Exception as e:
+                    checker = log_exception(e)
+            else:
                 optimise_scenario(start_dir, name)
-            except Exception as e:
-                checker = log_exception(e)
         remain -= 1
         logging.info("Number of remaining scenarios: {0}".format(remain))
     return checker
@@ -683,7 +688,7 @@ if __name__ == "__main__":
             # check = start_deflex_scenarios(y, checker=check,
             #                                create_scenario=True)
             check = start_deflex_without_scenarios(y, checker=check,
-                                                   create_scenario=False)
+                                                   raise_errors=True)
             # check = start_embedded_scenarios(y, checker=check,
             #                                  create_scenario=True)
     log_check(check)
