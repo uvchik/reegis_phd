@@ -22,6 +22,7 @@ from matplotlib.sankey import Sankey
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import Normalize
 from matplotlib import cm
+import matplotlib.dates as mdates
 
 from berlin_hp import electricity
 
@@ -32,6 +33,8 @@ from reegis import geometries
 from reegis import powerplants
 from reegis import storages
 from reegis import demand
+from reegis import entsoe
+
 from my_reegis import data_analysis
 from berlin_hp import heat
 
@@ -42,13 +45,335 @@ NAMES = {
     'oil': 'Öl',
     'hard_coal': 'Steinkohle',
     'netto_import': 'Stromimport',
-    'other': 'sonstige'
+    'other': 'sonstige',
+    # 'nuclear': 'Atomkraft',
 }
 
 
 def create_subplot(default_size, **kwargs):
     size = kwargs.get('size', default_size)
     return plt.figure(figsize=size).add_subplot(1, 1, 1)
+
+
+def fig_compare_feedin_solar():
+    plt.rcParams.update({'font.size': 14})
+    f, ax_ar = plt.subplots(2, 1, sharey=True, figsize=(15, 6))
+
+    # Get entsoe time series from opsd
+    cso = '#ff7e00'
+    csr = '#500000'
+    my_re = entsoe.get_entsoe_renewable_data().div(1000)
+    ax = my_re['DE_solar_profile'].multiply(1000).plot(ax=ax_ar[0], color=cso)
+    ax2 = my_re['DE_solar_profile'].multiply(1000).plot(ax=ax_ar[1], color=cso)
+
+    # Get reegis time series
+    my_path = os.path.join(cfg.get('paths', 'feedin'), 'federal_states')
+    my_fn = os.path.join(my_path, 'federal_states_{0}'.format(2014))
+    re_rg = pd.read_csv(my_fn, index_col=[0], header=[0, 1]).set_index(
+        pd.date_range('1/1/2014', periods=8760, freq='H'))
+    fs = geometries.get_federal_states_polygon()
+    pp = powerplants.get_powerplants_by_region(fs, 2014, 'federal_states')
+    total_capacity = pp.capacity_2014.swaplevel().loc['Solar'].sum()
+
+    re_rg = re_rg.swaplevel(axis=1)['solar'].mul(
+        pp.capacity_2014.swaplevel().loc['Solar'])
+
+    # Plot reegis time series
+    # June
+    ax = re_rg.sum(axis=1).div(total_capacity).plot(
+        ax=ax, rot=0, color=csr,
+        xlim=(datetime.datetime(2014, 6, 1), datetime.datetime(2014, 6, 30)))
+
+    # December
+    ax2 = re_rg.sum(axis=1).div(total_capacity).plot(
+        ax=ax2, rot=0, color=csr,
+        xlim=(datetime.datetime(2014, 12, 1), datetime.datetime(2014, 12, 30)))
+
+    # x-ticks for June
+    dates = [datetime.datetime(2014, 6, 1),
+             datetime.datetime(2014, 6, 5),
+             datetime.datetime(2014, 6, 9),
+             datetime.datetime(2014, 6, 13),
+             datetime.datetime(2014, 6, 17),
+             datetime.datetime(2014, 6, 21),
+             datetime.datetime(2014, 6, 25),
+             datetime.datetime(2014, 6, 29)]
+    labels = [pandas_datetime.strftime("%d. %b.") for pandas_datetime in dates]
+    labels[0] = ''
+    ax.set_xticklabels(labels, ha='center')
+
+    # xticks for December
+    dates = [datetime.datetime(2014, 12, 1),
+             datetime.datetime(2014, 12, 5),
+             datetime.datetime(2014, 12, 9),
+             datetime.datetime(2014, 12, 13),
+             datetime.datetime(2014, 12, 17),
+             datetime.datetime(2014, 12, 21),
+             datetime.datetime(2014, 12, 25),
+             datetime.datetime(2014, 12, 29)]
+    labels = [pandas_datetime.strftime("%d. %b.") for pandas_datetime in dates]
+    labels[0] = ''
+    ax2.set_xticklabels(labels, ha='center')
+
+    ax.legend(labels=['OPSD', 'reegis'])
+    ax.set_xlabel('')
+    ax.set_ylim((0, 1.1))
+    ax2.set_xlabel('Juni/Dezember 2014')
+    ax2.xaxis.labelpad = 20
+
+    # Plot Text
+    x0 = datetime.datetime(2014, 12, 1, 5, 0)
+    x1 = datetime.datetime(2014, 12, 1, 8, 0)
+    x2 = datetime.datetime(2014, 12, 2, 14, 0)
+
+    start = datetime.datetime(2014, 1, 1)
+    end = datetime.datetime(2015, 1, 1)
+
+    # BMWI
+    # https://www.bmwi.de/Redaktion/DE/Publikationen/Energie/
+    #     erneuerbare-energien-in-zahlen-2017.pdf?__blob=publicationFile&v=27
+    bmwi_sum = round(36.056)
+    reegis_sum = round(re_rg.sum().sum() / 1000000)
+    opsd_sum = round(
+        my_re.DE_solar_generation_actual.loc[start:end].sum() / 1000)
+
+    text = {
+        'title': (x1, 1, ' Summe 2014'),
+        "op1": (x1, 0.85, "OPSD"),
+        "op2": (x2, 0.85, "{0} GWh".format(int(opsd_sum))),
+        "reg1": (x1, 0.70, "reegis"),
+        "reg2": (x2, 0.70, "{0} GWh".format(int(reegis_sum))),
+        'bmwi1': (x1, 0.55, 'BMWi'),
+        "bmwi2": (x2, 0.55, "{0} GWh".format(int(bmwi_sum))),
+    }
+
+    for t, c in text.items():
+        if t == 'title':
+            w = 'bold'
+        else:
+            w = 'normal'
+        ax2.text(c[0], c[1], c[2], weight=w, size=12, ha="left", va="center")
+
+    # Plot Box
+    x3 = mdates.date2num(x0)
+    b = patches.Rectangle((x3, 0.5), 2.9, 0.57, color='#cccccc')
+    ax2.add_patch(b)
+    ax2.add_patch(patches.Shadow(b, -0.05, -0.01))
+
+    plt.subplots_adjust(right=0.99, left=0.05, bottom=0.16, top=0.97)
+    return 'compare_feedin_solar', None
+
+
+def fig_compare_feedin_wind():
+    plt.rcParams.update({'font.size': 14})
+    f, ax_ar = plt.subplots(2, 1, sharey=True, figsize=(15, 6))
+
+    # colors
+    cwo = '#665eff'
+    cwr = '#0a085e'
+
+    # Get entsoe time series from opsd
+    my_re = entsoe.get_entsoe_renewable_data().div(1000)
+    ax = my_re['DE_wind_profile'].multiply(1000).plot(ax=ax_ar[0], color=cwo)
+    ax2 = my_re['DE_wind_profile'].multiply(1000).plot(ax=ax_ar[1], color=cwo)
+
+    # Get reegis time series
+    my_path = os.path.join(cfg.get('paths', 'feedin'), 'federal_states')
+    my_fn = os.path.join(my_path, 'federal_states_{0}'.format(2014))
+    re_rg = pd.read_csv(my_fn, index_col=[0], header=[0, 1]).set_index(
+        pd.date_range('1/1/2014', periods=8760, freq='H'))
+    fs = geometries.get_federal_states_polygon()
+    pp = powerplants.get_powerplants_by_region(fs, 2014, 'federal_states')
+    total_capacity = pp.capacity_2014.swaplevel().loc['Wind'].sum()
+    re_rg = re_rg.swaplevel(axis=1)['wind'].mul(
+        pp.capacity_2014.swaplevel().loc['Wind'])
+
+    # Plot reegis time series (use multiply to adjust the overall sum)
+    # June
+    ax = re_rg.sum(axis=1).div(total_capacity).multiply(1).plot(
+        ax=ax, rot=0, color=cwr,
+        xlim=(datetime.datetime(2014, 6, 1), datetime.datetime(2014, 6, 30)))
+
+    # December
+    ax2 = re_rg.sum(axis=1).div(total_capacity).multiply(1).plot(
+        ax=ax2, rot=0, color=cwr,
+        xlim=(datetime.datetime(2014, 12, 1), datetime.datetime(2014, 12, 30)))
+
+    # x-ticks for June
+    dates = [datetime.datetime(2014, 6, 1),
+             datetime.datetime(2014, 6, 5),
+             datetime.datetime(2014, 6, 9),
+             datetime.datetime(2014, 6, 13),
+             datetime.datetime(2014, 6, 17),
+             datetime.datetime(2014, 6, 21),
+             datetime.datetime(2014, 6, 25),
+             datetime.datetime(2014, 6, 29)]
+    labels = [pandas_datetime.strftime("%d. %b.") for pandas_datetime in dates]
+    labels[0] = ''
+    ax.set_xticklabels(labels, ha='center')
+
+    # xticks for December
+    dates = [datetime.datetime(2014, 12, 1),
+             datetime.datetime(2014, 12, 5),
+             datetime.datetime(2014, 12, 9),
+             datetime.datetime(2014, 12, 13),
+             datetime.datetime(2014, 12, 17),
+             datetime.datetime(2014, 12, 21),
+             datetime.datetime(2014, 12, 25),
+             datetime.datetime(2014, 12, 29)]
+    labels = [pandas_datetime.strftime("%d. %b.") for pandas_datetime in dates]
+    labels[0] = ''
+    ax2.set_xticklabels(labels, ha='center')
+
+    ax.legend(labels=['OPSD', 'reegis'])
+    ax.set_xlabel('')
+    ax.set_ylim((0, 1.1))
+    ax2.set_xlabel('Juni/Dezember 2014')
+    ax2.xaxis.labelpad = 20
+
+    # Plot Text
+    x0 = datetime.datetime(2014, 6, 1, 5, 0)
+    x1 = datetime.datetime(2014, 6, 1, 8, 0)
+    x2 = datetime.datetime(2014, 6, 2, 14, 0)
+
+    start = datetime.datetime(2014, 1, 1)
+    end = datetime.datetime(2015, 1, 1)
+
+    # BMWI
+    # https://www.bmwi.de/Redaktion/DE/Publikationen/Energie/
+    #     erneuerbare-energien-in-zahlen-2017.pdf?__blob=publicationFile&v=27
+    bmwi_sum = round((1471 + 57026) / 1000)
+    reegis_sum = round(re_rg.sum().sum()/1000000)
+    opsd_sum = round(my_re.DE_wind_generation_actual.loc[start:end].sum()/1000)
+
+    print(opsd_sum/reegis_sum)
+
+    text = {
+        'title': (x1, 1, ' Summe 2014'),
+        "op1": (x1, 0.85, "OPSD"),
+        "op2": (x2, 0.85, "{0} GWh".format(int(opsd_sum))),
+        "reg1": (x1, 0.70, "reegis"),
+        "reg2": (x2, 0.70, "{0} GWh".format(int(reegis_sum))),
+        'bmwi1': (x1, 0.55, 'BMWi'),
+        "bmwi2": (x2, 0.55, "{0} GWh".format(int(bmwi_sum))),
+      }
+
+    for t, c in text.items():
+        if t == 'title':
+            w = 'bold'
+        else:
+            w = 'normal'
+        ax.text(c[0], c[1], c[2], weight=w, size=12, ha="left", va="center")
+
+    # Plot Box
+    x3 = mdates.date2num(x0)
+    b = patches.Rectangle((x3, 0.5), 2.9, 0.57, color='#cccccc')
+    ax.add_patch(b)
+    ax.add_patch(patches.Shadow(b, -0.05, -0.01))
+
+    plt.subplots_adjust(right=0.99, left=0.05, bottom=0.16, top=0.97)
+    return 'compare_feedin_wind', None
+
+
+def fig_compare_full_load_hours():
+    plt.rcParams.update({'font.size': 14})
+    f, ax_ar = plt.subplots(2, 2, sharex=True, figsize=(15, 7))
+
+    fn = os.path.join(cfg.get('paths', 'data_my_reegis'),
+                      'full_load_hours_re_bdew_states.csv')
+    flh = pd.read_csv(fn, index_col=[0], header=[0, 1])
+    # flh['Solar (BDEW)'].plot(kind='bar', ax=ax_ar[1])
+    for y in [2014, 2012]:
+        my_path = os.path.join(cfg.get('paths', 'feedin'), 'federal_states')
+        my_fn = os.path.join(my_path, 'federal_states_{0}'.format(y))
+        re_rg = pd.read_csv(my_fn, index_col=[0], header=[0, 1]).swaplevel(
+            axis=1)
+        flh['Wind (reegis)', str(y)] = re_rg['wind'].sum()
+        flh['Solar (reegis)', str(y)] = re_rg['solar'].sum()
+
+    flh.drop(['DE', 'N1', 'O0'], inplace=True)
+
+    ax_ar[0, 0] = flh[
+        [('Wind (BDEW)', '2012'), ('Wind (reegis)', '2012')]].plot(
+            kind='bar', ax=ax_ar[0, 0], color=['#4254ff', '#1b2053'],
+            legend=False)
+    ax_ar[0, 1] = flh[
+        [('Wind (BDEW)', '2014'), ('Wind (reegis)', '2014')]].plot(
+            kind='bar', ax=ax_ar[0, 1], color=['#4254ff', '#1b2053'],
+            legend=False)
+    ax_ar[1, 0] = flh[
+        [('Solar (BDEW)', '2012'), ('Solar (reegis)', '2012')]].plot(
+            kind='bar', ax=ax_ar[1, 0], color=['#ffba00', '#ff7000'],
+            legend=False)
+    ax_ar[1, 1] = flh[
+        [('Solar (BDEW)', '2014'), ('Solar (reegis)', '2014')]].plot(
+            kind='bar', ax=ax_ar[1, 1], color=['#ffba00', '#ff7000'],
+            legend=False)
+    ax_ar[0, 0].set_title('2012')
+    ax_ar[0, 1].set_title('2014')
+    ax_ar[0, 1].legend(loc='upper left', bbox_to_anchor=(1, 1),
+                       labels=['BDEW', 'reegis'])
+    ax_ar[1, 1].legend(loc='upper left', bbox_to_anchor=(1, 1),
+                       labels=['BDEW', 'reegis'])
+    ax_ar[0, 0].set_ylabel('Volllaststunden Windkraft')
+    ax_ar[1, 0].set_ylabel('Volllaststunden Photovoltaik')
+
+    plt.subplots_adjust(right=0.89, left=0.07, bottom=0.11, top=0.94,
+                        wspace=0.16)
+    return 'compare_full_load_hours', None
+
+
+def fig_compare_re_capacity_years():
+    plt.rcParams.update({'font.size': 14})
+    f, ax_ar = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(15, 5))
+
+    my_re = entsoe.get_entsoe_renewable_data().div(1000)
+    rn = {'DE_solar_capacity': 'Solar (OPSD)',
+          'DE_wind_capacity': 'Wind (OPSD)'}
+    my_re.rename(columns=rn, inplace=True)
+
+    ax_ar[0] = my_re['Solar (OPSD)'].plot(
+        ax=ax_ar[0], color='#ffba00', legend=True)
+    ax_ar[1] = my_re['Wind (OPSD)'].plot(
+        ax=ax_ar[1], color='#4254ff', legend=True)
+
+    fs = geometries.get_federal_states_polygon()
+    df = pd.DataFrame()
+    for y in [2012, 2013, 2014, 2015, 2016, 2017, 2018]:
+        my_pp = powerplants.get_powerplants_by_region(fs, y, 'federal_states')
+        for cat in ['Solar', 'Wind']:
+            dt = datetime.datetime(y, 1, 1)
+            cat_name = "{0} (reegis)".format(cat)
+            col = 'capacity_{0}'.format(y)
+            df.loc[dt, cat_name] = my_pp.groupby(level=1).sum().loc[cat, col]
+    df = df.div(1000)
+    ax_ar[0] = df['Solar (reegis)'].plot(
+        drawstyle="steps-post", ax=ax_ar[0], color='#ff7000', legend=True)
+    ax_ar[1] = df['Wind (reegis)'].plot(
+        drawstyle="steps-post", ax=ax_ar[1], color=['#1b2053'], legend=True)
+
+    fn = os.path.join(cfg.get('paths', 'data_my_reegis'),
+                      'bmwi_installed_capacity_wind_pv.csv')
+    bmwi = pd.read_csv(fn, index_col=[0]).transpose().div(1000)
+    bmwi = bmwi.set_index(pd.to_datetime(bmwi.index.astype(str) + '-12-31'))
+
+    ax_ar[0] = bmwi['Solar (BMWi)'].plot(
+        marker='D', ax=ax_ar[0], linestyle='None', markersize=10,
+        color='#ff5500', alpha=0.7, legend=True)
+    ax_ar[1] = bmwi['Wind (BMWi)'].plot(
+        marker='D', ax=ax_ar[1], linestyle='None', markersize=10,
+        color='#111539', alpha=0.7, legend=True)
+
+    ax_ar[0].set_xlim(left=datetime.datetime(2012, 1, 1))
+    plt.ylim((25, 60))
+    ax_ar[0].set_ylabel('Installierte Leistung [GW]')
+    ax_ar[0].set_xlabel(' ')
+    ax_ar[1].set_xlabel(' ')
+    ax_ar[0].legend(loc='upper left')
+    ax_ar[1].legend(loc='upper left')
+    plt.subplots_adjust(right=0.98, left=0.06, bottom=0.11, top=0.94,
+                        wspace=0.16)
+    return 'compare_re_capacity_years', None
 
 
 def fig_analyse_multi_files():
@@ -181,7 +506,7 @@ def fig_polar_plot_pv_orientation():
     ax.set_thetamax(270)
     # Adjust margins
     plt.subplots_adjust(right=0.94, left=0, bottom=-0.2, top=1.2)
-    return 'polar_plot_pv_orientation_c.png', None
+    return 'polar_plot_pv_orientation.png', None
 
 
 def fig_average_weather():
@@ -315,7 +640,7 @@ def fig_inhabitants_per_area():
     return 'inhabitants_per_area2', None
 
 
-def windzones():
+def fig_windzones():
     path = cfg.get('paths', 'geometry')
     filename = 'windzones_germany.geojson'
     df = geometries.load(path=path, filename=filename)
@@ -364,6 +689,7 @@ def sankey_test():
 
 
 def fig_powerplants(**kwargs):
+    plt.rcParams.update({'font.size': 14})
     geo = geometries.load(
         cfg.get('paths', 'geometry'),
         cfg.get('geometry', 'federalstates_polygon'))
@@ -377,13 +703,15 @@ def fig_powerplants(**kwargs):
     fn_bnetza = os.path.join(data_path, cfg.get('plot_data', 'bnetza'))
     pp_bnetza = pd.read_csv(fn_bnetza, index_col=[0], skiprows=2, header=[0])
 
-    ax = create_subplot((8.5, 5), **kwargs)
+    ax = create_subplot((10, 5), **kwargs)
+
+    see = 'sonst. erneuerb.'
 
     my_dict = {
-        'Bioenergy': 'sonstige erneuerbar',
-        'Geothermal': 'sonstige erneuerbar',
+        'Bioenergy': see,
+        'Geothermal': see,
         'Hard coal': 'Kohle',
-        'Hydro': 'sonstige erneuerbar',
+        'Hydro': see,
         'Lignite': 'Kohle',
         'Natural gas': 'Erdgas',
         'Nuclear': 'Nuklear',
@@ -396,16 +724,16 @@ def fig_powerplants(**kwargs):
         'unknown from conventional': 'sonstige fossil'}
 
     my_dict2 = {
-        'Biomasse': 'sonstige erneuerbar',
+        'Biomasse': see,
         'Braunkohle': 'Kohle',
         'Erdgas': 'Erdgas',
         'Kernenergie': 'Nuklear',
-        'Laufwasser': 'sonstige erneuerbar',
+        'Laufwasser': see,
         'Solar': 'Solar',
         'Sonstige (ne)': 'sonstige fossil',
         'Steinkohle': 'Kohle',
         'Wind': 'Wind',
-        'Sonstige (ee)': 'sonstige erneuerbar',
+        'Sonstige (ee)': see,
         'Öl': 'sonstige fossil'}
 
     my_colors = ['#555555', '#6c3012', '#db0b0b', '#ffde32', '#335a8a',
@@ -432,24 +760,24 @@ def fig_powerplants(**kwargs):
     plt.xlabel('Bundesländer / AWZ')
     plt.ylabel('Installierte Leistung [GW]')
     plt.xlim(left=-0.5)
-    plt.subplots_adjust(bottom=0.15, top=0.98, left=0.08, right=0.96)
+    plt.subplots_adjust(bottom=0.17, top=0.98, left=0.08, right=0.96)
 
     b_sum = pp_bnetza.sum()/1000
     b_total = int(round(b_sum.sum()))
     b_ee_sum = int(
-        round(b_sum.loc[['Wind', 'Solar', 'sonstige erneuerbar']].sum()))
+        round(b_sum.loc[['Wind', 'Solar', see]].sum()))
     b_fs_sum = int(round(b_sum.loc[
         ['Erdgas', 'Kohle', 'Nuklear', 'sonstige fossil']].sum()))
     r_sum = pp_reegis.sum()/1000
     r_total = int(round(r_sum.sum()))
     r_ee_sum = int(
-        round(r_sum.loc[['Wind', 'Solar', 'sonstige erneuerbar']].sum()))
+        round(r_sum.loc[['Wind', 'Solar', see]].sum()))
     r_fs_sum = int(round(r_sum.loc[
         ['Erdgas', 'Kohle', 'Nuklear', 'sonstige fossil']].sum()))
 
     text = {
         'reegis': (2.3, 42, 'reegis'),
-        'BNetzA': (3.8, 42, 'BNetzA'),
+        'BNetzA': (3.9, 42, 'BNetzA'),
         "b_sum1": (0, 39, "gesamt"),
         "b_sum2": (2.5, 39, "{0}       {1}".format(r_total, b_total)),
         "b_fs": (0, 36, "fossil"),
@@ -459,15 +787,15 @@ def fig_powerplants(**kwargs):
       }
 
     for t, c in text.items():
-        plt.text(c[0], c[1], c[2], size=12, ha="left", va="center")
+        plt.text(c[0], c[1], c[2], size=14, ha="left", va="center")
 
-    b = patches.Rectangle((-0.2, 31.8), 5.7, 11.8, color='#cccccc')
+    b = patches.Rectangle((-0.2, 31.8), 5.7, 12, color='#cccccc')
     ax.add_patch(b)
     ax.add_patch(patches.Shadow(b, -0.05, -0.2))
     return 'vergleich_kraftwerke_reegis_bnetza', None
 
 
-def fig_6_0(**kwargs):
+def fig_anteil_import_stromverbrauch_berlin(**kwargs):
 
     ax = create_subplot((8.5, 5), **kwargs)
     fn_csv = os.path.join(os.path.dirname(__file__), 'data', 'static',
@@ -496,9 +824,8 @@ def fig_6_0(**kwargs):
     return 'anteil_import_stromverbrauch_berlin', None
 
 
-def fig_power_lines():
+def fig_netzkapazitaet_und_auslastung_de22():
     year = 2014
-
     cm_gyr = LinearSegmentedColormap.from_list(
         'gyr', [
             (0, '#aaaaaa'),
@@ -562,7 +889,44 @@ def fig_power_lines():
     return 'netzkapazität_und_auslastung_de22', None
 
 
-def fig_6_1():
+def fig_tespy_heat_pumps_cop():
+
+    plt.rcParams.update({'font.size': 16})
+    f, ax_ar = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(15, 5))
+
+    t_range = [6, 9, 12, 15, 18, 21, 24]
+    q_range = np.array([120e3, 140e3, 160e3, 180e3, 200e3, 220e3])
+
+    n = 0
+    for filename in ['COP_air.csv', 'COP_water.csv']:
+        fn = os.path.join(cfg.get('paths', 'data_my_reegis'), filename)
+        df = pd.read_csv(fn, index_col=0)
+
+        colors = ['#00395b', '#74adc1', '#b54036', '#ec6707',
+                  '#bfbfbf', '#999999', '#010101']
+        plt.sca(ax_ar[n])
+        i = 0
+        for t in t_range:
+            plt.plot(
+                q_range / 200e3, df.loc[t], '-x', Color=colors[i],
+                label='$T_{resvr}$ = ' + str(t) + ' °C', markersize=7,
+                linewidth=2)
+            i += 1
+
+        ax_ar[n].set_xlabel('Relative Last')
+
+        if n == 0:
+            ax_ar[n].set_ylabel('COP')
+        n += 1
+    plt.ylim([0, 3.2])
+    plt.xlim([0.5, 1.2])
+    plt.legend(loc='upper right', bbox_to_anchor=(1.5, 1))
+    plt.subplots_adjust(right=0.82, left=0.06, wspace=0.11, bottom=0.13,
+                        top=0.97)
+    return 'tespy_heat_pumps', None
+
+
+def fig_veraenderung_energiefluesse_durch_kopplung():
     year = 2014
 
     cm_gyr = LinearSegmentedColormap.from_list(
@@ -627,7 +991,7 @@ def fig_model_regions():
     for rmap in maps:
         ax = ax_ar[i]
         plot.plot_regions(deflex_map=rmap, ax=ax, offshore=offshore[rmap],
-                          legend=False)
+                          legend=False, simple=0.05)
         for spine in plt.gca().spines.values():
             spine.set_visible(False)
         ax.axis('off')
@@ -692,8 +1056,12 @@ def fig_absolute_power_flows():
     return 'absolute_energiefluesse_vor_nach_kopplung', None
 
 
-def fig_regionen(**kwargs):
+def fig_deflex_de22_polygons(**kwargs):
     ax = create_subplot((9, 7), **kwargs)
+
+    # change for a better/worse resolution (
+    simple = 0.02
+
     fn = os.path.join(cfg.get('paths', 'geo_plot'),
                       'region_polygon_de22_reegis.csv')
 
@@ -712,11 +1080,11 @@ def fig_regionen(**kwargs):
 
     ax = plot.plot_regions(edgecolor='#666666', data=data, legend=False,
                            label_col='reg_id', fn=fn, data_col='class',
-                           cmap=cmap, ax=ax)
+                           cmap=cmap, ax=ax, simple=simple)
     plt.subplots_adjust(right=1, left=0, bottom=0, top=1)
 
     ax.set_axis_off()
-    return 'deflex_berlin_geometrien', None
+    return 'deflex_de22_polygons', None
 
 
 def fig_6_x_draft1(**kwargs):
@@ -734,9 +1102,9 @@ def fig_6_x_draft1(**kwargs):
     return 'name_6_x', None
 
 
-def fig_4_1(**kwargs):
-
-    ax = create_subplot((7, 4), **kwargs)
+def fig_compare_habitants_and_heat_electricity_share(**kwargs):
+    plt.rcParams.update({'font.size': 14})
+    ax = create_subplot((9, 4), **kwargs)
     eb = energy_balance.get_states_balance(2014).swaplevel()
     blnc = eb.loc['total', ('electricity', 'district heating')]
     ew = pd.DataFrame(inhabitants.get_ew_by_federal_states(2014))
@@ -753,10 +1121,11 @@ def fig_4_1(**kwargs):
                          'Anteil Fernwärme']]
     ax = fraction.plot(kind='bar', ax=ax, rot=0)
     ax.set_xlabel('')
-    return 'name_4_1', None
+    plt.subplots_adjust(right=0.99, left=0.07, bottom=0.09, top=0.98)
+    return 'compare_habitants_and_heat_electricity_share', None
 
 
-def figure_district_heating_areas(**kwargs):
+def fig_district_heating_areas(**kwargs):
     ax = create_subplot((7.8, 4), **kwargs)
 
     # get groups of district heating systems in Berlin
@@ -804,7 +1173,7 @@ def figure_district_heating_areas(**kwargs):
                  bbox=dict(boxstyle="round", alpha=.5,
                            ec=(1, 1, 1), fc=(1, 1, 1)))
     plt.draw()
-    return 'ew_fw_elec_share', None
+    return 'distric_heating_areas', None
 
 
 def fig_patch_offshore(**kwargs):
@@ -834,12 +1203,14 @@ def fig_patch_offshore(**kwargs):
 
 
 def fig_storage_capacity(**kwargs):
+    plt.rcParams.update({'font.size': 12})
     ax = create_subplot((6, 4), **kwargs)
 
     federal_states = geometries.load(
         cfg.get('paths', 'geometry'),
         cfg.get('geometry', 'federalstates_polygon'))
     federal_states.set_index('iso', drop=True, inplace=True)
+    federal_states['geometry'] = federal_states['geometry'].simplify(0.02)
     phes = storages.pumped_hydroelectric_storage(federal_states,
                                                  'federal_states')
 
@@ -931,6 +1302,7 @@ def ego_demand_plot():
 
     de = deflex.geometries.deflex_regions(rmap='de02')
     de.drop('DE02', inplace=True)
+    de['geometry'] = de['geometry'].simplify(0.01)
     ax = de.plot(ax=ax, alpha=0.5, color='white', edgecolor='#000000')
 
     ego_demand = geometries.load_csv(cfg.get('paths', 'static_sources'),
@@ -947,24 +1319,65 @@ def ego_demand_plot():
 
     plt.subplots_adjust(right=1, left=0, bottom=0, top=1)
 
-    return 'open_ego_map', None
+    return 'open_ego_map.png', None
 
 
-def show_de21_de22_without_berlin():
+def fig_module_comparison():
+    plt.rcParams.update({'font.size': 15})
+    plt.sca(create_subplot((10.7, 5)))
+    df = pd.read_csv(os.path.join(cfg.get('paths', 'data_my_reegis'),
+                                  'module_feedin.csv'),
+                     index_col=0)['dc_norm']
+    print(df)
+    print(df.sort_values())
+    # df = df[df > 943]
+    df.sort_values().plot(linewidth=5, ylim=(0, df.max() + 20))
+    print('avg:', df.mean())
+    print('std div:', df.std())
+    plt.plot((0, len(df)), (df.mean(), df.mean()), 'k-')
+    plt.plot((0, len(df)), (df.mean() - df.std(), df.mean() - df.std()), 'k-.')
+    plt.plot((0, len(df)), (df.mean() + df.std(), df.mean() + df.std()), 'k-.')
+    plt.plot((253, 253), (0,  df.max() + 20), 'k-')
+    plt.plot((479, 479), (0,  df.max() + 20), 'r-')
+    plt.plot((394, 394), (0,  df.max() + 20), 'r-')
+    plt.plot((253, 253), (0,  df.max() + 20), 'r-')
+    plt.plot((62, 62), (0,  df.max() + 20), 'r-')
+    plt.text(479, 800, 'SF 160S', ha='center',
+             bbox={'facecolor': 'white', 'alpha': 1, 'pad': 5,
+                   'linewidth': 0},)
+    plt.text(394, 800, 'LG290N1C', ha='center',
+             bbox={'facecolor': 'white', 'alpha': 1, 'pad': 5,
+                   'linewidth': 0})
+    plt.text(253, 800, 'STP280S', ha='center',
+             bbox={'facecolor': 'white', 'alpha': 1, 'pad': 5,
+                   'linewidth': 0})
+    plt.text(62, 800, 'BP2150S', ha='center',
+             bbox={'facecolor': 'white', 'alpha': 1, 'pad': 5,
+                   'linewidth': 0})
+    plt.xticks(np.arange(0, len(df), 40), range(0, len(df), 40))
+    plt.ylim(500, 1400)
+    plt.ylabel('Volllaststunden')
+    plt.xlabel('ID des Moduls')
+    plt.subplots_adjust(right=0.98, left=0.09, bottom=0.12, top=0.95)
+    return 'module_comparison', None
+
+
+def fig_show_de21_de22_without_berlin():
+    plt.rcParams.update({'font.size': 13})
     figs = ('de21', 'Berlin', 'de22', 'de21_without_berlin')
 
     y_annotate = {
-        'de21': 50,
+        'de21': 10,
         'de22': 1000,
         'de21_without_berlin': 1000,
         'Berlin': 1000}
 
     title_str = {
-        'de21': 'Region: DE01 in de21, Jahressumme: {0} GWh',
-        'de22': 'Region: DE01 in de22, Jahressumme: {0} GWh',
+        'de21': 'DE01 in de21, Jahressumme: {0} GWh',
+        'de22': 'DE01 in de22, Jahressumme: {0} GWh',
         'de21_without_berlin':
-            'Region: DE01 in de21 ohne Berlin, Jahressumme: {0} GWh',
-        'Berlin': 'Region: Berlin in berlin_hp, Jahressumme: {0} GWh'}
+            'DE01 in de21 ohne Berlin, Jahressumme: {0} GWh',
+        'Berlin': 'Berlin in berlin_hp, Jahressumme: {0} GWh'}
 
     ax = {}
     f, ax_ar = plt.subplots(2, 2, sharey=True, sharex=True, figsize=(15, 10))
@@ -997,7 +1410,7 @@ def show_de21_de22_without_berlin():
         annual = round(data['out', 'demand'].sum().sum(), -2)
         data = data.iloc[period[0]:period[1]]
         data_sets[var]['data'] = data
-        data_sets[var]['title'] = title_str[var].format(int(annual))
+        data_sets[var]['title'] = title_str[var].format(int(annual/1000))
 
     var = 'Berlin'
     data_sets[var] = {}
@@ -1009,7 +1422,7 @@ def show_de21_de22_without_berlin():
     annual = round(data['out', 'demand'].sum().sum(), -2)
     data = data.iloc[period[0]:period[1]]
     data_sets[var]['data'] = data
-    data_sets[var]['title'] = title_str[var].format(int(annual))
+    data_sets[var]['title'] = title_str[var].format(int(annual/1000))
     results.check_excess_shortage(es)
 
     i = 0
@@ -1028,12 +1441,13 @@ def show_de21_de22_without_berlin():
                                title=v['title'], in_ol=ol, out_ol=['demand'],
                                smooth=False)
         a.annotate(str(int(av)), xy=(5, av), xytext=(12, av + y_annotate[k]),
+                   fontsize=14,
                    arrowprops=dict(facecolor='black',
                                    arrowstyle='->',
                                    connectionstyle='arc3,rad=0.2'))
         i += 1
 
-    plt.subplots_adjust(right=0.84, left=0.06, bottom=0.08, top=0.95,
+    plt.subplots_adjust(right=0.81, left=0.06, bottom=0.08, top=0.95,
                         wspace=0.06)
     plt.arrow(600, 600, 200, 200)
     return 'compare_district_heating_de01_without_berlin', None
@@ -1076,11 +1490,11 @@ def berlin_resources_time_series():
     return 'ressource_use_berlin_time_series', None
 
 
-def berlin_resources(**kwargs):
+def fig_berlin_resources(**kwargs):
     ax = create_subplot((7.8, 4), **kwargs)
 
     df = regional_results.analyse_berlin_ressources_total()
-
+    df = df.drop(df.sum().loc[df.sum() < 0.1].index, axis=1)
     color_dict = plot.get_cdict_df(df)
 
     ax = df.plot(kind='bar', ax=ax,
@@ -1108,6 +1522,170 @@ def berlin_resources(**kwargs):
     plt.ylabel('Energiemenge 2014 [TWh]')
     plt.subplots_adjust(right=0.78, left=0.08, bottom=0.12, top=0.98)
     return 'resource_use_berlin', None
+
+
+def fig_import_export_100PRZ_region():
+    plt.rcParams.update({'font.size': 13})
+    f, ax_ar = plt.subplots(1, 3, figsize=(15, 6))
+
+    myp = '/home/uwe/express/reegis/scenarios_lux/friedrichshagen/results_cbc'
+
+    my_filenames = [x for x in os.listdir(myp) if '.esys' in x and '_pv' in x]
+
+    bil = pd.DataFrame()
+    expdf = pd.Series()
+    for mf in sorted(my_filenames):
+        my_fn = os.path.join(myp, mf)
+        my_es = results.load_es(my_fn)
+        res = my_es.results['param']
+        wind = int(round(
+            [res[w]['scalars']['nominal_value'] for w in res
+             if w[0].label.subtag == 'Wind' and w[1] is not None][0]))
+        solar = int(round(
+            [res[w]['scalars']['nominal_value'] for w in res
+             if w[0].label.subtag == 'Solar' and w[1] is not None][0]))
+        key = 'w {0:02}, pv {1:02}'.format(wind, solar)
+        my_df = results.get_multiregion_bus_balance(my_es)
+        imp = my_df['FHG', 'in', 'import', 'electricity', 'all'].div(1000)
+        exp = my_df['FHG', 'out', 'export', 'electricity', 'all'].div(1000)
+        demand = my_df['FHG', 'out', 'demand', 'electricity', 'all'].div(1000)
+        expdf[key] = float(exp.sum())
+        print('Autarkie:', (1 - float(exp.sum()) / demand.sum()) * 100, '%')
+        if wind == 0:
+            bil['export'] = exp.resample('M').sum()
+            bil['import'] = imp.resample('M').sum()
+            ax_ar[1] = bil.plot(
+                ax=ax_ar[1], drawstyle="steps-mid", linewidth=2)
+            ax_ar[1].set_xlabel('Wind: 0 MW, PV: 67 MWp')
+            ax_ar[1].set_ylim(0, 7)
+            ax_ar[1].legend(loc='upper left')
+        if solar == 0:
+            bil['export'] = exp.resample('M').sum()
+            bil['import'] = imp.resample('M').sum()
+            ax_ar[2] = bil.plot(
+                ax=ax_ar[2], drawstyle="steps-mid", linewidth=2)
+            ax_ar[2].set_xlabel('Wind: 39 MW, PV: 0 MWp')
+            ax_ar[2].set_ylim(0, 7)
+    ax_ar[0] = expdf.sort_index().plot(kind='bar', ax=ax_ar[0])
+    ax_ar[0].set_ylabel('Energie [GWh]')
+    plt.subplots_adjust(right=0.98, left=0.06, bottom=0.2, top=0.96)
+    return 'import_export_100PRZ_region', None
+
+
+def fig_import_export_emissions_100PRZ_region():
+    f, ax_ar = plt.subplots(3, 3, sharey=True, sharex=True, figsize=(15, 6))
+    my_filename = 'market_clearing_price_{0}_{1}.csv'
+    my_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex')
+    up_fn = os.path.join(my_path, my_filename)
+    up_df = pd.read_csv(up_fn.format(2014, 'cbc'), index_col=[0],
+                        header=[0, 1, 2])
+    myp = '/home/uwe/express/reegis/scenarios_lux/friedrichshagen/results_cbc'
+
+    my_filenames = [x for x in os.listdir(myp) if '.esys' in x and '_pv' in x]
+
+    my_list = [x for x in up_df.columns.get_level_values(1).unique()
+               if 'f10' in x or 'f15' in x or 'f20' in x]
+    my_list = [x for x in my_list if 'de21' in x]
+    my_list = [x for x in my_list if 'Li1_HP0_' in x]
+
+
+    bil = pd.DataFrame()
+    print(up_df.columns.get_level_values(2).unique())
+    up_dict = {}
+    for t1 in ['emission', 'emission_avg', 'emission_max']:
+        up_dict[t1] = {}
+        for up1 in my_list:
+            up_dict[t1][up1] = pd.DataFrame()
+
+    for mf in sorted(my_filenames):
+
+        my_fn = os.path.join(myp, mf)
+        my_es = results.load_es(my_fn)
+        res = my_es.results['param']
+        wind = int(round(
+            [res[w]['scalars']['nominal_value'] for w in res
+             if w[0].label.subtag == 'Wind' and w[1] is not None][0]))
+        solar = int(round(
+            [res[w]['scalars']['nominal_value'] for w in res
+             if w[0].label.subtag == 'Solar' and w[1] is not None][0]))
+        key = 'w {0:02}, pv {1:02}'.format(wind, solar)
+        my_df = results.get_multiregion_bus_balance(my_es)
+        imp = my_df['FHG', 'in', 'import', 'electricity', 'all']
+        exp = my_df['FHG', 'out', 'export', 'electricity', 'all']
+        for t2 in ['emission', 'emission_avg', 'emission_max']:
+            for up in my_list:
+                prc = up_df['deflex_cbc', up, t2]
+                up_dict[t2][up].loc[key, 'import'] = (
+                        (imp * prc).sum()/imp.sum()/prc.mean())
+                up_dict[t2][up].loc[key, 'export'] = (
+                        (exp * prc).sum()/exp.sum()/prc.mean())
+    n2 = 0
+    for k1, v1 in up_dict.items():
+        n1 = 0
+        for k2, v2 in v1.items():
+            print(k1, k2, n1, n2)
+            v2.sort_index().plot(kind='bar', ax=ax_ar[n2, n1], legend=False) 
+            ax_ar[n2, n1].set_title("{0}, {1}".format(k1, k2))
+            n1 += 1
+        n2 += 1
+    plt.legend()
+    return 'import_export_emission_100PRZ_region', None
+
+
+def fig_import_export_costs_100PRZ_region():
+    f, ax_ar = plt.subplots(1, 1, sharey=True, sharex=True, figsize=(15, 6))
+    my_filename = 'market_clearing_price_{0}_{1}.csv'
+    my_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex')
+    up_fn = os.path.join(my_path, my_filename)
+    up_df = pd.read_csv(up_fn.format(2014, 'cbc'), index_col=[0],
+                        header=[0, 1, 2])
+    myp = '/home/uwe/express/reegis/scenarios_lux/friedrichshagen/results_cbc'
+
+    my_filenames = [x for x in os.listdir(myp) if '.esys' in x and '_pv' in x]
+
+    my_list = [x for x in up_df.columns.get_level_values(1).unique()
+               if 'f10' in x or 'f15' in x or 'f20' in x]
+    my_list = [x for x in my_list if 'de21' in x]
+    new_list = [x for x in up_df.columns.get_level_values(1).unique()
+               if 'no' not in x]
+    my_list += new_list
+
+    bil = pd.DataFrame()
+    for mf in sorted(my_filenames):
+
+        my_fn = os.path.join(myp, mf)
+        my_es = results.load_es(my_fn)
+        res = my_es.results['param']
+        wind = int(round(
+            [res[w]['scalars']['nominal_value'] for w in res
+             if w[0].label.subtag == 'Wind' and w[1] is not None][0]))
+
+        my_df = results.get_multiregion_bus_balance(my_es)
+        imp = my_df['FHG', 'in', 'import', 'electricity', 'all']
+        exp = my_df['FHG', 'out', 'export', 'electricity', 'all']
+
+        pr = pd.DataFrame()
+        my_import = pd.DataFrame()
+        my_export = pd.DataFrame()
+        for up in my_list:
+            prc = up_df['deflex_cbc', up, 'mcp']
+            pr.loc[up, 'mean'] = prc.mean()
+            pr.loc[up, 'import_s'] = (imp * prc).sum()/imp.sum()/prc.mean()
+            pr.loc[up, 'export_s'] = (exp * prc).sum()/exp.sum()/prc.mean()
+
+            mean = (exp * prc).sum()/exp.sum()/prc.mean() - (imp * prc).sum()/imp.sum()/prc.mean()
+            pr.loc[up, 'diff'] = mean * -1
+
+            my_import[up] = imp.multiply(prc).resample('M').sum()
+            my_export[up] = exp.multiply(prc).resample('M').sum()
+        # if wind == 0:
+        #     ax_ar[0] = pr.plot(kind='bar', secondary_y=['mean'], ax=ax_ar[0])
+            # ax_ar[0].right_ax.set_ylim(0, 1120)
+        if wind == 27:
+            ax_ar = pr.plot(kind='bar', secondary_y=['mean'], ax=ax_ar)
+            # ax_ar[1].right_ax.set_ylim(0, 1120)
+
+    return 'import_export_costs_100PRZ_region', None
 
 
 def plot_figure(number, save=False, path=None, show=False, **kwargs):
@@ -1140,19 +1718,19 @@ def get_number_name():
     return {
             '3.0': ego_demand_plot,
             '3.1': fig_model_regions,
-            '6.0': fig_6_0,
-            '6.1': fig_6_1,
-            '6.2': fig_regionen,
+            '6.0': fig_anteil_import_stromverbrauch_berlin,
+            '6.1': fig_veraenderung_energiefluesse_durch_kopplung,
+            '6.2': fig_deflex_de22_polygons,
             '6.3': plot_upstream,
             '6.x': fig_6_x_draft1,
-            '5.3': figure_district_heating_areas,
-            '4.1': fig_4_1,
-            '6.4': show_de21_de22_without_berlin,
-            '6.5': berlin_resources,
+            '5.3': fig_district_heating_areas,
+            '4.1': fig_compare_habitants_and_heat_electricity_share,
+            '6.4': fig_show_de21_de22_without_berlin,
+            '6.5': fig_berlin_resources,
             '6.6': berlin_resources_time_series,
-            '6.7': fig_power_lines,
+            '6.7': fig_netzkapazitaet_und_auslastung_de22,
             '6.8': fig_absolute_power_flows,
-            '0.1': windzones,
+            '0.1': fig_windzones,
             '0.3': fig_powerplants,
             '0.4': fig_storage_capacity,
             '0.5': fig_patch_offshore,
@@ -1161,15 +1739,22 @@ def get_number_name():
             '0.8': fig_compare_electricity_profile_berlin,
             '0.9': fig_average_weather,
             '1.1': fig_polar_plot_pv_orientation,
-            '0.2': fig_analyse_multi_files,
+            '1.2': fig_analyse_multi_files,
+            '1.3': fig_compare_full_load_hours,
+            '1.4': fig_compare_feedin_wind,
+            '1.5': fig_tespy_heat_pumps_cop,
+            '1.6': fig_module_comparison,
+            '1.7': fig_import_export_100PRZ_region,
+            '1.8': fig_import_export_costs_100PRZ_region,
+            '0.2': fig_import_export_emissions_100PRZ_region,
         }
 
 
 if __name__ == "__main__":
-    logger.define_logging()
+    logger.define_logging(screen_level=logging.DEBUG)
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
                     os.path.dirname(deflex.__file__)])
     cfg.tmp_set('results', 'dir', 'results_cbc')
     p = '/home/uwe/chiba/Promotion/Monographie/figures/'
     # plot_all(show=True)
-    plot_figure('0.1', save=True, show=True, path=p)
+    plot_figure('6.5', save=True, show=True, path=p)

@@ -635,6 +635,7 @@ def demand_share_of_sector_and_region():
     share_relative = pd.DataFrame()
 
     for region in demand_de21.index:
+
         sc_sum = demand_de21.loc[region, 'sector_consumption_sum']
         share_relative.loc[region, 'h0'] = (
             demand_de21.loc[region, 'sector_consumption_residential'] / sc_sum)
@@ -715,9 +716,10 @@ def demand_share_of_sector_and_region():
 if __name__ == "__main__":
     # heatmap_pv_orientation()
     cfg.init(paths=[os.path.dirname(deflex.__file__)])
-    demand_share_of_sector_and_region()
-    demand_plots()
+    # demand_share_of_sector_and_region()
+    # demand_plots()
     # plot_full_load_hours(2008)
+    plot_full_load_hours(2014)
     # plot_module_comparison()
     # plot_orientation_by_region()
     # cfg.init(paths=[os.path.dirname(deflex.__file__)])

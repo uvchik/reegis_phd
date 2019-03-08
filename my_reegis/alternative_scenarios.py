@@ -246,9 +246,6 @@ def create_scenario_XX_Nc00_Li05_HP02_GT(subpath='new', factor=0.0):
         'DE20': 0.0,
         'DE21': 0.0}
 
-    print(pd.Series(nom_val).sum())
-    exit(0)
-
     sc = main.load_deflex_scenario(2014, create_scenario=False)
 
     increase_re_share(sc, factor)

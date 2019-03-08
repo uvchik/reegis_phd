@@ -45,6 +45,41 @@ def create_reduced_scenario(year, sim_type):
         logging.error("Wrong sim_type {0}".format(sim_type))
 
 
+def remove_region_from_scenario(csv_path, name, year, region):
+    """
+
+    Parameters
+    ----------
+    csv_path
+    name
+    year
+    region : str
+        A region to remove e.g. 'DE22'.
+
+    """
+    de = deflex.Scenario(name=name, year=year)
+    de.load_csv(csv_path)
+    de.check_table('time_series')
+
+    logging.info("Remove region {0}....".format(region))
+    for sheet in de.table_collection.values():
+        if region in sheet.columns:
+            del sheet[region]
+
+    for i in de.table_collection['transmission'].index:
+        if region in i:
+            de.table_collection['transmission'].drop(i, inplace=True)
+
+    new_name = name + '_without_{0}'.format(region)
+
+    sce = reegis.scenario_tools.Scenario(
+        table_collection=de.table_collection, name=new_name, year=year)
+    path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(year))
+    sce.to_excel(os.path.join(path, new_name + '.xls'))
+    csv_path = os.path.join(path, '{0}_csv'.format(new_name))
+    sce.to_csv(csv_path)
+
+
 def create_reduced_de22_scenario(year):
     name = '{0}_{1}_{2}'.format('deflex', year, 'de22')
     de = deflex.Scenario(name=name, year=2014)
@@ -351,6 +386,15 @@ if __name__ == "__main__":
     logger.define_logging(file_level=logging.INFO)
     cfg.init(paths=[os.path.dirname(deflex.__file__),
                     os.path.dirname(berlin_hp.__file__)])
+    cfg.tmp_set('results', 'dir', 'results_cbc')
+    my_y = 2014
+    my_p = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(my_y))
+    for my_scenario in ['de22', 'de22_no_storage', 'de22_no_grid_limit',
+                        'de22_no_grid_limit_no_storage']:
+        my_scenario = '_'.join(['deflex', str(my_y), my_scenario, 'csv'])
+        my_csv_path = os.path.join(my_p, my_scenario)
+        remove_region_from_scenario(my_csv_path, my_scenario, my_y, 'DE22')
+    exit(0)
     # yr = 2014
     # rmap = de21
     # berlin_hp.main(yr)

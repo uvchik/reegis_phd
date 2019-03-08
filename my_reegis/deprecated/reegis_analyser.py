@@ -50,6 +50,7 @@ def analyze(args, result, up_dict, demand, r, p):
 
     if (isinstance(args[1], solph.Transformer) and
             args[0].label.tag != 'electricity'):
+        print(args[1].label)
         eta = {}
         label = args[1].label
         if len(args[1].outputs) == 2:
@@ -113,6 +114,7 @@ def analyze(args, result, up_dict, demand, r, p):
 
     if conversion_factor is not None:
         for value in ['cost', 'emission']:
+            #
             result[value][label] = flow * up_dict[args[0]][value]
             result[value][label] = result[value][label]['flow'].div(demand)
         result['merit_order'][label] = flow.div(flow).multiply(
@@ -155,9 +157,11 @@ def sorted_results(i, sort_res, r):
 def analyse_system_costs(es, plot_cost=False):
     back = namedtuple('res', ['levelized', 'meritorder', 'emission',
                               'emission_last', 'mo_full'])
-    multi_res = reshape_multiregion_df(es)
+    # multi_res = reshape_multiregion_df(es)
+    multi_res = results.get_multiregion_bus_balance(es)
 
-    demand = multi_res['out', 'demand', 'electricity', 'all']
+    demand = multi_res.groupby(level=[1, 2, 3, 4], axis=1).sum()[
+        'out', 'demand', 'electricity', 'all']
 
     iter_res = results_iterator(es, demand)
     c_values = iter_res.cost
@@ -183,6 +187,26 @@ def analyse_system_costs(es, plot_cost=False):
 
     return back(c_values.sum(axis=1), mo_values.max(axis=1),
                 e_values.sum(axis=1), emission_last, mo_values)
+
+
+def fetch_upstream_scenario_values(full_file_name):
+    esys_files = results.fetch_scenarios(
+        os.path.join(cfg.get('paths', 'scenario'), 'deflex'),
+        sc_filter={'solver': 'gurobi', 'year': 2014})
+    idx = pd.MultiIndex(levels=[[], []], codes=[[], []])
+    upstream_values = pd.DataFrame(columns=idx)
+    number = len(esys_files)
+    for fn in esys_files:
+        name = fn.split(os.path.sep)[-1][:-5]
+        logging.info("Remaining scenarios: {0}".format(number))
+        logging.info("Analyse scenario: {0}".format(fn))
+        tmp_es = results.load_es(fn)
+        analyse_results = analyse_system_costs(tmp_es)
+        for val in ['levelized', 'meritorder', 'emission', 'emission_last']:
+            upstream_values[name, val] = (
+                getattr(analyse_results, val))
+        number -= 1
+    upstream_values.to_csv(full_file_name)
 
 
 def reshape_multiregion_df(es):
@@ -552,3 +576,10 @@ def analyse_upstream_scenarios():
         print(heat_blnc.sum())
         print(results.get_multiregion_bus_balance(
             local_es, 'bus_commodity').sum())
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    # my_fn = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 'test.csv')
+    # fetch_upstream_scenario_values(my_fn)
+    multi_plot_analyse_ee_basic()

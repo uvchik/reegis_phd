@@ -587,6 +587,13 @@ def start_no_grid_limit_scenarios(year, checker=True, create_scenario=False):
     return checker
 
 
+def start_deflex_without_scenarios(year, checker=True, create_scenario=False):
+    start_dir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(year))
+    sc_filter = 'without'
+    checker = start_all_by_dir(checker, start_dir, sc_filter)
+    return checker
+
+
 def start_friedrichshagen(checker=True, create_scenario=True):
     try:
         friedrichshagen_main(2014, create_scenario=create_scenario)
@@ -612,7 +619,7 @@ def start_all(checker=True, create_scenario=True):
     return checker
 
 
-def start_all_by_dir(checker=True, start_dir=None):
+def start_all_by_dir(checker=True, start_dir=None, sc_filter=None):
     # alternative_scenarios.multi_scenario_deflex()
     if start_dir is None:
         start_dir = os.path.join(cfg.get('paths', 'scenario'), 'deflex', 're')
@@ -620,7 +627,11 @@ def start_all_by_dir(checker=True, start_dir=None):
     scenarios = []
     for root, directories, filenames in os.walk(start_dir):
         for d in directories:
-            scenarios.append(d)
+            if sc_filter is None:
+                scenarios.append(d)
+            else:
+                if sc_filter in d:
+                    scenarios.append(d)
 
     logging.info("All scenarios: {0}".format(sorted(scenarios)))
     logging.info("Number of found scenarios: {0}".format(len(scenarios)))
@@ -657,20 +668,22 @@ if __name__ == "__main__":
     # deflex_alternative_scenarios(2014)
     # log_check(check)
     # exit(0)
-    for y in [2014, 2013, 2012]:
-        for slv in ['cbc', 'gurobi']:
+    for y in [2014]:
+        for slv in ['cbc']:
             cfg.tmp_set('general', 'solver', slv)
             logging.info("Start scenarios for {0} using the {1} solver".format(
                 y, cfg.get('general', 'solver')))
             # check = berlin_hp_with_upstream_sets(y, slv, checker=check)
-            check = berlin_hp_single_scenarios(y, checker=check,
-                                               create_scenario=False)
+            # check = berlin_hp_single_scenarios(y, checker=check,
+            #                                    create_scenario=False)
             # check = start_no_storage_scenarios(y, checker=check,
             #                                    create_scenario=True)
             # check = start_no_grid_limit_scenarios(y, checker=check,
             #                                       create_scenario=True)
             # check = start_deflex_scenarios(y, checker=check,
             #                                create_scenario=True)
+            check = start_deflex_without_scenarios(y, checker=check,
+                                                   create_scenario=False)
             # check = start_embedded_scenarios(y, checker=check,
             #                                  create_scenario=True)
     log_check(check)

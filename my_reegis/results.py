@@ -401,9 +401,10 @@ def get_nodes_by_label(es, label_args):
     return nodes
 
 
-def check_excess_shortage(es):
+def check_excess_shortage(es, silent=False):
     """Check if shortage or excess is used in the given EnergySystem."""
 
+    check = True
     result = es.results['Main']
     flows = [x for x in result.keys() if x[1] is not None]
     ex_nodes = [x for x in flows if (x[1] is not None) &
@@ -415,19 +416,31 @@ def check_excess_shortage(es):
         f = outputlib.views.node(result, node[1])
         s = int(round(f['sequences'].sum()))
         if s > 0:
-            print(node[1], ':', s)
+            if not silent:
+                print(node[1], ':', s)
             ex += 1
 
     for node in sh_nodes:
         f = outputlib.views.node(result, node[0])
         s = int(round(f['sequences'].sum()))
         if s > 0:
-            print(node[0], ':', s)
+            if not silent:
+                print(node[0], ':', s)
             sh += 1
+
     if sh == 0:
-        print("No shortage usage found.")
+        if not silent:
+            print("No shortage usage found.")
+    else:
+        check = False
+
     if ex == 0:
-        print("No excess usage found.")
+        if not silent:
+            print("No excess usage found.")
+    else:
+        check = False
+
+    return check
 
 
 def find_input_flow(out_flow, nodes):
@@ -661,6 +674,8 @@ def load_my_es(*args, var=None, fn=None, scpath=None):
 
     if fn is None:
         name = '_'.join(list(args) + var)
+        if 'without' in var[0]:
+            path = path.replace('deflex', 'berlin_hp')
         fn = os.path.join(path, name + '.esys')
     else:
         name = fn.split(os.sep)[-1].split('.')[0]
@@ -763,6 +778,14 @@ def fetch_cost_emission(es, with_chp=True):
     Returns
     -------
     pd.DataFrame
+
+    Examples
+    --------
+    >>> from matplotlib import pyplot as plt
+    >>> fn1, fn2 = get_file_name_doctests()
+    >>> es = load_es(fn1)
+    >>> fetch_cost_emission(es, with_chp=False).to_excel(
+    ...     '/home/uwe/shp/dsfadf.xls')
     """
     idx = pd.MultiIndex(levels=[[], [], []], codes=[[], [], []])
     parameter = pd.DataFrame(index=idx)
@@ -902,3 +925,4 @@ def get_test_es():
 
 if __name__ == "__main__":
     logger.define_logging()
+    pass

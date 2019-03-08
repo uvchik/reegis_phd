@@ -98,35 +98,49 @@ def analyse_berlin_ressources():
     s = {}
     year = 2014
     scenarios = {
-        'deflex_de22': {'es': ['deflex', str(year)],
-                        'var': 'de22',
-                        'region': 'DE22'},
-        'berlin_deflex': {'es': ['berlin_hp', str(year)],
-                          'var': 'de22',
-                          'region': 'BE'},
-        'berlin_up_deflex': {
-            'es': ['berlin_hp', str(year)],
-            'var': 'single_up_deflex_2014_de22_without_berlin',
+        'deflex_de22': {
+            'path': ['deflex', str(year)],
+            'file': 'deflex_2014_de22',
+            'var': 'de22',
+            'region': 'DE22'},
+        'berlin_deflex': {
+            'path': ['berlin_hp', str(year)],
+            'file': 'berlin_hp_2014_de22',
+            'var': 'de22',
             'region': 'BE'},
+        # 'berlin_up_deflex': {
+        #     'path': ['berlin_hp', str(year)],
+        #     'file': 'berlin_hp_2014_single_up_deflex_2014_de22_without_berlin',
+        #     'var': 'single_up_deflex_2014_de22_without_berlin',
+        #     'region': 'BE'},
         'berlin_up_deflex_full': {
-            'es': ['berlin_hp', str(year)],
+            'path': ['berlin_hp', str(year)],
+            'file': 'berlin_hp_2014_single_up_de22',
             'var': 'single_up_deflex_2014_de22',
             'region': 'BE'},
-        'berlin_single': {'es': ['berlin_hp', str(year)],
-                          'var': 'single_up_None',
-                          'region': 'BE'}
+        'berlin_single': {
+            'path': ['berlin_hp', str(year)],
+            'file': 'berlin_hp_2014_single_up_None',
+            'var': None,
+            'region': 'BE'}
         }
 
     for k, v in scenarios.items():
-        es = results.load_my_es(*v['es'], var=v['var'])
-
+        if cfg.has_option('results', 'dir'):
+            res_dir = cfg.get('results', 'dir')
+        else:
+            res_dir = 'results'
+        path = os.path.join(cfg.get('paths', 'scenario'), *v['path'], res_dir)
+        fn = os.path.join(path, v['file'] + '.esys')
+        es = results.load_es(fn)
+        results.check_excess_shortage(es)
         resource_balance = results.get_multiregion_bus_balance(
             es, 'bus_commodity')
 
         s[k] = resource_balance[
             v['region'], 'in', 'source', 'commodity'].copy()
 
-        if 'None' not in v['var']:
+        if v['var'] is not None:
             elec_balance = results.get_multiregion_bus_balance(es)
             s[k]['ee'] = elec_balance[v['region'], 'in', 'source', 'ee'].sum(
                 axis=1)

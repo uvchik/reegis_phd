@@ -362,7 +362,8 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
 
 def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
                  data_col=None, cmap=None, label_col='data_col', color=None,
-                 edgecolor='#9aa1a9', legend=True, ax=None, offshore=None):
+                 edgecolor='#9aa1a9', legend=True, ax=None, offshore=None,
+                 simple=None):
     """
     Plot regions with special colors.
 
@@ -462,8 +463,12 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
                     (0.5, 'yellow'),
                     (1, 'red')])
 
-    ax = polygons.plot(edgecolor=edgecolor, cmap=cmap, vmin=0, ax=ax,
-                       legend=legend, column=data_col, color=color)
+    if simple is not None:
+        polygons['geometry'] = polygons['geometry'].simplify(simple)
+
+    ax = polygons.plot(
+        edgecolor=edgecolor, cmap=cmap, vmin=0, ax=ax, legend=legend,
+        column=data_col, color=color)
 
     if textbox is True:
         bb = dict(boxstyle="round", alpha=.5, ec=(1, 1, 1), fc=(1, 1, 1))

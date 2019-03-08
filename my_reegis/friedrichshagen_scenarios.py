@@ -331,7 +331,7 @@ def adapted(year, name, variant, meta, upstream_prices, add_wp, add_bio, pp,
                         '.', ''))
 
         name = '_'.join([add_wp, add_bio, pp, fix_pp, vs_str, ee_invest,
-                         variant, 'up', upstream_name])
+                         variant, 'up', str(upstream_name)])
 
     sc.name = '{0}_{1}_{2}'.format('friedrichshagen', year, name)
     sc.es = sc.initialise_energy_system()
@@ -409,31 +409,42 @@ def basic_ee_scenario(year, solver, method='mcp', checker=True):
     pv_flh = 895.689228779882
     wind_flh = 1562.51612773669
     demand = 60586.6486548771
-
+    import pprint
     global CHECKER
     CHECKER = checker
     # berlin_hp.basic_scenario.create_basic_scenario(year)
     up_scenarios = main.create_upstream_sets(year, solver, method)
+    my_filter = 'de21_no_grid_limit_no_storage'
+    up_scenarios = [s for s in up_scenarios if s['series'].name == my_filter]
 
     scenario_list = []
     for frac in range(11):
         pv = demand / pv_flh * frac / 10
         wind = demand / wind_flh * (1 - frac / 10)
+        print(wind, pv)
 
         for ups in up_scenarios:
+            name = ups['series'].name + "_wi{0}_pv{1}".format(
+                int(wind), int(pv))
+            meta = {'wind': wind, 'solar': pv}
+            v_src = {'wind': wind, 'solar': pv, 'set': True}
             ups.update({
-                'name': None,
+                'name': name,
+                # 'year': 2014,
                 'variant': 'ee',
                 'fix_pp': 'fix0',
                 'add_wp': 'wp00',
                 'add_bio': 'bio0',
                 'pp': 'chp_fuel',
                 'ee_invest': 'ee_invest0',
-                'volatile_src': {'wind': wind, 'solar': pv, 'set': True}})
-            ups['meta']['wind'] = wind
-            ups['meta']['pv'] = pv
-            scenario_list.append(ups)
-
+                'volatile_src': v_src,
+                'create_scenario': False,
+                'meta': meta,
+                # 'series': None
+            })
+            scenario_list.append(ups.copy())
+    exit(0)
+    pprint.pprint(scenario_list)
     p = multiprocessing.Pool(4)
     p.map(basic_ee_wrapper, scenario_list)
     p.close()

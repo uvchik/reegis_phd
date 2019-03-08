@@ -20,9 +20,9 @@ pldf1 = pd.DataFrame()
 pldf2 = pd.DataFrame()
 pldf1['duals_no_storage'] = upa.fetch_duals_max_min(my_es2, var=None)[
     'uniform']
-pldf1['no_storages'] = upa.get_market_clearing_price(my_es2)
+pldf1['no_storages'] = upa.get_emissions_and_costs(my_es2)['mcp']
 pldf2['duals_storage'] = upa.fetch_duals_max_min(my_es1, var=None)['uniform']
-pldf2['storages'] = upa.get_market_clearing_price(my_es1)
+pldf2['storages'] = upa.get_emissions_and_costs(my_es1)['mcp']
 duals2 = upa.fetch_duals_max_min(my_es2, var=None)
 fig1, ax1 = plt.subplots()
 fig2, ax2 = plt.subplots()
