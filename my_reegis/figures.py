@@ -32,7 +32,7 @@ from reegis import inhabitants
 from reegis import geometries
 from reegis import powerplants
 from reegis import storages
-from reegis import demand
+from deflex import demand
 from reegis import entsoe
 
 from my_reegis import data_analysis
@@ -693,7 +693,8 @@ def fig_powerplants(**kwargs):
     geo = geometries.load(
         cfg.get('paths', 'geometry'),
         cfg.get('geometry', 'federalstates_polygon'))
-    geo.set_index('iso', drop=True, inplace=True)
+    # print(geo)
+    # geo.set_index('iso', drop=True, inplace=True)
 
     my_name = 'my_federal_states'  # doctest: +SKIP
     my_year = 2015  # doctest: +SKIP
@@ -1755,6 +1756,6 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
                     os.path.dirname(deflex.__file__)])
     cfg.tmp_set('results', 'dir', 'results_cbc')
-    p = '/home/uwe/chiba/Promotion/Monographie/figures/'
+    p = '/home/uwe/reegis/figures'
     # plot_all(show=True)
-    plot_figure('6.5', save=True, show=True, path=p)
+    plot_figure('0.3', save=True, show=True, path=p)
