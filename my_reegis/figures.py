@@ -1,6 +1,7 @@
 import os
 import logging
 import pandas as pd
+import geopandas as gpd
 import numpy as np
 import datetime
 
@@ -637,7 +638,7 @@ def fig_inhabitants_per_area():
     cbar = plt.colorbar(n_cmap, ax=ax, extend='max', cax=cax)
     cbar.set_label('Einwohner pro km²', rotation=270, labelpad=30)
     plt.subplots_adjust(left=0, top=1, bottom=0, right=0.85)
-    return 'inhabitants_per_area2', None
+    return 'inhabitants_per_area', None
 
 
 def fig_windzones():
@@ -693,8 +694,6 @@ def fig_powerplants(**kwargs):
     geo = geometries.load(
         cfg.get('paths', 'geometry'),
         cfg.get('geometry', 'federalstates_polygon'))
-    # print(geo)
-    # geo.set_index('iso', drop=True, inplace=True)
 
     my_name = 'my_federal_states'  # doctest: +SKIP
     my_year = 2015  # doctest: +SKIP
@@ -891,7 +890,7 @@ def fig_netzkapazitaet_und_auslastung_de22():
 
 
 def fig_tespy_heat_pumps_cop():
-
+    """From TESPy examples."""
     plt.rcParams.update({'font.size': 16})
     f, ax_ar = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(15, 5))
 
@@ -1183,24 +1182,24 @@ def fig_patch_offshore(**kwargs):
         cfg.get('paths', 'geometry'),
         cfg.get('geometry', 'federalstates_polygon'))
     # federal_states.drop(['P0'], inplace=True)
-    mydf = powerplants.patch_offshore_wind(pd.DataFrame(), get_patch=True)
-
-    fs = federal_states.sort_values('SN_L').reset_index(drop=True)
-    fs.loc[fs.index < 16, 'c'] = 0
-
-    fs.drop([19], inplace=True)
-
-    land = LinearSegmentedColormap.from_list(
-        'mycmap', [(0, '#badd69'), (1, '#ffffff')], 2)
+    mydf = powerplants.patch_offshore_wind(pd.DataFrame())
+    mygdf = gpd.GeoDataFrame(mydf)
+    fs = federal_states.loc[
+        ['NI', 'SH', 'HH', 'MV', 'BB', 'BE', 'HB', 'ST', 'NW']]
+    offshore = gpd.read_file(os .path.join(
+        cfg.get('paths', 'geometry'), 'offshore_regions.geojson'))
     fs['geometry'] = fs['geometry'].simplify(0.01)
+    offshore['geometry'] = offshore['geometry'].simplify(0.01)
 
-    ax = fs.fillna(1).plot(ax=ax, column='c', edgecolor='#777777', cmap=land)
-    mydf.plot(markersize=mydf.capacity, alpha=0.5, ax=ax, legend=True)
+    ax = fs.plot(ax=ax, facecolor='#badd69', edgecolor='#777777')
+    ax = offshore.plot(ax=ax, facecolor='#ffffff', edgecolor='#777777')
+    mygdf.plot(markersize=mydf.capacity, alpha=0.5, ax=ax, legend=True)
+
     plt.ylim(bottom=52.5)
     ax.set_axis_off()
     plt.subplots_adjust(left=0, bottom=0, top=1, right=1)
     ax.legend()
-    return 'patch_offshore2', None
+    return 'patch_offshore', None
 
 
 def fig_storage_capacity(**kwargs):
@@ -1273,19 +1272,10 @@ def plot_upstream():
 def fig_inhabitants(**kwargs):
     plt.rcParams.update({'font.size': 15})
     ax = create_subplot((8, 6), **kwargs)
-    # geo = reegis.geometries.load(
-    #     cfg.get('paths', 'geometry'),
-    #     cfg.get('geometry', 'federalstates_polygon'))
-    # geo.set_index('iso', drop=True, inplace=True)
-    # name = 'federal_states'
-    # df = pd.DataFrame()
-    # for year in range(2011, 2018):
-    #     df[year] = get_ew_by_region(year, geo, name=name)
-    # df.to_excel('/home/uwe/shp/einw.xls')
-    df = pd.read_excel('/home/uwe/shp/einw.xls', index_col=[0])
-
+    df = pd.DataFrame()
+    for year in range(2011, 2018):
+        df[year] = inhabitants.get_ew_by_federal_states(year)
     df.sort_values(2017, inplace=True)
-    df.drop(['N0', 'N1', 'O0', 'P0'], inplace=True)
     ax = df.transpose().div(1000).plot(kind='bar', stacked=True,
                                        cmap='tab20b_r', ax=ax)
     print(df)
@@ -1717,6 +1707,11 @@ def plot_all(save=False, path=None, show=False, **kwargs):
 
 def get_number_name():
     return {
+            '3.5': fig_tespy_heat_pumps_cop,
+            '4.1': fig_patch_offshore,
+            '4.4a': fig_inhabitants,
+            '4.4b': fig_inhabitants_per_area,
+
             '3.0': ego_demand_plot,
             '3.1': fig_model_regions,
             '6.0': fig_anteil_import_stromverbrauch_berlin,
@@ -1725,7 +1720,7 @@ def get_number_name():
             '6.3': plot_upstream,
             '6.x': fig_6_x_draft1,
             '5.3': fig_district_heating_areas,
-            '4.1': fig_compare_habitants_and_heat_electricity_share,
+            '4.1x': fig_compare_habitants_and_heat_electricity_share,
             '6.4': fig_show_de21_de22_without_berlin,
             '6.5': fig_berlin_resources,
             '6.6': berlin_resources_time_series,
@@ -1734,16 +1729,13 @@ def get_number_name():
             '0.1': fig_windzones,
             '0.3': fig_powerplants,
             '0.4': fig_storage_capacity,
-            '0.5': fig_patch_offshore,
-            '0.6': fig_inhabitants,
-            '0.7': fig_inhabitants_per_area,
+
             '0.8': fig_compare_electricity_profile_berlin,
             '0.9': fig_average_weather,
             '1.1': fig_polar_plot_pv_orientation,
             '1.2': fig_analyse_multi_files,
             '1.3': fig_compare_full_load_hours,
             '1.4': fig_compare_feedin_wind,
-            '1.5': fig_tespy_heat_pumps_cop,
             '1.6': fig_module_comparison,
             '1.7': fig_import_export_100PRZ_region,
             '1.8': fig_import_export_costs_100PRZ_region,
@@ -1752,10 +1744,10 @@ def get_number_name():
 
 
 if __name__ == "__main__":
-    logger.define_logging(screen_level=logging.DEBUG)
+    logger.define_logging(screen_level=logging.INFO)
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
                     os.path.dirname(deflex.__file__)])
     cfg.tmp_set('results', 'dir', 'results_cbc')
     p = '/home/uwe/reegis/figures'
     # plot_all(show=True)
-    plot_figure('0.3', save=True, show=True, path=p)
+    plot_figure('6.5', save=True, show=True, path=p)
