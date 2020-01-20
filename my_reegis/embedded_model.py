@@ -25,9 +25,9 @@ import oemof.solph as solph
 
 # internal modules
 import reegis.config as cfg
-import reegis.scenario_tools
+from deflex import scenario_tools
+from deflex import basic_scenario
 import berlin_hp
-import deflex
 
 
 def stopwatch():
@@ -57,7 +57,7 @@ def remove_region_from_scenario(csv_path, name, year, region):
         A region to remove e.g. 'DE22'.
 
     """
-    de = deflex.Scenario(name=name, year=year)
+    de = scenario_tools.DeflexScenario(name=name, year=year)
     de.load_csv(csv_path)
     de.check_table('time_series')
 
@@ -72,7 +72,7 @@ def remove_region_from_scenario(csv_path, name, year, region):
 
     new_name = name + '_without_{0}'.format(region)
 
-    sce = reegis.scenario_tools.Scenario(
+    sce = scenario_tools.Scenario(
         table_collection=de.table_collection, name=new_name, year=year)
     path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(year))
     sce.to_excel(os.path.join(path, new_name + '.xls'))
@@ -82,13 +82,13 @@ def remove_region_from_scenario(csv_path, name, year, region):
 
 def create_reduced_de22_scenario(year):
     name = '{0}_{1}_{2}'.format('deflex', year, 'de22')
-    de = deflex.Scenario(name=name, year=2014)
+    de = scenario_tools.DeflexScenario(name=name, year=2014)
     de_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(year),
                            '{0}_csv'.format(name))
 
     if not os.path.isdir(de_path):
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
-        deflex.basic_scenario.create_basic_scenario(year, rmap='de22')
+        basic_scenario.create_basic_scenario(year, rmap='de22')
 
     de.load_csv(de_path)
     de.check_table('time_series')
@@ -104,7 +104,7 @@ def create_reduced_de22_scenario(year):
 
     name = '{0}_{1}_{2}'.format('deflex', year, 'de22_without_berlin')
 
-    sce = reegis.scenario_tools.Scenario(
+    sce = scenario_tools.Scenario(
         table_collection=de.table_collection, name=name, year=year)
     path = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp', str(year))
     sce.to_excel(os.path.join(path, name + '.xls'))
@@ -133,13 +133,13 @@ def create_reduced_de21_scenario(year):
 
     # de21
     name = '{0}_{1}_{2}'.format('deflex', year, 'de21')
-    de = deflex.Scenario(name=name, year=year)
+    de = scenario_tools.DeflexScenario(name=name, year=year)
     de_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex', str(year),
                            '{0}_csv'.format(name))
 
     if not os.path.isdir(de_path):
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
-        deflex.basic_scenario.create_basic_scenario(year, rmap='de21')
+        basic_scenario.create_basic_scenario(year, rmap='de21')
 
     de.load_csv(de_path.format(year=year))
     de.check_table('time_series')
@@ -257,7 +257,7 @@ def create_reduced_de21_scenario(year):
     pwp = reegis.powerplants.get_pp_by_year(
         year, overwrite_capacity=True, capacity_in=True)
 
-    table_collect = deflex.basic_scenario.powerplants(
+    table_collect = basic_scenario.powerplants(
         pwp, {}, year, region_column='federal_states')
 
     heat_b = reegis.powerplants.get_chp_share_and_efficiency_states(year)
@@ -271,7 +271,7 @@ def create_reduced_de21_scenario(year):
     heat_demand = (
         pd.concat([heat_demand], axis=1, keys=['BE']).sort_index(1))
 
-    table_collect = deflex.basic_scenario.chp_table(
+    table_collect = basic_scenario.chp_table(
         heat_b, heat_demand, table_collect, regions=['BE'])
 
     rows = [r for r in de.table_collection['transformer'].index
@@ -304,7 +304,7 @@ def create_reduced_de21_scenario(year):
     ct.to_excel(os.path.join(
         cfg.get('paths', 'messages'), 'summery_embedded_model.xls'))
     name = '{0}_{1}_{2}'.format('deflex', year, 'de21_without_berlin')
-    sce = reegis.scenario_tools.Scenario(
+    sce = scenario_tools.Scenario(
         table_collection=de.table_collection,
         name=name,
         year=year)
@@ -316,7 +316,7 @@ def create_reduced_de21_scenario(year):
 
 def connect_electricity_buses(bus1, bus2, es):
     label = berlin_hp.Label
-    nodes = reegis.scenario_tools.NodeDict()
+    nodes = scenario_tools.NodeDict()
     lines = [(bus1, bus2), (bus2, bus1)]
     for line in lines:
         line_label = label('line', 'electricity', line[0], line[1])
@@ -340,7 +340,7 @@ def main(year, rmap):
     # Load data of the de21 model
     logging.info("Read de21 scenario from csv collection: {0}".format(
         stopwatch()))
-    sc_de = deflex.Scenario(name='basic', year=year)
+    sc_de = scenario_tools.DeflexScenario(name='basic', year=year)
     sc_de.load_csv(de21_scenario_csv.format(rmap))
     sc_de.check_table('time_series')
 
@@ -383,6 +383,7 @@ def main(year, rmap):
 
 
 if __name__ == "__main__":
+    import deflex
     logger.define_logging(file_level=logging.INFO)
     cfg.init(paths=[os.path.dirname(deflex.__file__),
                     os.path.dirname(berlin_hp.__file__)])

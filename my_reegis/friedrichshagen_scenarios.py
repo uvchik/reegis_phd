@@ -6,7 +6,7 @@ from shutil import copyfile
 import pandas as pd
 
 import reegis.config as cfg
-from reegis.scenario_tools import Label
+from deflex.scenario_tools import Label
 
 import oemof.tools.logger as logger
 from oemof import solph
@@ -16,7 +16,7 @@ import deflex
 
 from my_reegis import results
 from my_reegis import main
-from deprecated import reegis_analyser
+from .deprecated import reegis_analyser
 import multiprocessing
 
 

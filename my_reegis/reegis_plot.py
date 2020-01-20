@@ -14,7 +14,7 @@ import math
 import reegis.geometries
 import oemof_visio as oev
 from oemof import outputlib
-import reegis.gui as gui
+# import reegis.gui as gui
 
 
 ORDER_KEYS = ['hydro', 'geothermal', 'solar', 'pv', 'wind', 'chp', 'hp', 'pp',

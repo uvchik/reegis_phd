@@ -2,7 +2,7 @@ import os
 import logging
 from datetime import datetime
 
-from deflex import Scenario
+from deflex.scenario_tools import Scenario
 
 from oemof import graph
 from oemof.tools import logger
@@ -11,8 +11,6 @@ from oemof import outputlib
 
 import pandas as pd
 import reegis.config as cfg
-import reegis.gui as gui
-from reegis import Scenario
 
 from deflex.scenario_tools import Label as Label
 
@@ -615,10 +613,10 @@ def load_es(fn=None):
     Load EnergySystem with the given filename (full path). If no file name
     is given a GUI window is popping up.
     """
-    if fn is None:
-        fn = gui.select_filename(work_dir=cfg.get('paths', 'scenario'),
-                                 title='Select results file',
-                                 extension='esys')
+    # if fn is None:
+    #     fn = gui.select_filename(work_dir=cfg.get('paths', 'scenario'),
+    #                              title='Select results file',
+    #                              extension='esys')
 
     sc = Scenario()
     logging.debug("Restoring file from {0}".format(fn))

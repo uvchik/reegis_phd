@@ -1770,4 +1770,4 @@ if __name__ == "__main__":
     cfg.tmp_set('results', 'dir', 'results_cbc')
     p = '/home/uwe/reegis/figures'
     # plot_all(show=True)
-    plot_figure('4.7', save=True, show=True, path=p)
+    plot_figure('6.5', save=True, show=True, path=p)
