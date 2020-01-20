@@ -11,10 +11,9 @@ from oemof.tools import logger
 
 # internal modules
 import reegis.config as cfg
-from reegis import Scenario
-# import reegis.scenario_tools
-import deflex
-from deflex import inhabitants
+from deflex.scenario_tools import Scenario
+from reegis import inhabitants
+from deflex import geometries
 import berlin_hp
 from my_reegis import main
 # import my_reegis
@@ -56,12 +55,17 @@ def reduce_power_plants(sc, nuclear=None, lignite=None, hard_coal=None):
 
 
 def more_heat_pumps(sc, heat_pump_fraction, cop):
+    year = 2014
     abs_decentr_heat = (
         sc.table_collection['time_series']['DE_demand'].sum(axis=1))
     heat_pump = abs_decentr_heat * heat_pump_fraction
     sc.table_collection['time_series']['DE_demand'] *= (1 - heat_pump_fraction)
 
-    inhab = inhabitants.get_ew_by_deflex(2014, rmap=sc.map)
+    deflex_regions = geometries.deflex_regions(rmap=sc.map)
+    name = '{0}_region'.format(sc.map)
+    inhab = inhabitants.get_inhabitants_by_region(
+        year, deflex_regions, name=name)
+
     inhab_fraction = inhab.div(inhab.sum())
 
     for region in inhab_fraction.index:

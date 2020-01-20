@@ -35,6 +35,7 @@ from reegis import powerplants
 from reegis import storages
 from deflex import demand
 from reegis import entsoe
+from reegis import coastdat
 
 from my_reegis import data_analysis
 from berlin_hp import heat
@@ -524,14 +525,25 @@ def fig_average_weather():
         (7 / 7, '#1a2663')])
 
     weather_path = cfg.get('paths', 'coastdat')
-    f = 'average_data_v_wind.csv'
-    fn = os.path.join(weather_path, f)
+
+    # Download missing weather files
+    pattern = 'coastDat2_de_{0}.h5'
+    for year in range(1998, 2015):
+        fn = os.path.join(weather_path, pattern.format(year))
+        if not os.path.isfile(fn):
+            coastdat.download_coastdat_data(filename=fn, year=year)
+
+    pattern = 'average_data_{data_type}.csv'
+    dtype = 'v_wind'
+    fn = os.path.join(weather_path, pattern.format(data_type=dtype))
+    if not os.path.isfile(fn):
+        coastdat.store_average_weather(dtype, out_file_pattern=pattern)
     df = pd.read_csv(fn, index_col=[0])
-    coastdat = geometries.load(
+    coastdat_poly = geometries.load(
         cfg.get('paths', 'geometry'),
         cfg.get('coastdat', 'coastdatgrid_polygon'))
-    coastdat = coastdat.merge(df, left_index=True, right_index=True)
-    ax = coastdat.plot(
+    coastdat_poly = coastdat_poly.merge(df, left_index=True, right_index=True)
+    ax = coastdat_poly.plot(
         column='v_wind_avg', cmap=my_cmap, vmin=1, vmax=8, ax=ax_ar[0])
     ax = geometries.get_germany_awz_polygon().simplify(0.05).boundary.plot(
         ax=ax, color='#555555')
@@ -545,15 +557,19 @@ def fig_average_weather():
     cbar.set_label('Windgeschwindigkeit [m/s]', rotation=270, labelpad=30)
 
     weather_path = cfg.get('paths', 'coastdat')
-    f = 'average_data_temp_air.csv'
-    fn = os.path.join(weather_path, f)
+    dtype = 'temp_air'
+    fn = os.path.join(weather_path, pattern.format(data_type=dtype))
+    if not os.path.isfile(fn):
+        coastdat.store_average_weather(dtype, out_file_pattern=pattern,
+                                       years=[2014, 2013, 2012])
     df = pd.read_csv(fn, index_col=[0]) - 273.15
-    coastdat = geometries.load(
+    print(df.mean())
+    coastdat_poly = geometries.load(
         cfg.get('paths', 'geometry'),
         cfg.get('coastdat', 'coastdatgrid_polygon'))
-    coastdat = coastdat.merge(df, left_index=True, right_index=True)
-    ax = coastdat.plot(
-        column='v_wind_avg', cmap='rainbow', vmin=7, vmax=12, ax=ax_ar[1])
+    coastdat_poly = coastdat_poly.merge(df, left_index=True, right_index=True)
+    ax = coastdat_poly.plot(
+        column='temp_air_avg', cmap='rainbow', vmin=7, vmax=12, ax=ax_ar[1])
     ax = geometries.get_germany_awz_polygon().simplify(0.05).boundary.plot(
         ax=ax, color='#555555')
     ax.set_axis_off()
@@ -1182,12 +1198,11 @@ def fig_patch_offshore(**kwargs):
         cfg.get('paths', 'geometry'),
         cfg.get('geometry', 'federalstates_polygon'))
     # federal_states.drop(['P0'], inplace=True)
-    mydf = powerplants.patch_offshore_wind(pd.DataFrame())
+    mydf = powerplants.patch_offshore_wind(pd.DataFrame(), [])
     mygdf = gpd.GeoDataFrame(mydf)
-    fs = federal_states.loc[
+    fs = federal_states.set_index('iso').loc[
         ['NI', 'SH', 'HH', 'MV', 'BB', 'BE', 'HB', 'ST', 'NW']]
-    offshore = gpd.read_file(os .path.join(
-        cfg.get('paths', 'geometry'), 'offshore_regions.geojson'))
+    offshore = federal_states.set_index('iso').loc[['N0', 'N1', 'O0']]
     fs['geometry'] = fs['geometry'].simplify(0.01)
     offshore['geometry'] = offshore['geometry'].simplify(0.01)
 
@@ -1711,6 +1726,13 @@ def get_number_name():
             '4.1': fig_patch_offshore,
             '4.4a': fig_inhabitants,
             '4.4b': fig_inhabitants_per_area,
+            '4.5': fig_average_weather,
+            # '4.6': 'strahlungsmittel',
+
+            '4.7': fig_module_comparison,
+            '4.8': fig_analyse_multi_files,
+            '4.9': fig_polar_plot_pv_orientation,
+            '4.10': fig_windzones,
 
             '3.0': ego_demand_plot,
             '3.1': fig_model_regions,
@@ -1731,12 +1753,10 @@ def get_number_name():
             '0.4': fig_storage_capacity,
 
             '0.8': fig_compare_electricity_profile_berlin,
-            '0.9': fig_average_weather,
             '1.1': fig_polar_plot_pv_orientation,
             '1.2': fig_analyse_multi_files,
             '1.3': fig_compare_full_load_hours,
             '1.4': fig_compare_feedin_wind,
-            '1.6': fig_module_comparison,
             '1.7': fig_import_export_100PRZ_region,
             '1.8': fig_import_export_costs_100PRZ_region,
             '0.2': fig_import_export_emissions_100PRZ_region,
@@ -1750,4 +1770,4 @@ if __name__ == "__main__":
     cfg.tmp_set('results', 'dir', 'results_cbc')
     p = '/home/uwe/reegis/figures'
     # plot_all(show=True)
-    plot_figure('6.5', save=True, show=True, path=p)
+    plot_figure('4.7', save=True, show=True, path=p)
