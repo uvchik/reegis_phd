@@ -98,31 +98,41 @@ def analyse_berlin_ressources():
     s = {}
     year = 2014
     scenarios = {
-        'deflex_de22': {
-            'path': ['deflex', str(year)],
-            'file': 'deflex_2014_de22',
-            'var': 'de22',
-            'region': 'DE22'},
+        'berlin_single': {
+            'path': ['berlin_hp', str(year)],
+            'file': 'berlin_hp_2014_single_up_None',
+            'var': None,
+            'region': 'BE'},
         'berlin_deflex': {
             'path': ['berlin_hp', str(year)],
             'file': 'berlin_hp_2014_de22',
             'var': 'de22',
             'region': 'BE'},
-        # 'berlin_up_deflex': {
-        #     'path': ['berlin_hp', str(year)],
-        #     'file': 'berlin_hp_2014_single_up_deflex_2014_de22_without_berlin',
-        #     'var': 'single_up_deflex_2014_de22_without_berlin',
-        #     'region': 'BE'},
+        'berlin_up_deflex': {
+            'path': ['berlin_hp', str(year)],
+            'file': 'berlin_hp_2014_single_up_de22_csv_without_DE22',
+            'var': 'single_up_deflex_2014_de22_without_berlin',
+            'region': 'BE'},
         'berlin_up_deflex_full': {
             'path': ['berlin_hp', str(year)],
             'file': 'berlin_hp_2014_single_up_de22',
             'var': 'single_up_deflex_2014_de22',
             'region': 'BE'},
-        'berlin_single': {
-            'path': ['berlin_hp', str(year)],
-            'file': 'berlin_hp_2014_single_up_None',
-            'var': None,
-            'region': 'BE'}
+        'deflex_de22': {
+            'path': ['deflex', str(year)],
+            'file': 'deflex_2014_de22',
+            'var': 'de22',
+            'region': 'DE22'},
+        # 'deflex_de22_new': {
+        #     'path': ['deflex', str(year)],
+        #     'file': 'deflex_neu_2014_de22',
+        #     'var': 'de22',
+        #     'region': 'DE22'},
+        # 'deflex_de22_neu': {
+        #     'path': ['deflex', str(year)],
+        #     'file': 'deflex_new_2014_de22',
+        #     'var': 'de22',
+        #     'region': 'DE22'},
         }
 
     for k, v in scenarios.items():

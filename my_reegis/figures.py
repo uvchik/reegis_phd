@@ -1461,9 +1461,11 @@ def fig_show_de21_de22_without_berlin():
 
 def berlin_resources_time_series():
     seq = regional_results.analyse_berlin_ressources()
-    f, ax_ar = plt.subplots(5, 2, sharey='row', sharex=True, figsize=(9, 6))
+    types = ['lignite', 'natural_gas', 'oil', 'hard_coal', 'netto_import']
+    rows = len(types)
+    f, ax_ar = plt.subplots(rows, 2, sharey='row', sharex=True, figsize=(9, 6))
     i = 0
-    for c in ['lignite', 'natural_gas', 'oil', 'hard_coal', 'netto_import']:
+    for c in types:
         seq[[(c, 'deflex_de22'), (c, 'berlin_deflex'),
              (c, 'berlin_up_deflex')]].multiply(1000).resample('D').mean(
             ).plot(ax=ax_ar[i][0], legend=False)
@@ -1476,7 +1478,7 @@ def berlin_resources_time_series():
                 rotation=270)
         i += 1
 
-    for i in range(5):
+    for i in range(rows):
         for j in range(2):
             ax = ax_ar[i, j]
             if i == 0 and j == 0:
@@ -1527,7 +1529,7 @@ def fig_berlin_resources(**kwargs):
 
     plt.ylabel('Energiemenge 2014 [TWh]')
     plt.subplots_adjust(right=0.78, left=0.08, bottom=0.12, top=0.98)
-    return 'resource_use_berlin', None
+    return 'resource_use_berlin_reduced', None
 
 
 def fig_import_export_100PRZ_region():
@@ -1728,6 +1730,8 @@ def get_number_name():
             '4.4b': fig_inhabitants_per_area,
             '4.5': fig_average_weather,
             # '4.6': 'strahlungsmittel',
+            '6.3': fig_berlin_resources,
+            '6.4': berlin_resources_time_series,
 
             '4.7': fig_module_comparison,
             '4.8': fig_analyse_multi_files,
@@ -1739,12 +1743,11 @@ def get_number_name():
             '6.0': fig_anteil_import_stromverbrauch_berlin,
             '6.1': fig_veraenderung_energiefluesse_durch_kopplung,
             '6.2': fig_deflex_de22_polygons,
-            '6.3': plot_upstream,
+            '6.3a': plot_upstream,
             '6.x': fig_6_x_draft1,
             '5.3': fig_district_heating_areas,
             '4.1x': fig_compare_habitants_and_heat_electricity_share,
-            '6.4': fig_show_de21_de22_without_berlin,
-            '6.5': fig_berlin_resources,
+            '6.4a': fig_show_de21_de22_without_berlin,
             '6.6': berlin_resources_time_series,
             '6.7': fig_netzkapazitaet_und_auslastung_de22,
             '6.8': fig_absolute_power_flows,
@@ -1768,6 +1771,7 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
                     os.path.dirname(deflex.__file__)])
     cfg.tmp_set('results', 'dir', 'results_cbc')
+    cfg.tmp_set('paths', 'scenario', "/home/uwe/extra/reegis/scenarios_lux/")
     p = '/home/uwe/reegis/figures'
     # plot_all(show=True)
-    plot_figure('6.5', save=True, show=True, path=p)
+    plot_figure('6.4', save=True, show=True, path=p)
