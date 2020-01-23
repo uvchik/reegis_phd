@@ -27,14 +27,13 @@ from oemof import solph
 # internal modules
 import reegis as cfg
 import reegis
-from reegis import Scenario
+from deflex.scenario_tools import Scenario, Label
 import deflex
 import berlin_hp
 import my_reegis
 # from my_reegis import results as sys_results
 from my_reegis import alternative_scenarios
 from my_reegis import embedded_model
-from reegis import Label
 from my_reegis import upstream_analysis as upa
 from my_reegis import alternative_scenarios as alt
 from my_reegis import results

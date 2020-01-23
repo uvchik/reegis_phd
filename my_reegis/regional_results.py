@@ -6,7 +6,7 @@ from oemof import solph
 from oemof.tools import logger
 from my_reegis import results
 from my_reegis import friedrichshagen_scenarios as fsc
-import reegis as cfg
+from reegis import config as cfg
 from matplotlib import pyplot as plt
 
 

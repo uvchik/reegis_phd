@@ -1771,7 +1771,7 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
                     os.path.dirname(deflex.__file__)])
     cfg.tmp_set('results', 'dir', 'results_cbc')
-    cfg.tmp_set('paths', 'scenario', "/home/uwe/extra/reegis/scenarios_lux/")
+    cfg.tmp_set('paths', 'scenario', "/home/uwe/data/reegis/scenarios_lux/")
     p = '/home/uwe/reegis/figures'
     # plot_all(show=True)
     plot_figure('6.4', save=True, show=True, path=p)
