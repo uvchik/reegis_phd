@@ -1,9 +1,8 @@
 import os
 import pandas as pd
 import geopandas as gpd
-from reegis import coastdat
-from reegis import geometries
-import reegis.config as cfg
+from reegis import coastdat, geometries
+import reegis as cfg
 import multiprocessing
 import pvlib
 import deflex

@@ -2,8 +2,7 @@ import os
 import logging
 from my_reegis import results
 import pandas as pd
-import reegis.config as cfg
-
+import reegis as cfg
 
 OFFSHORE = {'de02': ['DE02'],
             'de17': ['DE17'],

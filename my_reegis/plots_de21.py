@@ -17,7 +17,7 @@ from oemof.tools import logger
 from deflex import demand
 from deflex import geometries
 
-import reegis.config as cfg
+import reegis as cfg
 
 
 def add_grid_labels(data, plotter, label=None,

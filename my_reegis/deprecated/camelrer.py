@@ -1,9 +1,7 @@
 from reegis import Scenario
-import datetime
 import os
 from oemof import solph
 import dill as pickle
-import pprint as pp
 from my_reegis import results
 
 

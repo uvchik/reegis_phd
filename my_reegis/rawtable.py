@@ -1,16 +1,14 @@
 import os
-from my_reegis import results
+# from my_reegis import results
 import pandas as pd
-import my_reegis
+# import my_reegis
 from oemof.tools import logger
-import berlin_hp
-import deflex
-import reegis.config as cfg
-from reegis import inhabitants
-from reegis import bmwi
-from reegis import openego as oego
+# import berlin_hp
+# import deflex
+import reegis as cfg
+from reegis import inhabitants, openego as oego, bmwi
 
-from berlin_hp import friedrichshagen
+# from berlin_hp import friedrichshagen
 
 
 def table_demand_federal_states(outpath):
@@ -126,10 +124,10 @@ def berlin_ressources(path):
 
 if __name__ == "__main__":
     logger.define_logging()
-    cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
-                    os.path.dirname(my_reegis.__file__),
-                    os.path.dirname(deflex.__file__)])
-    p = '/home/uwe/chiba/Promotion/Monographie/tables'
+    # cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
+    #                 os.path.dirname(my_reegis.__file__),
+    #                 os.path.dirname(deflex.__file__)])
+    p = '/home/uwe/'#chiba/Promotion/Monographie/tables'
     table_demand_federal_states(p)
     exit(0)
     berlin_ressources(p)

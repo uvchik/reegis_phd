@@ -613,10 +613,10 @@ def load_es(fn=None):
     Load EnergySystem with the given filename (full path). If no file name
     is given a GUI window is popping up.
     """
-    # if fn is None:
-    #     fn = gui.select_filename(work_dir=cfg.get('paths', 'scenario'),
-    #                              title='Select results file',
-    #                              extension='esys')
+    if fn is None:
+        fn = gui.select_filename(work_dir=cfg.get('paths', 'scenario'),
+                                 title='Select results file',
+                                 extension='esys')
 
     sc = Scenario()
     logging.debug("Restoring file from {0}".format(fn))

@@ -382,6 +382,13 @@ def analyse_ee_basic(up_values=None):
         'costs': pd.DataFrame(),
         'emissions': pd.DataFrame()}
 
+    if up_values is None:
+        upstream_values = fsc.load_upstream_scenario_values()
+        up_scen = gui.get_choice(
+            upstream_values.columns.get_level_values(0).unique(),
+            "Upstream scenarios", "Select an upstream scenario")
+        up_values = upstream_values[up_scen]
+
     fhg_ex_import = pd.DataFrame(
         columns=pd.MultiIndex(levels=[[], []], labels=[[], []]))
 

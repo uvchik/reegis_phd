@@ -2,12 +2,12 @@
 
 """Main script.
 
-Copyright (c) 2016-2018 Uwe Krien <uwe.krien@rl-institut.de>
+SPDX-FileCopyrightText: 2016-2019 Uwe Krien <krien@uni-bremen.de>
 
-SPDX-License-Identifier: GPL-3.0-or-later
+SPDX-License-Identifier: MIT
 """
-__copyright__ = "Uwe Krien <uwe.krien@rl-institut.de>"
-__license__ = "GPLv3"
+__copyright__ = "Uwe Krien <krien@uni-bremen.de>"
+__license__ = "MIT"
 
 
 # Python libraries
@@ -25,17 +25,16 @@ from oemof.tools import logger
 from oemof import solph
 
 # internal modules
-import reegis.config as cfg
-from deflex import scenario_tools
-from deflex import basic_scenario
-
+import reegis as cfg
+import reegis
+from reegis import Scenario
 import deflex
 import berlin_hp
 import my_reegis
 # from my_reegis import results as sys_results
 from my_reegis import alternative_scenarios
 from my_reegis import embedded_model
-
+from reegis import Label
 from my_reegis import upstream_analysis as upa
 from my_reegis import alternative_scenarios as alt
 from my_reegis import results
@@ -93,7 +92,7 @@ def compute(sc, dump_graph=False, log_solver=True, duals=True):
 def load_deflex_scenario(year, sim_type='de21', create_scenario=False):
     cfg.tmp_set('init', 'map', sim_type)
     name = '{0}_{1}_{2}'.format('deflex', year, cfg.get('init', 'map'))
-    sc = scenario_tools.DeflexScenario(name=name, year=year)
+    sc = deflex.Scenario(name=name, year=year)
     scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex',
                                  str(year))
     if 'without_berlin' in sim_type:
@@ -104,7 +103,7 @@ def load_deflex_scenario(year, sim_type='de21', create_scenario=False):
 
     if create_scenario or not os.path.isdir(sc.location):
         logging.info("Create scenario for {0}: {1}".format(stopwatch(), name))
-        basic_scenario.create_basic_scenario(year, rmap=sim_type)
+        deflex.basic_scenario.create_basic_scenario(year, rmap=sim_type)
 
     res_path_name = 'results_{0}'.format(cfg.get('general', 'solver'))
     os.makedirs(os.path.join(scenario_path, res_path_name), exist_ok=True)
@@ -143,7 +142,7 @@ def deflex_alternative_scenarios(year):
         i += 1
         name = scenario_path.split(os.sep)[-1][:-4]
         logging.info("Start scenario {0} from {1}: {2}".format(i, n, name))
-        sc = scenario_tools.DeflexScenario(name=name, year=year)
+        sc = deflex.Scenario(name=name, year=year)
         sc.location = scenario_path
         sc.load_csv().check_table('time_series')
         sc.table2es()
@@ -178,15 +177,13 @@ def add_upstream_import_export(nodes, bus, upstream_prices):
         export_costs = upstream_prices * -0.99
         import_costs = upstream_prices * 1.01
 
-    exp_label = scenario_tools.Label(
-        'export', 'electricity', 'all', bus.label.region)
+    exp_label = Label('export', 'electricity', 'all', bus.label.region)
     nodes[exp_label] = solph.Sink(
                 label=exp_label,
                 inputs={bus: solph.Flow(
                     variable_costs=export_costs)})
 
-    imp_label = scenario_tools.Label(
-        'import', 'electricity', 'all', bus.label.region)
+    imp_label = Label('import', 'electricity', 'all', bus.label.region)
     nodes[imp_label] = solph.Source(
                 label=imp_label,
                 outputs={bus: solph.Flow(
@@ -219,7 +216,7 @@ def create_upstream_sets(year, solver, method='mcp'):
         sc_filter={'solver': solver, 'year': year})
     scenarios = []
     for fn in sc_files:
-        sc = scenario_tools.Scenario(results_fn=fn)
+        sc = Scenario(results_fn=fn)
         meta_up = sc.meta
         my_upstream = {
             'ee_factor': meta_up['ee_factor'],
@@ -354,7 +351,7 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
     # deflex
     cfg.tmp_set('init', 'map', sim_type)
     name = '{0}_{1}_{2}'.format('deflex', year, sim_type + '_without_berlin')
-    sc_de = scenario_tools.DeflexScenario(name=name, year=year)
+    sc_de = deflex.Scenario(name=name, year=year)
     scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'berlin_hp',
                                  str(year))
     sc_de.location = os.path.join(scenario_path, '{0}_csv'.format(name))
@@ -410,7 +407,7 @@ def embedded_main(year, sim_type='de21', create_scenario=True):
 
 
 def add_import_export_nodes(bus, import_costs, export_costs):
-    nodes = scenario_tools.NodeDict()
+    nodes = reegis.scenario_tools.NodeDict()
     nodes['import'] = solph.Source(
         label='import_elec_fhg',
         outputs={bus: solph.Flow(emission=0, variable_costs=import_costs)})
@@ -463,7 +460,7 @@ def optimise_scenario(path, name, create_fct=None, create_scenario=True,
     if year is None:
         year = 2050
 
-    sc = scenario_tools.DeflexScenario(name=name, year=year)
+    sc = deflex.Scenario(name=name, year=year)
     sc.location = os.path.join(path, '{0}_csv'.format(name))
 
     if create_fct is not None:
