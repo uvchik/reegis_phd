@@ -123,12 +123,12 @@ def analyse_berlin_ressources():
             'file': 'deflex_2014_de22',
             'var': 'de22',
             'region': 'DE22'},
+        'deflex_de22_neu': {
+            'path': ['deflex', str(year)],
+            'file': 'deflex_neu_2014_de22',
+            'var': 'de22',
+            'region': 'DE22'},
         # 'deflex_de22_new': {
-        #     'path': ['deflex', str(year)],
-        #     'file': 'deflex_neu_2014_de22',
-        #     'var': 'de22',
-        #     'region': 'DE22'},
-        # 'deflex_de22_neu': {
         #     'path': ['deflex', str(year)],
         #     'file': 'deflex_new_2014_de22',
         #     'var': 'de22',

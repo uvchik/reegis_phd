@@ -12,6 +12,7 @@ from matplotlib import cm
 from matplotlib.colors import Normalize
 import math
 import reegis.geometries
+from deflex import geometries as d_geometries
 import oemof_visio as oev
 from oemof import outputlib
 # import reegis.gui as gui
@@ -253,9 +254,7 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
 
     lines = reegis.geometries.load(
         cfg.get('paths', 'geometry'), cfg.get('geometry', 'de21_power_lines'))
-    polygons = reegis.geometries.load(
-        cfg.get('paths', 'geometry'),
-        cfg.get('geometry', 'de21_polygons_simple'))
+    polygons = d_geometries.deflex_regions(rmap="de21", rtype='polygons')
 
     lines = lines.merge(data.div(divide), left_index=True, right_index=True)
 
@@ -273,11 +272,9 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
                 (0.5, 'yellow'),
                 (1, 'red')])
 
-    for i, p in polygons.iterrows():
-        if 'see' in p['name'].lower():
-            polygons.loc[i, 'color'] = 1
-        else:
-            polygons.loc[i, 'color'] = 0
+    offshore = d_geometries.divide_off_and_onshore(polygons).offshore
+    polygons["color"] = 0
+    polygons.loc[offshore, "color"] = 1
 
     lines['reverse'] = lines[key] < 0
 
@@ -395,7 +392,7 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
         is used the index will be plotted as label.
     legend : bool
         Draw a legend.
-    offshore : list
+    offshore : list or string
         All elements of the geoDataFrame index that should be colored as
         offshore regions.
     textbox : bool
@@ -428,7 +425,7 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
         polygons = reegis.geometries.load(
             cfg.get('paths', 'geo_deflex'),
             cfg.get('geometry', 'deflex_polygon').format(
-                suffix='reegis', map=deflex_map, type='polygon'))
+                suffix=".geojson", map=deflex_map, type='polygons'))
     elif fn is not None:
         polygons = reegis.geometries.load(fullname=fn)
     else:
@@ -445,13 +442,18 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
     if data is not None:
         polygons = polygons.merge(data, left_index=True, right_index=True)
 
+    if offshore == "auto":
+        offshore = d_geometries.divide_off_and_onshore(polygons).offshore
+
     if offshore is not None:
         polygons['onshore'] = 1
         for o in offshore:
             polygons.loc[o, 'onshore'] = 0
+        polygons.loc[polygons.numeric_id == 22, "onshore"] = 0.5
         cmap = LinearSegmentedColormap.from_list(
                 'mycmap', [
                     (0, '#a5bfdd'),
+                    (0.5, "red"),
                     (1, '#badd69')])
         data_col = 'onshore'
 
