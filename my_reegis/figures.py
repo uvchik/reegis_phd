@@ -33,7 +33,7 @@ from reegis import inhabitants
 from reegis import geometries
 from reegis import powerplants
 from reegis import storages
-from deflex import demand
+from deflex import demand, geometries as d_geometries
 from reegis import entsoe
 from reegis import coastdat
 
@@ -890,9 +890,15 @@ def fig_netzkapazitaet_und_auslastung_de22():
     my_es2 = results.load_my_es('berlin_hp', str(year), var='de22')
     transmission = results.compare_transmission(my_es1, my_es2)
 
-    f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
+    # f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
+    f, ax_ar = plt.subplots(1, len(sets), figsize=(8 * len(sets), 6))
+
     for k, v in sets.items():
-        v['ax'] = ax_ar[v.pop('order')]
+        if len(sets) == 1:
+            v['ax'] = ax_ar
+            v.pop('order')
+        else:
+            v['ax'] = ax_ar[v.pop('order')]
         my_legend = v.pop('my_legend')
         v['ax'].set_title(v.pop('part_title'))
         plot.plot_power_lines(transmission, **v)
@@ -980,42 +986,56 @@ def fig_veraenderung_energiefluesse_durch_kopplung():
     my_es2 = results.load_my_es('berlin_hp', str(year), var='de22')
     transmission = results.compare_transmission(my_es1, my_es2).div(1)
 
-    f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
+    f, ax_ar = plt.subplots(1, len(sets), figsize=(8*len(sets), 6))
+
     for k, v in sets.items():
-        v['ax'] = ax_ar[v.pop('order')]
+        if len(sets) == 1:
+            v['ax'] = ax_ar
+            v.pop('order')
+        else:
+            v['ax'] = ax_ar[v.pop('order')]
         plot.plot_power_lines(transmission, **v)
         plot.geopandas_colorbar_same_height(f, v['ax'], 0, v['vmax'],
                                             v['cmap_lines'])
         plt.title(v['unit'])
-    plt.subplots_adjust(right=0.97, left=0, wspace=0, bottom=0.03, top=0.96)
+    plt.subplots_adjust(right=0.94, left=0, wspace=0, bottom=0.03, top=0.96)
 
     return 'veraenderung_energiefluesse_durch_kopplung', None
 
 
 def fig_model_regions():
-    f, ax_ar = plt.subplots(1, 4, figsize=(11, 2.5))
+    """Plot one or more model regions in one plot."""
+    # maps = ["de02", "de17", "de21", "de22"]
+    maps = ["de22"]
+    add_title = False
 
-    # de = deflex.geometries.deflex_regions(rmap='de17').gdf
-    # de['label'] = de.representative_point()
-    maps = ['de02', 'de17', 'de21', 'de22']
-    offshore = {'de02': [2],
-                'de17': [17],
-                'de21': [19, 20, 21],
-                'de22': [19, 20, 21]}
+    top = 1
+    ax = None
+    ax_ar = []
 
+    width = len(maps * 3)
+
+    if len(maps) > 1:
+        f, ax_ar = plt.subplots(1, len(maps), figsize=(width, 2.5))
+    else:
+        ax = plt.figure(figsize=(width, 2.5)).add_subplot(1, 1, 1)
     i = 0
     for rmap in maps:
-        ax = ax_ar[i]
-        plot.plot_regions(deflex_map=rmap, ax=ax, offshore=offshore[rmap],
-                          legend=False, simple=0.05)
+        if len(maps) > 1:
+            ax = ax_ar[i]
+
+        plot.plot_regions(deflex_map=rmap, ax=ax, legend=False, simple=0.005,
+                          offshore="auto")
         for spine in plt.gca().spines.values():
             spine.set_visible(False)
         ax.axis('off')
-        ax.set_title(rmap)
+        if add_title is True:
+            ax.set_title(rmap)
+            top = 0.88
         i += 1
 
-    plt.subplots_adjust(right=1, left=0, wspace=0, bottom=0, top=0.88)
-    return 'model_regions', None
+    plt.subplots_adjust(right=1, left=0, wspace=0, bottom=0, top=top)
+    return 'model_regions_de22_red', None
 
 
 def fig_absolute_power_flows():
@@ -1536,7 +1556,7 @@ def fig_import_export_100PRZ_region():
     plt.rcParams.update({'font.size': 13})
     f, ax_ar = plt.subplots(1, 3, figsize=(15, 6))
 
-    myp = '/home/uwe/express/reegis/scenarios_lux/friedrichshagen/results_cbc'
+    myp = '/home/uwe/extra/reegis/scenarios_lux/friedrichshagen/results_cbc'
 
     my_filenames = [x for x in os.listdir(myp) if '.esys' in x and '_pv' in x]
 
@@ -1587,7 +1607,7 @@ def fig_import_export_emissions_100PRZ_region():
     up_fn = os.path.join(my_path, my_filename)
     up_df = pd.read_csv(up_fn.format(2014, 'cbc'), index_col=[0],
                         header=[0, 1, 2])
-    myp = '/home/uwe/express/reegis/scenarios_lux/friedrichshagen/results_cbc'
+    myp = '/home/uwe/extra/reegis/scenarios_lux/friedrichshagen/results_cbc'
 
     my_filenames = [x for x in os.listdir(myp) if '.esys' in x and '_pv' in x]
 
@@ -1647,7 +1667,7 @@ def fig_import_export_costs_100PRZ_region():
     up_fn = os.path.join(my_path, my_filename)
     up_df = pd.read_csv(up_fn.format(2014, 'cbc'), index_col=[0],
                         header=[0, 1, 2])
-    myp = '/home/uwe/express/reegis/scenarios_lux/friedrichshagen/results_cbc'
+    myp = '/home/uwe/extra/reegis/scenarios_lux/friedrichshagen/results_cbc'
 
     my_filenames = [x for x in os.listdir(myp) if '.esys' in x and '_pv' in x]
 
@@ -1675,14 +1695,14 @@ def fig_import_export_costs_100PRZ_region():
         pr = pd.DataFrame()
         my_import = pd.DataFrame()
         my_export = pd.DataFrame()
-        for up in my_list:
+        for up in my_list[0:3]:
             prc = up_df['deflex_cbc', up, 'mcp']
             pr.loc[up, 'mean'] = prc.mean()
             pr.loc[up, 'import_s'] = (imp * prc).sum()/imp.sum()/prc.mean()
             pr.loc[up, 'export_s'] = (exp * prc).sum()/exp.sum()/prc.mean()
 
-            mean = (exp * prc).sum()/exp.sum()/prc.mean() - (imp * prc).sum()/imp.sum()/prc.mean()
-            pr.loc[up, 'diff'] = mean * -1
+            # mean = (exp * prc).sum()/exp.sum()/prc.mean() - (imp * prc).sum()/imp.sum()/prc.mean()
+            # pr.loc[up, 'diff'] = mean * -1
 
             my_import[up] = imp.multiply(prc).resample('M').sum()
             my_export[up] = exp.multiply(prc).resample('M').sum()
@@ -1691,7 +1711,14 @@ def fig_import_export_costs_100PRZ_region():
             # ax_ar[0].right_ax.set_ylim(0, 1120)
         if wind == 27:
             ax_ar = pr.plot(kind='bar', secondary_y=['mean'], ax=ax_ar)
+            # plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
             # ax_ar[1].right_ax.set_ylim(0, 1120)
+        # Shrink current axis by 20%
+        #     box = ax_ar.get_position()
+            # ax_ar.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+            # Put a legend to the right of the current axis
+            # ax_ar.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
     return 'import_export_costs_100PRZ_region', None
 
@@ -1730,8 +1757,12 @@ def get_number_name():
             '4.4b': fig_inhabitants_per_area,
             '4.5': fig_average_weather,
             # '4.6': 'strahlungsmittel',
+            '5.1': fig_model_regions,
             '6.3': fig_berlin_resources,
             '6.4': berlin_resources_time_series,
+            '6.5': fig_netzkapazitaet_und_auslastung_de22,
+            '6.6': fig_veraenderung_energiefluesse_durch_kopplung,
+            '6.8': fig_import_export_costs_100PRZ_region,
 
             '4.7': fig_module_comparison,
             '4.8': fig_analyse_multi_files,
@@ -1739,18 +1770,18 @@ def get_number_name():
             '4.10': fig_windzones,
 
             '3.0': ego_demand_plot,
-            '3.1': fig_model_regions,
+
             '6.0': fig_anteil_import_stromverbrauch_berlin,
-            '6.1': fig_veraenderung_energiefluesse_durch_kopplung,
+
             '6.2': fig_deflex_de22_polygons,
             '6.3a': plot_upstream,
             '6.x': fig_6_x_draft1,
             '5.3': fig_district_heating_areas,
             '4.1x': fig_compare_habitants_and_heat_electricity_share,
             '6.4a': fig_show_de21_de22_without_berlin,
-            '6.6': berlin_resources_time_series,
-            '6.7': fig_netzkapazitaet_und_auslastung_de22,
-            '6.8': fig_absolute_power_flows,
+            '6.6b': berlin_resources_time_series,
+
+            '1.8': fig_absolute_power_flows,
             '0.1': fig_windzones,
             '0.3': fig_powerplants,
             '0.4': fig_storage_capacity,
@@ -1761,7 +1792,6 @@ def get_number_name():
             '1.3': fig_compare_full_load_hours,
             '1.4': fig_compare_feedin_wind,
             '1.7': fig_import_export_100PRZ_region,
-            '1.8': fig_import_export_costs_100PRZ_region,
             '0.2': fig_import_export_emissions_100PRZ_region,
         }
 
@@ -1771,7 +1801,7 @@ if __name__ == "__main__":
     cfg.init(paths=[os.path.dirname(berlin_hp.__file__),
                     os.path.dirname(deflex.__file__)])
     cfg.tmp_set('results', 'dir', 'results_cbc')
-    cfg.tmp_set('paths', 'scenario', "/home/uwe/data/reegis/scenarios_lux/")
+    cfg.tmp_set('paths', 'scenario', "/home/uwe/extra/reegis/scenarios_lux/")
     p = '/home/uwe/reegis/figures'
     # plot_all(show=True)
-    plot_figure('6.4', save=True, show=True, path=p)
+    plot_figure('6.8', save=True, show=True, path=p)

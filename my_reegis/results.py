@@ -72,6 +72,7 @@ def compare_transmission(es1, es2, name1='es1', name2='es2', noreg='DE22'):
 
     # Calculate results
     transmission = pd.DataFrame()
+
     for out_flow in out_flow_lines:
 
         # es1
@@ -154,6 +155,8 @@ def compare_transmission(es1, es2, name1='es1', name2='es2', noreg='DE22'):
         transmission.loc[line_name, name2 + '_max'] = float(
             from1to2_es2.abs().max() - from2to1_es2.abs().max()) / 1000
 
+    transmission['name1'] = transmission[name1]
+    transmission['name2'] = transmission[name2]
     transmission['diff_2-1'] = transmission[name2] - transmission[name1]
     transmission['diff_2-1_max'] = (transmission[name2 + '_max'] -
                                     transmission[name1 + '_max'])
