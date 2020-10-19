@@ -1,8 +1,7 @@
 import os
 import pandas as pd
 import geopandas as gpd
-from reegis import coastdat, geometries
-import reegis as cfg
+from reegis import coastdat, geometries, config as cfg
 import multiprocessing
 import pvlib
 import deflex
@@ -89,14 +88,14 @@ def get_coastdat_onshore_polygons():
     de02 = geometries.load(
         cfg.get('paths', 'geo_deflex'),
         cfg.get('geometry', 'deflex_polygon').format(
-            type='polygon', map='de02', suffix='reegis'),
+            type='polygons', map='de02', suffix='.geojson'),
         index_col='region')
 
     cstd_pt = gpd.GeoDataFrame(cstd.centroid, columns=['geometry'])
 
     cstd_pt = geometries.spatial_join_with_buffer(
         cstd_pt, de02, 'coastdat', limit=0)
-    reduced = cstd.loc[cstd_pt.coastdat == 1]
+    reduced = cstd.loc[cstd_pt.coastdat == "DE01"]
     return reduced.sort_index()
 
 

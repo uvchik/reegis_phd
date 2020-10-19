@@ -4,10 +4,9 @@ from datetime import datetime
 
 from deflex.scenario_tools import Scenario
 
-from oemof import graph
+from oemof.network import graph
 from oemof.tools import logger
 from oemof import solph as solph
-from oemof import outputlib
 
 import pandas as pd
 import reegis.config as cfg
@@ -414,7 +413,7 @@ def check_excess_shortage(es, silent=False):
     ex = 0
     sh = 0
     for node in ex_nodes:
-        f = outputlib.views.node(result, node[1])
+        f = solph.views.node(result, node[1])
         s = int(round(f['sequences'].sum()))
         if s > 0:
             if not silent:
@@ -422,7 +421,7 @@ def check_excess_shortage(es, silent=False):
             ex += 1
 
     for node in sh_nodes:
-        f = outputlib.views.node(result, node[0])
+        f = solph.views.node(result, node[0])
         s = int(round(f['sequences'].sum()))
         if s > 0:
             if not silent:

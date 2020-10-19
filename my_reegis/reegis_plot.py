@@ -1,20 +1,20 @@
 import logging
-import numpy as np
-import pandas as pd
-from my_reegis import results
-import reegis.config as cfg
-from matplotlib import pyplot as plt
-import matplotlib.patheffects as path_effects
-import matplotlib.patches as patches
-from matplotlib.colors import LinearSegmentedColormap
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib import cm
-from matplotlib.colors import Normalize
 import math
+
+import numpy as np
+import oemof_visio as oev
+import pandas as pd
 import reegis.geometries
 from deflex import geometries as d_geometries
-import oemof_visio as oev
-from oemof import outputlib
+from matplotlib import cm
+from matplotlib import patches as patches
+from matplotlib import patheffects as path_effects
+from matplotlib import pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap, Normalize
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from my_reegis import results
+from reegis import config as cfg
+
 # import reegis.gui as gui
 
 
@@ -494,7 +494,7 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
 def plot_bus(es, node_label, rm_list=None):
     """benutzt ??? Siehe plot_bus_view()"""
 
-    node = outputlib.views.node(es.results['Main'], node_label)
+    node = solph.views.node(es.results['Main'], node_label)
 
     fig = plt.figure(figsize=(10, 5))
 
