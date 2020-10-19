@@ -8,7 +8,7 @@ setup(name='my_reegis',
       author_email='uwe.krien@rl-institut.de',
       description='A reegis heat and power model of Berlin.',
       package_dir={'my_reegis': 'my_reegis'},
-      install_requires=['oemof >= 0.1.0',
+      install_requires=['oemof.solph >= 0.1.0',
                         'pandas >= 0.17.0',
                         'matplotlib', 'numpy', 'reegis', 'deflex', 'geopandas']
       )
