@@ -64,9 +64,12 @@ def plot_figure(number, save=False, path=None, show=False, **kwargs):
         plt.show()
 
 
-def plot_all(save=False, path=None, show=False, **kwargs):
+def plot_all(
+    save=False, path=None, show=False, lower=0.0, upper=99.9, **kwargs
+):
     for number in get_number_name().keys():
-        plot_figure(number, save=save, path=path, show=show, **kwargs)
+        if lower < float(number) < upper:
+            plot_figure(number, save=save, path=path, show=show, **kwargs)
 
 
 def get_number_name():
@@ -127,6 +130,7 @@ if __name__ == "__main__":
     )
     # cfg.tmp_set("results", "dir", "results_cbc")
     # cfg.tmp_set("paths", "scenario", "/home/uwe/data/reegis/scenarios_lux/")
-    p = "/home/uwe/reegis/figures"
-    # plot_all(show=True)
-    plot_figure("4.24", save=True, show=True, path=p)
+    p = os.path.join(os.path.expanduser("~"), "reegis", "figures")
+    os.makedirs(p, exist_ok=True)
+    plot_all(save=True, upper=5.9)
+    # plot_figure("4.24", save=True, show=False, path=p)
