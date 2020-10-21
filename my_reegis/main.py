@@ -25,7 +25,7 @@ from oemof.tools import logger
 from oemof import solph
 
 # internal modules
-import reegis as cfg
+from my_reegis import config as cfg
 import reegis
 from deflex.scenario_tools import Scenario, Label
 import deflex
@@ -91,7 +91,7 @@ def compute(sc, dump_graph=False, log_solver=True, duals=True):
 def load_deflex_scenario(year, sim_type='de21', create_scenario=False):
     cfg.tmp_set('init', 'map', sim_type)
     name = '{0}_{1}_{2}'.format('deflex', year, cfg.get('init', 'map'))
-    sc = deflex.Scenario(name=name, year=year)
+    sc = Scenario(name=name, year=year)
     scenario_path = os.path.join(cfg.get('paths', 'scenario'), 'deflex',
                                  str(year))
     if 'without_berlin' in sim_type:
