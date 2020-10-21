@@ -74,13 +74,21 @@ def plot_all(
 
 def get_number_name():
     return {
+        # ***** chapter 2 ****************************************************
+        "2.1": fig3x.fig_solph_modular_example,
+        # ***** chapter 3 ****************************************************
+        "3.1": fig3x.fig_solph_energy_system_example,
+        "3.2": fig3x.fig_transformer_with_flow,
+        "3.3": fig3x.fig_extraction_turbine_characteristics,
+        "3.4": fig3x.fig_extraction_turbine_and_fixed_chp,
         "3.5": fig3x.fig_tespy_heat_pumps_cop,
+        # ***** chapter 4 ****************************************************
         "4.1": fig4x.fig_patch_offshore,
         "4.2": fig4x.fig_powerplants,
         "4.3": fig4x.fig_storage_capacity,
         "4.4": fig4x.fig_inhabitants,
         "4.5": fig4x.fig_average_weather,
-        # '4.6': 'strahlungsmittel',
+        "4.6": fig4x.fig_strahlungsmittel,
         "4.7": fig4x.fig_module_comparison,
         "4.8": fig4x.fig_analyse_multi_files,
         "4.9": fig4x.fig_polar_plot_pv_orientation,
@@ -99,24 +107,27 @@ def get_number_name():
         "4.22": fig4x.fig_demand_share_of_sector_and_region,
         "4.23": fig4x.fig_compare_habitants_and_heat_electricity_share,
         "4.24": fig4x.fig_compare_district_heating_habitants_bw,
+        # ***** chapter 5 ****************************************************
         "5.1": fig5x.fig_model_regions,
+        "5.2": fig5x.fig_compare_de21_region_borders,
+        "5.3": fig5x.fig_show_download_deutschland_modell,
+        "5.4": fig5x.fig_show_download_berlin_modell,
+        "5.5": fig5x.fig_district_heating_areas,
+        "5.6": fig5x.fig_deflex_de22_polygons,
+        # ***** chapter 6 ****************************************************
+        "6.1": fig6x.fig_anteil_import_stromverbrauch_berlin,
+        "6.2": fig6x.fig_show_de21_de22_without_berlin,
         "6.3": fig6x.fig_berlin_resources,
+        "6.0": fig6x.fig_absolute_power_flows,
+        "6.02": fig6x.plot_upstream,
         "6.4": fig6x.berlin_resources_time_series,
         "6.5": fig6x.fig_netzkapazitaet_und_auslastung_de22,
         "6.6": fig6x.fig_veraenderung_energiefluesse_durch_kopplung,
+        "6.7": fig6x.fig_import_export_100PRZ_region,
         "6.8": fig6x.fig_import_export_costs_100PRZ_region,
-        # "3.0": ego_demand_plot,
-        "6.0": fig6x.fig_anteil_import_stromverbrauch_berlin,
-        "6.2": fig6x.fig_deflex_de22_polygons,
-        "6.3a": fig6x.plot_upstream,
+        "6.9": fig6x.fig_import_export_emissions_100PRZ_region,
         "6.x": fig6x.fig_6_x_draft1,
-        "5.3": fig6x.fig_district_heating_areas,
-        # "4.1x": fig6x.fig_compare_habitants_and_heat_electricity_share,
-        "6.4a": fig6x.fig_show_de21_de22_without_berlin,
-        "6.6b": fig6x.berlin_resources_time_series,
-        "1.8": fig6x.fig_absolute_power_flows,
-        "1.7": fig6x.fig_import_export_100PRZ_region,
-        "0.2": fig6x.fig_import_export_emissions_100PRZ_region,
+        "6.xa": fig6x.fig_show_de21_de22_without_berlin,
     }
 
 
@@ -128,9 +139,7 @@ if __name__ == "__main__":
             os.path.dirname(deflex.__file__),
         ]
     )
-    # cfg.tmp_set("results", "dir", "results_cbc")
-    # cfg.tmp_set("paths", "scenario", "/home/uwe/data/reegis/scenarios_lux/")
-    p = os.path.join(os.path.expanduser("~"), "reegis", "figures")
+    p = cfg.get("paths", "figures")
     os.makedirs(p, exist_ok=True)
-    plot_all(save=True, upper=5.9)
-    # plot_figure("4.24", save=True, show=False, path=p)
+    # plot_all(save=True, upper=5.9)
+    plot_figure("6.2", save=True, show=True, path=p)
