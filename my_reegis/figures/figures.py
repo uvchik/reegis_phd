@@ -7,9 +7,9 @@ import deflex
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from berlin_hp import electricity
-from berlin_hp import heat
-from deflex import demand
+#from berlin_hp import electricity
+#from berlin_hp import heat
+#from deflex import demand
 from matplotlib import cm
 from matplotlib import dates as mdates
 from matplotlib import image as mpimg
@@ -32,11 +32,11 @@ from reegis import powerplants
 from reegis import storages
 from scenario_builder import feedin
 
-from my_reegis import data_analysis
-from my_reegis import friedrichshagen_scenarios as fhg_sc
-from my_reegis import reegis_plot as plot
-from my_reegis import regional_results
-from my_reegis import results
+#from my_reegis import data_analysis
+#from my_reegis import friedrichshagen_scenarios as fhg_sc
+#from my_reegis import reegis_plot as plot
+#from my_reegis import regional_results
+#from my_reegis import results
 from my_reegis.figures import figures_3x as fig3x
 from my_reegis.figures import figures_4x as fig4x
 from my_reegis.figures import figures_5x as fig5x
