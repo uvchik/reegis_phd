@@ -44,7 +44,6 @@ from my_reegis.figures import figures_6x as fig6x
 
 
 def plot_figure(number, save=False, path=None, show=False, **kwargs):
-
     filename, fig_show = get_number_name()[number](**kwargs)
 
     if fig_show is not None:
@@ -126,8 +125,8 @@ def get_number_name():
         "6.7": fig6x.fig_import_export_100PRZ_region,
         "6.8": fig6x.fig_import_export_costs_100PRZ_region,
         "6.9": fig6x.fig_import_export_emissions_100PRZ_region,
-        "6.x": fig6x.fig_6_x_draft1,
-        "6.xa": fig6x.fig_show_de21_de22_without_berlin,
+        "6.10": fig6x.fig_6_x_draft1,
+        "6.11": fig6x.fig_show_de21_de22_without_berlin,
     }
 
 
