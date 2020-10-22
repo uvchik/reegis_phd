@@ -713,7 +713,7 @@ def fig_windzones():
 
 def fig_show_hydro_image():
     create_subplot((12, 4.4))
-    fn = os.path.join(cfg.get("paths", "figures"), "abflussregime.png")
+    fn = os.path.join(cfg.get("paths", "figure_source"), "abflussregime.png")
     img = mpimg.imread(fn)
     plt.imshow(img)
     plt.axis("off")
