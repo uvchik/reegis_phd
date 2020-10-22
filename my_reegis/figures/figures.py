@@ -132,5 +132,5 @@ if __name__ == "__main__":
     # cfg.tmp_set("paths", "scenario", "/home/uwe/data/reegis/scenarios_lux/")
     p = os.path.join(os.path.expanduser("~"), "reegis", "figures")
     os.makedirs(p, exist_ok=True)
-    plot_all(save=True, upper=5.9)
+    plot_all(save=True, upper=5.9, path=p)
     # plot_figure("4.24", save=True, show=False, path=p)
