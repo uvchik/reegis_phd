@@ -1,4 +1,5 @@
 import datetime
+import locale
 import logging
 import os
 import shutil
@@ -410,9 +411,7 @@ def fig_average_weather():
 
 
 def fig_strahlungsmittel():
-    return show_download_image(
-        "strahlungsmittel_dwd_coastdat", ["svg"]
-    )
+    return show_download_image("strahlungsmittel_dwd_coastdat", ["svg"])
 
 
 def fig_module_comparison():
@@ -1507,6 +1506,7 @@ def fig_compare_entsoe_slp_rolling_window():
 def fig_compare_entsoe_slp_annual_profile():
     # locale.setlocale(locale.LC_ALL, "de_DE.utf8")
     logger.define_logging()
+    locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
     my_year = 2014
     federal_states = geometries.get_federal_states_polygon()
     name = "federal_states"
@@ -1531,8 +1531,12 @@ def fig_compare_entsoe_slp_annual_profile():
 
     slp_de_month = slp_de.resample("M").mean()
     entsoe_month = my_entsoe.resample("M").mean()
-    slp_ax = slp_de_month.plot(label="Standardlastprofil", linewidth=3)
-    ax = entsoe_month.plot(ax=slp_ax, label="Entsoe-Profil", linewidth=3)
+    slp_ax = slp_de_month.reset_index(drop=True).plot(
+        label="Standardlastprofil", linewidth=3
+    )
+    entsoe_month.reset_index(drop=True).plot(
+        ax=slp_ax, label="Entsoe-Profil", linewidth=3
+    )
 
     e_avg = entsoe_month.mean()
     e_max = entsoe_month.max()
@@ -1545,24 +1549,22 @@ def fig_compare_entsoe_slp_annual_profile():
     d_s_max = round((s_max / s_avg - 1) * 100, 1)
     # d_s_min = round((1 - s_min / s_avg) * 100, 1)
     plt.plot((0, 1000), (s_max, s_max), "k-.")
-    plt.plot((0, 8800), (s_min, s_min), "k-.")
-    plt.plot((0, 8800), (e_max, e_max), "k-.")
-    plt.plot((0, 8800), (e_min, e_min), "k-.")
-    plt.text(
-        datetime.date(my_year, 6, 30), e_max - 500, "+{0}%".format(d_e_max)
-    )
-    plt.text(
-        datetime.date(my_year, 6, 30), e_min + 250, "-{0}%".format(d_e_min)
-    )
-    plt.text(
-        datetime.date(my_year, 6, 30), s_max + 200, "+/-{0}%".format(d_s_max)
-    )
+    plt.plot((0, 13), (s_min, s_min), "k-.")
+    plt.plot((0, 12), (e_max, e_max), "k-.")
+    plt.plot((0, 12), (e_min, e_min), "k-.")
+    plt.text(5, e_max - 500, "+{0}%".format(d_e_max))
+    plt.text(5, e_min + 250, "-{0}%".format(d_e_min))
+    plt.text(5, s_max + 200, "+/-{0}%".format(d_s_max))
     plt.legend(facecolor="white", framealpha=1, shadow=True)
     plt.ylabel("Mittlerer Stromverbrauch [kW]")
 
-    labels = ["Jan"]
-
-    ax.set_xticklabels(labels)
+    plt.xlim(0, 11)
+    plt.xticks(
+        list(range(12)),
+        pd.date_range("2014", "2015", freq="MS").strftime("%b")[:-1],
+        rotation="horizontal",
+        horizontalalignment="center",
+    )
 
     plt.xlabel("2014")
     return "demand_Saisonaler_Vergleich_SLP_ENTSOE", None
