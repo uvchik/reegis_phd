@@ -357,7 +357,7 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
     return ax
 
 
-def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
+def plot_regions(map=None, fn=None, data=None, textbox=True,
                  data_col=None, cmap=None, label_col='data_col', color=None,
                  edgecolor='#9aa1a9', legend=True, ax=None, offshore=None,
                  simple=None):
@@ -380,7 +380,7 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
         A data table where the index has the name index as the map.
     data_col : str
         Column of the data table containing the data for the color map.
-    deflex_map : gpd.geoDataFrame
+    map : gpd.geoDataFrame
         A map with polygons.
     edgecolor : str
         The color of the border between the polygons.
@@ -421,11 +421,8 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
     if ax is None:
         ax = plt.figure().add_subplot(1, 1, 1)
 
-    if deflex_map is not None:
-        polygons = reegis.geometries.load(
-            cfg.get('paths', 'geo_deflex'),
-            cfg.get('geometry', 'deflex_polygon').format(
-                suffix=".geojson", map=deflex_map, type='polygons'))
+    if map is not None:
+        polygons = map
     elif fn is not None:
         polygons = reegis.geometries.load(fullname=fn)
     else:
@@ -449,7 +446,7 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
         polygons['onshore'] = 1
         for o in offshore:
             polygons.loc[o, 'onshore'] = 0
-        polygons.loc[polygons.numeric_id == 22, "onshore"] = 0.5
+        # polygons.loc[polygons.numeric_id == 22, "onshore"] = 0.5
         cmap = LinearSegmentedColormap.from_list(
                 'mycmap', [
                     (0, '#a5bfdd'),
@@ -470,7 +467,7 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
 
     ax = polygons.plot(
         edgecolor=edgecolor, cmap=cmap, vmin=0, ax=ax, legend=legend,
-        column=data_col, color=color)
+        column=data_col, color=color, aspect="equal")
 
     if textbox is True:
         bb = dict(boxstyle="round", alpha=.5, ec=(1, 1, 1), fc=(1, 1, 1))
@@ -478,7 +475,7 @@ def plot_regions(deflex_map=None, fn=None, data=None, textbox=True,
         bb = textbox
     else:
         bb = None
-
+    print(label_col)
     if label_col is not None:
         polygons.apply(
             lambda x: ax.text(

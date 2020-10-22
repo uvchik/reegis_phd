@@ -427,9 +427,20 @@ def fig_show_de21_de22_without_berlin():
     data_sets = {}
     period = (576, 650)
 
+    base_path = os.path.join(cfg.get("paths", "phd"), "results_cbc")
+    fn = {
+        "de21": os.path.join(base_path, "deflex_2014_de21.esys"),
+        "de22": os.path.join(base_path, "deflex_2014_de22.esys"),
+        "de21_without_berlin": os.path.join(
+            base_path, "deflex_2014_de21_without_berlin.esys"
+        ),
+        "Berlin": os.path.join(base_path, "berlin_hp_2014_single.esys"),
+    }
+
     for var in ("de21", "de22", "de21_without_berlin"):
         data_sets[var] = {}
-        es = results.load_my_es("deflex", str(2014), var="{0}".format(var))
+
+        es = results.load_es(fn=fn[var])
         bus = [
             b[0]
             for b in es.results["Main"]
@@ -449,7 +460,7 @@ def fig_show_de21_de22_without_berlin():
 
     var = "Berlin"
     data_sets[var] = {}
-    es = results.load_my_es("berlin_hp", str(2014), var="single_up_None")
+    es = results.load_es(fn=fn[var])
     data = (
         results.get_multiregion_bus_balance(es, "district")
         .groupby(axis=1, level=[1, 2, 3, 4])

@@ -27,13 +27,13 @@ from reegis import energy_balance
 from reegis import entsoe
 from reegis import geometries
 from reegis import inhabitants
-from reegis import openego
 from reegis import powerplants
 from reegis import storages
 from scenario_builder import feedin
 
 from my_reegis import data_analysis
 from my_reegis.figures.figures_base import create_subplot
+from my_reegis.figures.figures_base import show_download_image
 
 
 def fig_patch_offshore(**kwargs):
@@ -409,6 +409,12 @@ def fig_average_weather():
     return "average_weather", None
 
 
+def fig_strahlungsmittel():
+    return show_download_image(
+        "strahlungsmittel_dwd_coastdat", ["svg"]
+    )
+
+
 def fig_module_comparison():
     plt.rcParams.update({"font.size": 15})
     plt.sca(create_subplot((10.7, 5)))
@@ -707,7 +713,7 @@ def fig_windzones():
 
 def fig_show_hydro_image():
     create_subplot((12, 4.4))
-    fn = os.path.join(cfg.get("paths", "data_my_reegis"), "abflussregime.png")
+    fn = os.path.join(cfg.get("paths", "figures"), "abflussregime.png")
     img = mpimg.imread(fn)
     plt.imshow(img)
     plt.axis("off")

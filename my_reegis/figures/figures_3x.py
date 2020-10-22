@@ -2,7 +2,36 @@ import os
 import pandas as pd
 import numpy as np
 from my_reegis import config as cfg
+from my_reegis.figures import figures_base
 from matplotlib import pyplot as plt
+
+
+def fig_solph_modular_example():
+    return figures_base.show_download_image(
+        "solph_modular", ["graphml", "svg"]
+    )
+
+
+def fig_solph_energy_system_example():
+    return figures_base.show_download_image(
+        "solph_example_deutsch", ["graphml", "svg"]
+    )
+
+
+def fig_transformer_with_flow():
+    return figures_base.show_download_image(
+        "transformer_mit_flow", ["graphml", "svg"]
+    )
+
+
+def fig_extraction_turbine_characteristics():
+    return figures_base.show_download_image(
+        "entnahmekondensationsturbine_kennfeld", ["svg"]
+    )
+
+
+def fig_extraction_turbine_and_fixed_chp():
+    pass
 
 
 def fig_tespy_heat_pumps_cop():
