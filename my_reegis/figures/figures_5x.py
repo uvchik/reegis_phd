@@ -113,7 +113,7 @@ def fig_compare_de21_region_borders():
     plt.legend(["nach FfE", "renpass", "nach ÜNB"])
     ax.axis("off")
     plt.subplots_adjust(left=0, right=1, bottom=0, top=1)
-    plt.show()
+    return "netzregionen_vergleich", None
 
 
 def fig_show_download_deutschland_modell():
