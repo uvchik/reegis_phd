@@ -15,6 +15,7 @@ from .. import friedrichshagen_scenarios as fhg_sc
 from .. import reegis_plot as plot
 from .. import regional_results
 from .. import results
+from .. import reproduce
 from .figures_base import NAMES
 from .figures_base import create_subplot
 
@@ -389,6 +390,7 @@ def plot_upstream():
 
 def fig_show_de21_de22_without_berlin():
     plt.rcParams.update({"font.size": 13})
+    year = 2014
     figs = ("de21", "Berlin", "de22", "de21_without_berlin")
 
     y_annotate = {
@@ -439,7 +441,8 @@ def fig_show_de21_de22_without_berlin():
 
     for var in ("de21", "de22", "de21_without_berlin"):
         data_sets[var] = {}
-
+        if not os.path.isfile(fn[var]):
+            reproduce.reproduce_scenario("{0}_{1}".format(var, year))
         es = results.load_es(fn=fn[var])
         bus = [
             b[0]
@@ -460,6 +463,8 @@ def fig_show_de21_de22_without_berlin():
 
     var = "Berlin"
     data_sets[var] = {}
+    if not os.path.isfile(fn[var]):
+        reproduce.reproduce_scenario("{0}_{1}".format("berlin_single", year))
     es = results.load_es(fn=fn[var])
     data = (
         results.get_multiregion_bus_balance(es, "district")
