@@ -15,7 +15,6 @@ SCENARIOS = {
 
 SPLITTER = {
     "berlin": ["berlin_hp", "berlin_single"],
-    "combined": ["combined"],
     "upstream": ["up_", "upstream"],
     "deflex": ["deflex"],
 }
@@ -43,17 +42,6 @@ def split_scenarios(sc):
             for s in sc:
                 if keyword in s.split(os.sep)[-1]:
                     splitted[g].append(s)
-    all_s = []
-    for s in splitted.values():
-        all_s.extend(s)
-    duplicates = set([x for x in all_s if all_s.count(x) > 1])
-    if len(duplicates) > 0:
-        raise ValueError(
-            "A scenario can only be in one group. The following scenarios "
-            "are in more than one group: {0}\nCheck the SPLITTER keywords."
-            "".format(list(duplicates))
-        )
-    print(all_s)
     return splitted
 
 
@@ -61,8 +49,11 @@ def reproduce_folder(path):
     sc = deflex.fetch_scenarios_from_dir(path=path, xls=True)
     sc = split_scenarios(sc)
     logf = os.path.join(path, "log.csv")
-    deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.8, log_file=logf)
-    berlin_hp.model_scenarios(sc["berlin"])
+    # deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.8, log_file=logf)
+    # berlin_hp.model_scenarios(sc["berlin"])
+    print(sc)
+    my_reegis.model_multi_scenarios(sc["deflex"], sc["berlin"],
+                                    cpu_fraction=0.8)
 
 
 # def reproduce_scenario(name):
@@ -79,5 +70,4 @@ def reproduce_folder(path):
 
 if __name__ == "__main__":
     logger.define_logging()
-    print(cfg.get_dict("deflex_index_header"))
     reproduce_folder(cfg.get("paths", "phd"))
