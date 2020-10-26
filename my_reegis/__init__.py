@@ -1,0 +1,1 @@
+from .embedded_model import model_multi_scenarios
