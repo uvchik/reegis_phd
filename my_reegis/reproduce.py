@@ -1,6 +1,7 @@
-from berlin_hp.main import main as bmain
-from deflex import main
-from my_reegis import config as cfg
+import berlin_hp
+import deflex
+import my_reegis
+from reegis import config as cfg
 from oemof.tools import logger
 import os
 
@@ -18,6 +19,14 @@ SPLITTER = {
     "upstream": ["up_", "upstream"],
     "deflex": ["deflex"],
 }
+
+cfg.init(
+    paths=[
+        os.path.dirname(berlin_hp.__file__),
+        os.path.dirname(deflex.__file__),
+        os.path.dirname(my_reegis.__file__)
+    ]
+)
 
 
 def init():
@@ -49,10 +58,11 @@ def split_scenarios(sc):
 
 
 def reproduce_folder(path):
-    sc = main.fetch_scenarios_from_dir(path=path, xls=True)
+    sc = deflex.fetch_scenarios_from_dir(path=path, xls=True)
     sc = split_scenarios(sc)
-    log_fn = os.path.join(path, "log.csv")
-    main.model_multi_scenarios(sc["deflex"], cpu_fraction=0.8, log_file=log_fn)
+    logf = os.path.join(path, "log.csv")
+    deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.8, log_file=logf)
+    berlin_hp.model_scenarios(sc["berlin"])
 
 
 # def reproduce_scenario(name):
@@ -69,4 +79,5 @@ def reproduce_folder(path):
 
 if __name__ == "__main__":
     logger.define_logging()
+    print(cfg.get_dict("deflex_index_header"))
     reproduce_folder(cfg.get("paths", "phd"))
