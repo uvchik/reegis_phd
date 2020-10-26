@@ -489,7 +489,6 @@ def main(year, fn_de, fn_be):
         "Read de21 scenario from csv collection: {0}".format(stopwatch())
     )
     sc_de = deflex.main.load_scenario(fn_de)
-    sc_de.check_table()
 
     # Create nodes for the de21 model
     nodes_de21 = sc_de.create_nodes()
@@ -498,7 +497,6 @@ def main(year, fn_de, fn_be):
     logging.info("Read scenario from excel-sheet: {0}".format(stopwatch()))
     sc_be = berlin_hp.BerlinScenario(name="berlin_basic", year=year)
     sc_be.load_excel(fn_be)
-    sc_be.check_table("time_series")
 
     # Create nodes for the berlin_hp model
     sc_be.add_nodes(nodes_de21)
