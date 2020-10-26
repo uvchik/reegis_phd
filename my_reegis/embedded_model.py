@@ -511,7 +511,7 @@ def main(year, fn_de, fn_be):
 
     # Pass the model to the solver and fetch the results afterwards..
     logging.info("Solve the optimisation model: {0}".format(stopwatch()))
-    sc_be.solve()
+    sc_be.solve(solver=cfg.get("general", "solver"))
 
     # Dump the energy system with the results to disc
     logging.info("Solved. Dump results: {0}".format(stopwatch()))
