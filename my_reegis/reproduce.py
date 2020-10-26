@@ -48,12 +48,13 @@ def split_scenarios(sc):
 def reproduce_folder(path):
     sc = deflex.fetch_scenarios_from_dir(path=path, xls=True)
     sc = split_scenarios(sc)
-    logf = os.path.join(path, "log.csv")
-    # deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.8, log_file=logf)
+    logd = os.path.join(path, "log_deflex.csv")
+    logc = os.path.join(path, "log_combined.csv")
+    # deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.8, log_file=logd)
     # berlin_hp.model_scenarios(sc["berlin"])
     print(sc)
     my_reegis.model_multi_scenarios(sc["deflex"], sc["berlin"],
-                                    cpu_fraction=0.8)
+                                    cpu_fraction=0.8, log_file=logc)
 
 
 # def reproduce_scenario(name):
