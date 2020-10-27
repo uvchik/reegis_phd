@@ -1,1 +1,2 @@
-from .embedded_model import model_multi_scenarios
+from . import embedded_model
+from . import alternative_scenarios
