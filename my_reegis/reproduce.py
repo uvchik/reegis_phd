@@ -71,6 +71,7 @@ def create_variant_base_scenarios(scenarios, sub_path=None):
 def fetch_create_scenarios(path):
     # download first scenarios to base_path + "base"
     base_path = os.path.join(path, "base")
+    os.makedirs(base_path, exist_ok=True)
     scfn = deflex.fetch_scenarios_from_dir(path=base_path, xls=True, csv=False)
     scfn = split_scenarios(scfn)
     create_variant_base_scenarios(scfn["deflex"])
