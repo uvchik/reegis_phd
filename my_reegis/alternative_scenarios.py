@@ -368,20 +368,24 @@ def create_deflex_no_grid_limit(base_sc, subpath):
         cond, ("electrical", "capacity")
     ] = float("inf")
     sc.table_collection["transmission"]["electrical", "efficiency"] = 1
-    name = sc.name + "_no_grid_limit"
+    sc.name = sc.name + "_no_grid_limit"
+    if "meta" in sc.table_collection:
+        sc.table_collection["meta"].loc["name", "value"] = sc.name
     path = os.path.join(os.path.dirname(sc.location), subpath)
-    sc.to_excel(os.path.join(path, name + ".xls"))
-    # sc.to_csv(os.path.join(path, name + "_csv"))
+    sc.to_excel(os.path.join(path, sc.name + ".xls"))
+    # sc.to_csv(os.path.join(path, sc.name + "_csv"))
 
 
 def create_deflex_no_storage(base_sc, subpath):
     sc = copy.deepcopy(base_sc)
 
     del sc.table_collection["storages"]
-    name = sc.name + "_no_storage"
+    sc.name = sc.name + "_no_storage"
+    if "meta" in sc.table_collection:
+        sc.table_collection["meta"].loc["name", "value"] = sc.name
     path = os.path.join(os.path.dirname(sc.location), subpath)
-    sc.to_excel(os.path.join(path, name + ".xls"))
-    # sc.to_csv(os.path.join(path, name + "_csv"))
+    sc.to_excel(os.path.join(path, sc.name + ".xls"))
+    # sc.to_csv(os.path.join(path, sc.name + "_csv"))
 
 
 def create_deflex_no_grid_limit_no_storage(base_sc, subpath):
@@ -393,10 +397,12 @@ def create_deflex_no_grid_limit_no_storage(base_sc, subpath):
         cond, ("electrical", "capacity")
     ] = float("inf")
     sc.table_collection["transmission"]["electrical", "efficiency"] = 1
-    name = sc.name + "_no_grid_limit_no_storage"
+    sc.name = sc.name + "_no_grid_limit_no_storage"
+    if "meta" in sc.table_collection:
+        sc.table_collection["meta"].loc["name", "value"] = sc.name
     path = os.path.join(os.path.dirname(sc.location), subpath)
-    sc.to_excel(os.path.join(path, name + ".xls"))
-    # sc.to_csv(os.path.join(path, name + "_csv"))
+    sc.to_excel(os.path.join(path, sc.name + ".xls"))
+    # sc.to_csv(os.path.join(path, sc.name + "_csv"))
 
 
 if __name__ == "__main__":
