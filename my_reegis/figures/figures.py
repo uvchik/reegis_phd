@@ -79,7 +79,7 @@ def get_number_name():
         "3.1": fig3x.fig_solph_energy_system_example,
         "3.2": fig3x.fig_transformer_with_flow,
         "3.3": fig3x.fig_extraction_turbine_characteristics,
-        "3.4": fig3x.fig_extraction_turbine_and_fixed_chp,
+        #"3.4": fig3x.fig_extraction_turbine_and_fixed_chp,
         "3.5": fig3x.fig_tespy_heat_pumps_cop,
         # ***** chapter 4 ****************************************************
         "4.1": fig4x.fig_patch_offshore,
