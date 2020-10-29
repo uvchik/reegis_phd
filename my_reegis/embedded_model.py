@@ -488,6 +488,11 @@ def main(year, fn_de, fn_be):
     logging.info(
         "Read de21 scenario from csv collection: {0}".format(stopwatch())
     )
+
+    n1 = os.path.basename(fn_de).split(".")[0]
+    n2 = os.path.basename(fn_be).split(".")[0]
+    name = "{0}_dcpl_{1}".format(n1, n2)
+
     sc_de = deflex.main.load_scenario(fn_de)
 
     # Create nodes for the de21 model
@@ -497,6 +502,7 @@ def main(year, fn_de, fn_be):
     logging.info("Read scenario from excel-sheet: {0}".format(stopwatch()))
     sc_be = berlin_hp.BerlinScenario(name="berlin_basic", year=year)
     sc_be.load_excel(fn_be)
+    sc_be.name = name
 
     # Create nodes for the berlin_hp model
     sc_be.add_nodes(nodes_de21)
@@ -521,9 +527,6 @@ def main(year, fn_de, fn_be):
     )
     if not os.path.isdir(res_path):
         os.mkdir(res_path)
-    n1 = os.path.basename(fn_de).split(".")[0]
-    n2 = os.path.basename(fn_be).split(".")[0]
-    name = "{0}_dcpl_{1}".format(n1, n2)
     result_fn = os.path.join(res_path, "{0}.esys".format(name))
     sc_be.dump_es(result_fn)
 
