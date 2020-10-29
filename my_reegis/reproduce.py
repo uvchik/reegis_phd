@@ -1,12 +1,16 @@
+import logging
+import os
+
 import berlin_hp
 import deflex
+import pandas as pdlt
+from oemof.tools import logger
+from reegis import config as cfg
+
 from my_reegis import __file__ as my_regis_file
 from my_reegis import alternative_scenarios as alt
 from my_reegis import embedded_model as emb
 from my_reegis import main
-from reegis import config as cfg
-from oemof.tools import logger
-import os
 
 
 SCENARIOS = {
@@ -79,14 +83,38 @@ def fetch_create_scenarios(path):
     create_variant_extend_scenarios(base_scenario, "excel")
 
 
+def get_costs_from_upstream_scenarios(path, filter_chp=True):
+    # {"name": "test", "export": 5, "import": 4}
+    from pprint import pprint
+    res_list = deflex.results.search_results(path)
+    n = len(res_list)
+    res_dict = {k: v for v, k in zip(sorted(res_list), range(1, n + 1))}
+    pprint(res_dict)
+    my_results = deflex.results.restore_results(res_list)
+    mcp = pd.DataFrame()
+    results_d = {}
+    for r in my_results:
+        name = r["meta"]["scenario"]["name"]
+        logging.info(name)
+        results_d[name] = r
+        cost_spec = deflex.analyses.get_flow_results(r)["cost", "specific"]
+        if filter_chp:
+            cost_spec = cost_spec.loc[
+                slice(None), (slice(None), ["ee", "pp", "electricity"])
+            ]
+        mcp[name] = cost_spec.max(axis=1)
+    result_file = os.path.join(path, "market_clearing_price.xls")
+    mcp.to_excel(result_file)
+
+
 def reproduce_folder(path):
-    fetch_create_scenarios(path)
+    # fetch_create_scenarios(path)
 
     # Model deflex scenarios
     sc = deflex.fetch_scenarios_from_dir(path=path, xls=True, recursive=True)
     sc = split_scenarios(sc)
     logd = os.path.join(path, "log_deflex.csv")
-    deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.5, log_file=logd)
+    deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.6, log_file=logd)
 
     # Model berlin scenarios
     berlin_hp.model_scenarios(sc["berlin"])
@@ -100,6 +128,7 @@ def reproduce_folder(path):
     emb.model_multi_scenarios(
         sc["deflex"], sc["berlin"], cpu_fraction=0.8, log_file=logc
     )
+    get_costs_from_upstream_scenarios(path, filter_chp=True)
 
     # Model upstream combination of scenarios
 
