@@ -491,7 +491,7 @@ def combine_models_dcpl(fn, ignore_errors=True):
 def combine_models_up(fn, ignore_errors=True):
     up_sc = fn[0]
     fn_be = fn[1]
-    logging.info("Model DE: {0}".format(up_sc["name"]))
+    logging.info("MCP DE: {0}".format(up_sc["name"]))
     logging.info("Model BE: {0}".format(fn_be))
 
     y = int([x for x in fn_be.split("_") if x.isnumeric()][0])
