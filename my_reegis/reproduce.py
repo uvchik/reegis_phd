@@ -116,7 +116,7 @@ def get_costs_from_upstream_scenarios(path, filter_chp=True):
 
 
 def reproduce_folder(path):
-    fetch_create_scenarios(path)
+    # fetch_create_scenarios(path)
 
     # Model deflex scenarios
     sc = deflex.fetch_scenarios_from_dir(path=path, xls=True, recursive=True)
@@ -159,4 +159,5 @@ def reproduce_folder(path):
 
 if __name__ == "__main__":
     logger.define_logging()
+    cfg.tmp_set("paths", "phd", "/home/uwe/reegis/phd_c1")
     reproduce_folder(cfg.get("paths", "phd"))
