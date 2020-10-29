@@ -367,8 +367,13 @@ def stopwatch():
 #     sce.to_csv(csv_path)
 
 
+def get_scenario_name_from_excel(file):
+    xls = pd.ExcelFile(file)
+    return xls.parse("meta", index_col=[0]).loc["name", "value"]
+
+
 def model_multi_scenarios(
-    scenarios_de, scenarios_be, cpu_fraction=0.2, log_file=None
+    scenarios_de, scenarios_be, cpu_fraction=0.2, log_file=None, upstream=None,
 ):
     """
 
@@ -380,26 +385,46 @@ def model_multi_scenarios(
         Multiple scenarios to be combined with scenarios_de.
     cpu_fraction : float
         Fraction of available cpu cores to use for the parallel modelling.
-        A resulting dezimal number of cores will be rounded up to an integer.
+        A resulting decimal number of cores will be rounded up to an integer.
     log_file : str
         Filename to store the log file.
+    upstream : str or None
+        Path to the excel file with the prices.
 
     Returns
     -------
 
     """
+    from pprint import pprint
     start = datetime.now()
     maximal_number_of_cores = int(
         round(multiprocessing.cpu_count() * cpu_fraction + 0.4999)
     )
     sc_combined = []
+    if upstream is not None:
+        upstream = pd.read_excel(upstream)
+
     for s_de in scenarios_de:
         for s_be in scenarios_be:
-            sc_combined.append((s_de, s_be))
+            if upstream is None:
+                sc_combined.append((s_de, s_be))
+            else:
+                up_name = get_scenario_name_from_excel(s_de)
+                mcp = upstream[up_name]
+                up_sc = {
+                    "name": up_name,
+                    "import": mcp * 1.00001,
+                    "export": mcp,
+                }
+                sc_combined.append((up_sc, s_be))
 
     p = multiprocessing.Pool(maximal_number_of_cores)
+    pprint(sc_combined)
+    if upstream is None:
+        logs = p.map(combine_models_dcpl, sc_combined)
+    else:
+        logs = p.map(combine_models_up, sc_combined)
 
-    logs = p.map(combine_models_dcpl, sc_combined)
     p.close()
     p.join()
     failing = {n: r for n, r, t, f, s in logs if isinstance(r, BaseException)}
@@ -457,6 +482,35 @@ def combine_models_dcpl(fn, ignore_errors=True):
             result_file = None
     else:
         result_file = main(y_de, fn_de, fn_be)
+        return_value = str(datetime.now())
+        trace = None
+
+    return name, return_value, trace, result_file, start_time
+
+
+def combine_models_up(fn, ignore_errors=True):
+    up_sc = fn[0]
+    fn_be = fn[1]
+    logging.info("Model DE: {0}".format(up_sc["name"]))
+    logging.info("Model BE: {0}".format(fn_be))
+
+    y = int([x for x in fn_be.split("_") if x.isnumeric()][0])
+    n1 = up_sc["name"]
+    n2 = os.path.basename(fn_be).split(".")[0]
+    name = "{0}_dcpl_{1}".format(n1, n2)
+    start_time = datetime.now()
+    logging.info("Next scenario: {0} - {1}".format(name, stopwatch()))
+    if ignore_errors:
+        try:
+            result_file = berlin_hp.main(y, fn_be, upstream_prices=up_sc)
+            return_value = datetime.now()
+            trace = None
+        except Exception as e:
+            trace = traceback.format_exc()
+            return_value = e
+            result_file = None
+    else:
+        result_file = berlin_hp.main(y, fn_be, upstream_prices=up_sc)
         return_value = str(datetime.now())
         trace = None
 
