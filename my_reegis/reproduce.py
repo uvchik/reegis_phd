@@ -1,5 +1,6 @@
 import logging
 import os
+from pprint import pprint
 
 import berlin_hp
 import deflex
@@ -11,7 +12,6 @@ from my_reegis import __file__ as my_regis_file
 from my_reegis import alternative_scenarios as alt
 from my_reegis import embedded_model as emb
 from my_reegis import main
-
 
 SCENARIOS = {
     "berlin_single_2014": "berlin_hp_2014_single.xls",
@@ -85,7 +85,7 @@ def fetch_create_scenarios(path):
 
 def get_costs_from_upstream_scenarios(path, filter_chp=True):
     # {"name": "test", "export": 5, "import": 4}
-    from pprint import pprint
+
     res_list = deflex.results.search_results(path)
     n = len(res_list)
     res_dict = {k: v for v, k in zip(sorted(res_list), range(1, n + 1))}
@@ -103,34 +103,59 @@ def get_costs_from_upstream_scenarios(path, filter_chp=True):
                 slice(None), (slice(None), ["ee", "pp", "electricity"])
             ]
         mcp[name] = cost_spec.max(axis=1)
-    result_file = os.path.join(path, "market_clearing_price.xls")
+    result_file = os.path.join(
+        path, "market_clearing_price_{0}.xls".format(os.path.basename(path))
+    )
     mcp.to_excel(result_file)
+    return result_file
 
 
 def reproduce_folder(path):
-    # fetch_create_scenarios(path)
-
-    # Model deflex scenarios
-    sc = deflex.fetch_scenarios_from_dir(path=path, xls=True, recursive=True)
-    sc = split_scenarios(sc)
-    logd = os.path.join(path, "log_deflex.csv")
-    deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.6, log_file=logd)
-
-    # Model berlin scenarios
-    berlin_hp.model_scenarios(sc["berlin"])
-    main.modellhagen_re_variation(sc["modellhagen"][0])
+    # # fetch_create_scenarios(path)
+    #
+    # # Model deflex scenarios
+    # sc = deflex.fetch_scenarios_from_dir(path=path, xls=True, recursive=True)
+    # sc = split_scenarios(sc)
+    # logd = os.path.join(path, "log_deflex.csv")
+    # deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.6, log_file=logd)
+    mcp_file = get_costs_from_upstream_scenarios(path, filter_chp=True)
+    #
+    # # Model berlin scenarios
+    # berlin_hp.model_scenarios(sc["berlin"])
+    # main.modellhagen_re_variation(sc["modellhagen"][0])
 
     # Model directly combined scenarios
     base_path = os.path.join(path, "base")
-    sc = deflex.fetch_scenarios_from_dir(path=base_path, xls=True, csv=False)
-    sc = split_scenarios(sc)
-    logc = os.path.join(path, "log_combined.csv")
-    emb.model_multi_scenarios(
-        sc["deflex"], sc["berlin"], cpu_fraction=0.8, log_file=logc
-    )
-    get_costs_from_upstream_scenarios(path, filter_chp=True)
+    # sc = deflex.fetch_scenarios_from_dir(path=base_path, xls=True, csv=False)
+    # sc = split_scenarios(sc)
+    # log_dcpl = os.path.join(path, "log_combined.csv")
+    # emb.model_multi_scenarios(
+    #     sc["deflex"],
+    #     sc["berlin"],
+    #     cpu_fraction=0.8,
+    #     log_file=log_dcpl,
+    # )
 
     # Model upstream combination of scenarios
+    variant = os.path.join(path, "variant_base")
+    extend = os.path.join(path, "extend_deflex_2014_de21")
+    b_sc = deflex.fetch_scenarios_from_dir(path=base_path, xls=True, csv=False)
+    b_sc.extend(
+        deflex.fetch_scenarios_from_dir(path=variant, xls=True, csv=False)
+    )
+    b_sc.extend(
+        deflex.fetch_scenarios_from_dir(path=extend, xls=True, csv=False)
+    )
+    sc = split_scenarios(b_sc)
+    pprint(sc)
+    log_up = os.path.join(path, "log_b_upstream.csv")
+    emb.model_multi_scenarios(
+        sc["deflex"],
+        sc["berlin"],
+        cpu_fraction=0.8,
+        log_file=log_up,
+        upstream=mcp_file,
+    )
 
 
 if __name__ == "__main__":
