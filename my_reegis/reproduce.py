@@ -95,7 +95,10 @@ def get_costs_from_upstream_scenarios(path, filter_chp=True):
     n = len(res_list)
     res_dict = {k: v for v, k in zip(sorted(res_list), range(1, n + 1))}
     pprint(res_dict)
-    my_results = deflex.results.restore_results(res_list)
+    if len(res_list) > 0:
+        my_results = deflex.results.restore_results(res_list)
+    else:
+        my_results = []
     mcp = pd.DataFrame()
     results_d = {}
     for r in my_results:
@@ -164,5 +167,5 @@ def reproduce_folder(path):
 
 if __name__ == "__main__":
     logger.define_logging()
-    cfg.tmp_set("paths", "phd", "/home/uwe/reegis/phd_c1")
+    # cfg.tmp_set("paths", "phd", "/home/uwe/reegis/phd_c1")
     reproduce_folder(cfg.get("paths", "phd"))
