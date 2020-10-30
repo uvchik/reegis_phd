@@ -54,7 +54,7 @@ def stopwatch():
 def compute(
     sc,
     dump_graph=False,
-    log_solver=True,
+    log_solver=False,
     duals=False,
     solver="cbc",
     result_path=None,
@@ -62,15 +62,15 @@ def compute(
     scenario_path = os.path.dirname(sc.location)
 
     if result_path is None:
-        results_path = os.path.join(
+        result_path = os.path.join(
             scenario_path, "results_{0}".format(cfg.get("general", "solver"))
         )
-        os.makedirs(results_path, exist_ok=True)
+        os.makedirs(result_path, exist_ok=True)
 
     # Save energySystem to '.graphml' file if dump_graph is True
     if dump_graph is True:
         sc.plot_nodes(
-            filename=os.path.join(results_path, sc.name),
+            filename=os.path.join(result_path, sc.name),
             remove_nodes_with_substrings=["bus_cs"],
         )
 
@@ -84,7 +84,7 @@ def compute(
     )
 
     if log_solver is True:
-        filename = os.path.join(results_path, sc.name + ".log")
+        filename = os.path.join(result_path, sc.name + ".log")
     else:
         filename = None
 
@@ -94,7 +94,7 @@ def compute(
     sc.solve(logfile=filename, solver=solver)
 
     logging.info("Solved. Dump results: {0}".format(stopwatch()))
-    out_file = os.path.join(results_path, sc.name + ".esys")
+    out_file = os.path.join(result_path, sc.name + ".esys")
     logging.info("Dump file to {0}".format(out_file))
     if sc.meta is None:
         sc.meta = {}
