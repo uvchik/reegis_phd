@@ -117,23 +117,27 @@ def get_costs_from_upstream_scenarios(path, filter_chp=True):
 
 def reproduce_folder(path):
     # fetch_create_scenarios(path)
-
-    # Model deflex scenarios
-    sc = deflex.fetch_scenarios_from_dir(path=path, xls=True, recursive=True)
-    sc = split_scenarios(sc)
-    logd = os.path.join(path, "log_deflex.csv")
-    deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.6, log_file=logd)
+    #
+    # # Model deflex scenarios
+    # sc = deflex.fetch_scenarios_from_dir(path=path, xls=True, recursive=True)
+    # sc = split_scenarios(sc)
+    # logd = os.path.join(path, "log_deflex.csv")
+    # deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.7, log_file=logd)
     mcp_file = get_costs_from_upstream_scenarios(path, filter_chp=True)
-
-    # Model berlin scenarios
-    berlin_hp.model_scenarios(sc["berlin"])
-    main.modellhagen_re_variation(sc["modellhagen"][0])
+    #
+    # # Model berlin scenarios
+    # berlin_hp.model_scenarios(sc["berlin"])
+    # main.modellhagen_re_variation(sc["modellhagen"][0])
 
     # Model directly combined scenarios
     base_path = os.path.join(path, "base")
-    sc = deflex.fetch_scenarios_from_dir(path=base_path, xls=True, csv=False)
-    sc = split_scenarios(sc)
+    reg_path = os.path.join(path, "region")
+    de = deflex.fetch_scenarios_from_dir(path=base_path, xls=True, csv=False)
+    reg = deflex.fetch_scenarios_from_dir(path=reg_path, xls=True, csv=False)
+    de.extend(reg)
+    sc = split_scenarios(de)
     log_dcpl = os.path.join(path, "log_combined.csv")
+    logging.info("Coupling {0} with {1}".format(sc["berlin"], sc["deflex"]))
     emb.model_multi_scenarios(
         sc["deflex"],
         sc["berlin"],
@@ -148,6 +152,7 @@ def reproduce_folder(path):
     b_sc.extend(e_sc)
     sc = split_scenarios(b_sc)
     log_up = os.path.join(path, "log_b_upstream.csv")
+    logging.info("{0} with upstream {1}".format(sc["berlin"], sc["deflex"]))
     emb.model_multi_scenarios(
         sc["deflex"],
         sc["berlin"],
