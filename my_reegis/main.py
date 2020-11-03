@@ -461,14 +461,17 @@ def embedded_main(year, sim_type="de21", create_scenario=True):
     compute(sc)
 
 
-def add_import_export_nodes(bus, import_costs, export_costs):
-    nodes = deflex.scenario_tools.NodeDict()
+def add_import_export_nodes(bus, nodes, import_costs, export_costs):
     nodes["import"] = solph.Source(
-        label="import_elec_fhg",
+        label=Label(
+            cat="source", tag="import", subtag="electricity", region="all"
+        ),
         outputs={bus: solph.Flow(emission=0, variable_costs=import_costs)},
     )
     nodes["export"] = solph.Sink(
-        label="export_elec_fhg",
+        label=Label(
+            cat="sink", tag="export", subtag="electricity", region="all"
+        ),
         inputs={bus: solph.Flow(emission=0, variable_costs=export_costs)},
     )
     return nodes
@@ -506,7 +509,15 @@ def modellhagen_scenario_with_nodes(
     nodes = sc.create_nodes(region="FHG")
     set_capacity = {"solar": solar_capacity, "wind": wind_capacity}
     nodes = set_volatile_sources(nodes, set_capacity)
-    # nodes = remove_shortage_excess_electricity(nodes)
+    nodes = remove_shortage_excess_electricity(nodes)
+    bus = [
+        v
+        for k, v in nodes.items()
+        if k.tag == "electricity" and isinstance(v, solph.Bus)
+    ][0]
+    nodes = add_import_export_nodes(
+        bus, nodes, import_costs=10, export_costs=0
+    )
     sc.add_nodes(nodes)
     return sc
 
@@ -520,7 +531,7 @@ def modellhagen_main(
 ):
     """Modellhagen"""
 
-    sc = modellhagen_scenario_with_nodes(
+    sc, nodes = modellhagen_scenario_with_nodes(
         scenario=scenario,
         solar_capacity=solar_capacity,
         wind_capacity=wind_capacity,
@@ -543,7 +554,9 @@ def modellhagen_main(
 
 
 def modellhagen_re_variation(path, log_file=None):
-    sc = modellhagen_scenario_with_nodes(path)
+    path = [p for p in path if "E100RE" in p][0]
+    sc = berlin_hp.BerlinScenario(name="modellhagen", debug=False)
+    sc.load_excel(path)
     flh = sc.table_collection["time_series"]["FHG"].sum()
     pv_flh = flh["solar"]
     wind_flh = flh["wind"]
@@ -574,8 +587,8 @@ def model_multi_scenarios(variations, cpu_fraction=0.2, log_file=None):
 
     """
     start = datetime.now()
-    maximal_number_of_cores = int(
-        round(multiprocessing.cpu_count() * cpu_fraction + 0.4999)
+    maximal_number_of_cores = math.ceil(
+        multiprocessing.cpu_count() * cpu_fraction
     )
 
     p = multiprocessing.Pool(maximal_number_of_cores)
@@ -631,6 +644,7 @@ def batch_model_scenario(var, ignore_errors=True):
     sc = modellhagen_scenario_with_nodes(
         var[0], solar_capacity=var[1], wind_capacity=var[2]
     )
+    sc.create_model()
     sc.name = sc.name + "_pv{0}_wind{1}".format(int(var[1]), int(var[2]))
     logging.info("Next scenario: %s", sc.name)
     if ignore_errors:
