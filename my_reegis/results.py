@@ -93,8 +93,11 @@ def compare_transmission(es1, es2, name1='es1', name2='es2', noreg='DE22'):
         from1to2_es2 = results2[(line_a_2, bus_reg2_2)]['sequences']
         from2to1_es2 = results2[(line_b_2, bus_reg1_2)]['sequences']
 
-        line_capacity = (parameter[(line_a_1, bus_reg2_1)]['scalars']
+        try:
+            line_capacity = (parameter[(line_a_1, bus_reg2_1)]['scalars']
                          .nominal_value)
+        except AttributeError:
+            line_capacity = float("inf")
 
         line_name = '-'.join([line_a_1.label.subtag, line_a_1.label.region])
 
