@@ -79,13 +79,14 @@ def fetch_create_scenarios(path):
     scfn = deflex.fetch_scenarios_from_dir(path=base_path, xls=True, csv=False)
     scfn = split_scenarios(scfn)
     create_variant_base_scenarios(scfn["deflex"])
-    base_scenario = [x for x in scfn["deflex"] if "deflex_2014_de21" in x][0]
-    create_variant_extend_scenarios(base_scenario, "excel")
+    # base_scenario = [x for x in scfn["deflex"] if "deflex_2014_de21" in x][0]
+    # create_variant_extend_scenarios(base_scenario, "excel")
 
 
 def get_costs_from_upstream_scenarios(path, filter_chp=True):
     # {"name": "test", "export": 5, "import": 4}
-
+    value_path = os.path.join(path, "values")
+    os.makedirs(value_path, exist_ok=True)
     res_list = deflex.results.search_results(path)
     res_list = [
         x
@@ -105,17 +106,19 @@ def get_costs_from_upstream_scenarios(path, filter_chp=True):
         name = r["meta"]["scenario"]["name"]
         logging.info(name)
         results_d[name] = r
-        cost_spec = deflex.analyses.get_flow_results(r)["cost", "specific"]
+        all_values = deflex.analyses.get_flow_results(r)
+        all_values.to_csv(os.path.join(value_path, name + ".csv"))
+        cost_spec = all_values["cost", "specific"]
         if filter_chp:
             cost_spec = cost_spec.loc[
                 slice(None), (slice(None), ["ee", "pp", "electricity"])
             ]
         mcp[name] = cost_spec.max(axis=1)
-    result_file = os.path.join(
+    result_file_mcp = os.path.join(
         path, "market_clearing_price_{0}.xls".format(os.path.basename(path))
     )
-    mcp.to_excel(result_file)
-    return result_file
+    mcp.to_excel(result_file_mcp)
+    return result_file_mcp
 
 
 def reproduce_folder(path):
@@ -127,38 +130,51 @@ def reproduce_folder(path):
     # logd = os.path.join(path, "log_deflex.csv")
     # deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.7, log_file=logd)
     mcp_file = get_costs_from_upstream_scenarios(path, filter_chp=True)
+    exit(0)
     #
     # # Model berlin scenarios
     # berlin_hp.model_scenarios(sc["berlin"])
-    # main.modellhagen_re_variation(sc["modellhagen"][0])
+    # main.modellhagen_re_variation(sc["modellhagen"])
+    # exit(0)
 
     # Model directly combined scenarios
     base_path = os.path.join(path, "base")
-    reg_path = os.path.join(path, "region")
-    de = deflex.fetch_scenarios_from_dir(path=base_path, xls=True, csv=False)
-    reg = deflex.fetch_scenarios_from_dir(path=reg_path, xls=True, csv=False)
-    de.extend(reg)
-    sc = split_scenarios(de)
-    log_dcpl = os.path.join(path, "log_combined.csv")
-    logging.info("Coupling {0} with {1}".format(sc["berlin"], sc["deflex"]))
-    emb.model_multi_scenarios(
-        sc["deflex"],
-        sc["berlin"],
-        cpu_fraction=0.6,
-        log_file=log_dcpl,
-    )
-
+    # reg_path = os.path.join(path, "region")
+    # de = deflex.fetch_scenarios_from_dir(path=base_path, xls=True, csv=False)
+    # reg = deflex.fetch_scenarios_from_dir(path=reg_path, xls=True, csv=False)
+    # de.extend(reg)
+    # sc = split_scenarios(de)
+    # log_dcpl = os.path.join(path, "log_combined.csv")
+    # logging.info("Coupling {0} with {1}".format(sc["berlin"], sc["deflex"]))
+    # emb.model_multi_scenarios(
+    #     sc["deflex"],
+    #     sc["berlin"],
+    #     cpu_fraction=0.6,
+    #     log_file=log_dcpl,
+    # )
+    mcp_file = os.path.join(path, "market_clearing_price_phd_c1.xls")
     # Model upstream combination of scenarios
     extend = os.path.join(path, "extend_deflex_2014_de21")
+    region = os.path.join(path, "region")
     b_sc = deflex.fetch_scenarios_from_dir(path=base_path, xls=True, csv=False)
     e_sc = deflex.fetch_scenarios_from_dir(path=extend, xls=True, csv=False)
-    b_sc.extend(e_sc)
-    sc = split_scenarios(b_sc)
+    r_sc = deflex.fetch_scenarios_from_dir(path=region, xls=True, csv=False)
+
+    sc = split_scenarios(b_sc + e_sc + r_sc)
     log_up = os.path.join(path, "log_b_upstream.csv")
     logging.info("{0} with upstream {1}".format(sc["berlin"], sc["deflex"]))
+    # emb.model_multi_scenarios(
+    #     sc["deflex"],
+    #     sc["berlin"],
+    #     cpu_fraction=0.8,
+    #     log_file=log_up,
+    #     upstream=mcp_file,
+    # )
+    log_up = os.path.join(path, "log_mhg_upstream.csv")
+    logging.info("{0} with upstream {1}".format(sc["modellhagen"], sc["deflex"]))
     emb.model_multi_scenarios(
         sc["deflex"],
-        sc["berlin"],
+        sc["modellhagen"][0],
         cpu_fraction=0.8,
         log_file=log_up,
         upstream=mcp_file,
@@ -167,5 +183,6 @@ def reproduce_folder(path):
 
 if __name__ == "__main__":
     logger.define_logging()
-    # cfg.tmp_set("paths", "phd", "/home/uwe/reegis/phd_c1")
+    cfg.tmp_set("paths", "phd", "/home/uwe/reegis/phd_c1")
+    # reproduce_folder(os.path.join(cfg.get("paths", "phd"), "dexx"))
     reproduce_folder(cfg.get("paths", "phd"))
