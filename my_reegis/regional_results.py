@@ -99,35 +99,35 @@ def analyse_berlin_ressources():
     year = 2014
     scenarios = {
         'berlin_single': {
-            'path': ['berlin_hp', str(year)],
-            'file': 'berlin_hp_2014_single_up_None',
+            'path': ["region"],
+            'file': 'berlin_hp_2014_single',
             'var': None,
             'region': 'BE'},
         'berlin_deflex': {
-            'path': ['berlin_hp', str(year)],
-            'file': 'berlin_hp_2014_de22',
+            'path': ["region"],
+            'file': 'c1_deflex_2014_de22_dcpl_berlin_hp_2014_single',
             'var': 'de22',
             'region': 'BE'},
         'berlin_up_deflex': {
-            'path': ['berlin_hp', str(year)],
-            'file': 'berlin_hp_2014_single_up_de22_csv_without_DE22',
+            'path': ["region"],
+            'file': 'berlin_hp_2014_single_UP_deflex_2014_de22_without_DE22',
             'var': 'single_up_deflex_2014_de22_without_berlin',
             'region': 'BE'},
         'berlin_up_deflex_full': {
-            'path': ['berlin_hp', str(year)],
-            'file': 'berlin_hp_2014_single_up_de22',
+            'path': ["region"],
+            'file': 'berlin_hp_2014_single_UP_deflex_2014_de22',
             'var': 'single_up_deflex_2014_de22',
             'region': 'BE'},
         'deflex_de22': {
-            'path': ['deflex', str(year)],
+            'path': ["base"],
             'file': 'deflex_2014_de22',
             'var': 'de22',
             'region': 'DE22'},
-        'deflex_de22_neu': {
-            'path': ['deflex', str(year)],
-            'file': 'deflex_neu_2014_de22',
-            'var': 'de22',
-            'region': 'DE22'},
+        # 'deflex_de22_neu': {
+        #     'path': ['deflex', str(year)],
+        #     'file': 'deflex_neu_2014_de22',
+        #     'var': 'de22',
+        #     'region': 'DE22'},
         # 'deflex_de22_new': {
         #     'path': ['deflex', str(year)],
         #     'file': 'deflex_new_2014_de22',
@@ -139,8 +139,8 @@ def analyse_berlin_ressources():
         if cfg.has_option('results', 'dir'):
             res_dir = cfg.get('results', 'dir')
         else:
-            res_dir = 'results'
-        path = os.path.join(cfg.get('paths', 'scenario'), *v['path'], res_dir)
+            res_dir = 'results_cbc'
+        path = os.path.join(cfg.get('paths', 'phd'), *v['path'], res_dir)
         fn = os.path.join(path, v['file'] + '.esys')
         es = results.load_es(fn)
         results.check_excess_shortage(es)

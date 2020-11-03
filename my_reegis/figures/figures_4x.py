@@ -1506,7 +1506,6 @@ def fig_compare_entsoe_slp_rolling_window():
 def fig_compare_entsoe_slp_annual_profile():
     # locale.setlocale(locale.LC_ALL, "de_DE.utf8")
     logger.define_logging()
-    locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
     my_year = 2014
     federal_states = geometries.get_federal_states_polygon()
     name = "federal_states"

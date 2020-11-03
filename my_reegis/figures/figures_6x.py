@@ -14,8 +14,8 @@ from reegis import inhabitants
 from .. import friedrichshagen_scenarios as fhg_sc
 from .. import reegis_plot as plot
 from .. import regional_results
-from .. import results
 from .. import reproduce
+from .. import results
 from .figures_base import NAMES
 from .figures_base import create_subplot
 
@@ -74,7 +74,6 @@ def fig_anteil_import_stromverbrauch_berlin(**kwargs):
 
 
 def fig_netzkapazitaet_und_auslastung_de22():
-    year = 2014
     cm_gyr = LinearSegmentedColormap.from_list(
         "gyr",
         [(0, "#aaaaaa"), (0.0001, "green"), (0.5, "#d5b200"), (1, "red")],
@@ -101,27 +100,27 @@ def fig_netzkapazitaet_und_auslastung_de22():
             "my_legend": False,
             "part_title": "Kapazität in MW",
         },
-        # 'absolut': {
-        #     'key': 'es1_90+_usage',
-        #     'vmax': 8760/2,
-        #     'label_min': 10,
-        #     'unit': '',
-        #     'order': 1,
-        #     'direction': False,
-        #     'cmap_lines': cm_gyr,
-        #     'legend': False,
-        #     'unit_to_label': False,
-        #     'divide': 1,
-        #     'my_legend': True,
-        #     'part_title': 'Stunden mit über 90% Auslastung \n'},
+        "absolut": {
+            "key": "es1_90+_usage",
+            "vmax": 8760 / 2,
+            "label_min": 10,
+            "unit": "",
+            "order": 1,
+            "direction": False,
+            "cmap_lines": cm_gyr,
+            "legend": False,
+            "unit_to_label": False,
+            "divide": 1,
+            "my_legend": True,
+            "part_title": "Stunden mit über 90% Auslastung \n",
+        },
     }
-
-    my_es1 = results.load_my_es("deflex", str(year), var="de22")
-    my_es2 = results.load_my_es("berlin_hp", str(year), var="de22")
-    transmission = results.compare_transmission(my_es1, my_es2)
+    path = os.path.join(cfg.get("paths", "phd"), "base", "results_cbc")
+    my_es1 = results.load_es(os.path.join(path, "c1_deflex_2014_de21.esys"))
+    transmission = results.compare_transmission(my_es1, my_es1)
 
     # f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
-    f, ax_ar = plt.subplots(1, len(sets), figsize=(8 * len(sets), 6))
+    f, ax_ar = plt.subplots(2, 1, figsize=(7.8, 10.6))
 
     for k, v in sets.items():
         if len(sets) == 1:
@@ -137,7 +136,7 @@ def fig_netzkapazitaet_und_auslastung_de22():
                 f, v["ax"], 0, v["vmax"], v["cmap_lines"]
             )
         plt.title(v["unit"])
-    plt.subplots_adjust(right=0.96, left=0, wspace=0, bottom=0.03, top=0.96)
+    plt.subplots_adjust(right=0.96, left=0, hspace=0.15, bottom=0.01, top=0.97)
 
     return "netzkapazität_und_auslastung_de22", None
 
@@ -176,8 +175,13 @@ def fig_veraenderung_energiefluesse_durch_kopplung():
         },
     }
 
-    my_es1 = results.load_my_es("deflex", str(year), var="de22")
-    my_es2 = results.load_my_es("berlin_hp", str(year), var="de22")
+    bpath = os.path.join(cfg.get("paths", "phd"), "base", "results_cbc")
+    rpath = os.path.join(cfg.get("paths", "phd"), "region", "results_cbc")
+    namees1 = "deflex_2014_de22.esys"
+    namees2 = "c1_deflex_2014_de22_without_berlin_dcpl_berlin_hp_2014_single.esys"
+    my_es1 = results.load_es(os.path.join(bpath, namees1))
+    my_es2 = results.load_es(os.path.join(rpath, namees2))
+
     transmission = results.compare_transmission(my_es1, my_es2).div(1)
 
     f, ax_ar = plt.subplots(1, len(sets), figsize=(8 * len(sets), 6))
@@ -429,20 +433,22 @@ def fig_show_de21_de22_without_berlin():
     data_sets = {}
     period = (576, 650)
 
-    base_path = os.path.join(cfg.get("paths", "phd"), "results_cbc")
+    base_path = os.path.join(cfg.get("paths", "phd"), "base", "results_cbc")
+    reg_path = os.path.join(cfg.get("paths", "phd"), "region", "results_cbc")
     fn = {
-        "de21": os.path.join(base_path, "deflex_2014_de21.esys"),
-        "de22": os.path.join(base_path, "deflex_2014_de22.esys"),
+        "de21": os.path.join(base_path, "c1_deflex_2014_de21.esys"),
+        "de22": os.path.join(base_path, "c1_deflex_2014_de22.esys"),
         "de21_without_berlin": os.path.join(
-            base_path, "deflex_2014_de21_without_berlin.esys"
+            base_path, "c1_deflex_2014_de21_without_berlin.esys"
         ),
-        "Berlin": os.path.join(base_path, "berlin_hp_2014_single.esys"),
+        "Berlin": os.path.join(reg_path, "berlin_hp_2014_single.esys"),
     }
 
     for var in ("de21", "de22", "de21_without_berlin"):
         data_sets[var] = {}
         if not os.path.isfile(fn[var]):
-            reproduce.reproduce_scenario("{0}_{1}".format(var, year))
+            pass
+            # reproduce.reproduce_scenario("{0}_{1}".format(var, year))
         es = results.load_es(fn=fn[var])
         bus = [
             b[0]
@@ -464,7 +470,7 @@ def fig_show_de21_de22_without_berlin():
     var = "Berlin"
     data_sets[var] = {}
     if not os.path.isfile(fn[var]):
-        reproduce.reproduce_scenario("{0}_{1}".format("berlin_single", year))
+        raise FileNotFoundError("File not found: {0}".format(fn[var]))
     es = results.load_es(fn=fn[var])
     data = (
         results.get_multiregion_bus_balance(es, "district")
@@ -619,7 +625,7 @@ def fig_berlin_resources(**kwargs):
         [
             # "berlin_single",
             "berlin_deflex",
-            # "berlin_up_deflex",
+            "berlin_up_deflex",
             "berlin_up_deflex_full",
             "deflex_de22",
             "statistic",
@@ -660,16 +666,16 @@ def fig_berlin_resources(**kwargs):
     return "resource_use_berlin_reduced", None
 
 
-def fig_import_export_100PRZ_region():
+def fig_import_export_100prz_region():
     plt.rcParams.update({"font.size": 13})
     f, ax_ar = plt.subplots(1, 3, figsize=(15, 6))
 
-    myp = "/home/uwe/extra/reegis/scenarios_lux/friedrichshagen/results_cbc"
+    myp = os.path.join(cfg.get("paths", "phd"), "region", "results_cbc")
 
     my_filenames = [x for x in os.listdir(myp) if ".esys" in x and "_pv" in x]
 
     bil = pd.DataFrame()
-    expdf = pd.Series()
+    expdf = pd.DataFrame()
     for mf in sorted(my_filenames):
         my_fn = os.path.join(myp, mf)
         my_es = results.load_es(my_fn)
@@ -694,61 +700,93 @@ def fig_import_export_100PRZ_region():
         )
         key = "w {0:02}, pv {1:02}".format(wind, solar)
         my_df = results.get_multiregion_bus_balance(my_es)
-        imp = my_df["FHG", "in", "import", "electricity", "all"].div(1000)
-        exp = my_df["FHG", "out", "export", "electricity", "all"].div(1000)
+        imp = my_df["FHG", "in", "source", "import", "electricity"].div(1000)
+        exp = my_df["FHG", "out", "sink", "export", "electricity"].div(1000)
         demand = my_df["FHG", "out", "demand", "electricity", "all"].div(1000)
-        expdf[key] = float(exp.sum())
+        expdf.loc[key, "export"] = float(exp.sum())
+        expdf.loc[key, "import"] = float(imp.sum())
         print("Autarkie:", (1 - float(exp.sum()) / demand.sum()) * 100, "%")
         if wind == 0:
             bil["export"] = exp.resample("M").sum()
             bil["import"] = imp.resample("M").sum()
-            ax_ar[1] = bil.plot(
+            ax_ar[1] = bil.reset_index(drop=True).plot(
                 ax=ax_ar[1], drawstyle="steps-mid", linewidth=2
             )
-            ax_ar[1].set_xlabel("Wind: 0 MW, PV: 67 MWp")
-            ax_ar[1].set_ylim(0, 7)
+            ax_ar[1].set_xlabel("2014\n\nWind: 0 MW, PV: 67 MWp")
             ax_ar[1].legend(loc="upper left")
         if solar == 0:
             bil["export"] = exp.resample("M").sum()
             bil["import"] = imp.resample("M").sum()
-            ax_ar[2] = bil.plot(
+            ax_ar[2] = bil.reset_index(drop=True).plot(
                 ax=ax_ar[2], drawstyle="steps-mid", linewidth=2
             )
-            ax_ar[2].set_xlabel("Wind: 39 MW, PV: 0 MWp")
-            ax_ar[2].set_ylim(0, 7)
+            ax_ar[2].set_xlabel("2014\n\nWind: 39 MW, PV: 0 MWp")
     ax_ar[0] = expdf.sort_index().plot(kind="bar", ax=ax_ar[0])
     ax_ar[0].set_ylabel("Energie [GWh]")
+    for n in [1, 2]:
+        ax_ar[n].set_ylim(0, 7)
+        ax_ar[n].set_xlim(0, 11)
+        ax_ar[n].set_xticks(list(range(12)))
+        ax_ar[n].set_xticklabels(
+            pd.date_range("2014", "2015", freq="MS").strftime("%b")[:-1]
+        )
+        # ,
+        # rotation="horizontal",
+        # horizontalalignment="center",
+    # )
     plt.subplots_adjust(right=0.98, left=0.06, bottom=0.2, top=0.96)
     return "import_export_100PRZ_region", None
 
 
-def fig_import_export_emissions_100PRZ_region():
+def fig_import_export_emissions_100prz_region():
     f, ax_ar = plt.subplots(3, 3, sharey=True, sharex=True, figsize=(15, 6))
-    my_filename = "market_clearing_price_{0}_{1}.csv"
-    my_path = os.path.join(cfg.get("paths", "scenario"), "deflex")
-    up_fn = os.path.join(my_path, my_filename)
-    up_df = pd.read_csv(
-        up_fn.format(2014, "cbc"), index_col=[0], header=[0, 1, 2]
-    )
-    myp = "/home/uwe/extra/reegis/scenarios_lux/friedrichshagen/results_cbc"
+    # my_filename = "market_clearing_price_{0}_{1}.csv"
+    my_path = os.path.join(cfg.get("paths", "phd"))
+    up_raw = {}
+    # up_df = pd.read_csv(
+    #     up_fn.format(2014, "cbc"), index_col=[0], header=[0, 1, 2]
+    # )
+    myp = os.path.join(my_path, "region", "results_cbc")
 
     my_filenames = [x for x in os.listdir(myp) if ".esys" in x and "_pv" in x]
 
-    my_list = [
-        x
-        for x in up_df.columns.get_level_values(1).unique()
-        if "f10" in x or "f15" in x or "f20" in x
-    ]
-    my_list = [x for x in my_list if "de21" in x]
-    my_list = [x for x in my_list if "Li1_HP0_" in x]
+    # my_list = [
+    #     x
+    #     for x in up_df.columns.get_level_values(1).unique()
+    #     if "f10" in x or "f15" in x or "f20" in x
+    # ]
+    # my_list = [x for x in my_list if "de21" in x]
+    # my_list = [x for x in my_list if "Li1_HP0_" in x]
+
+    for f in ["f1", "f15", "f2"]:
+        fn_pattern = "deflex_XX_Nc00_HP00_{0}_de21.csv"
+        fn = os.path.join(my_path, "values", fn_pattern.format(f))
+        up_raw[f] = pd.read_csv(fn, index_col=[0], header=[0, 1, 2, 3, 4, 5])
+        # deflex_XX_Nc00_HP00_f2_de21.csv
+        # deflex_XX_Nc00_HP00_f15_de21.csv
 
     bil = pd.DataFrame()
-    print(up_df.columns.get_level_values(2).unique())
-    up_dict = {}
-    for t1 in ["emission", "emission_avg", "emission_max"]:
-        up_dict[t1] = {}
-        for up1 in my_list:
-            up_dict[t1][up1] = pd.DataFrame()
+    # print(up_df.columns.get_level_values(2).unique())
+    up = pd.DataFrame(columns=pd.MultiIndex(levels=[[], []], codes=[[], []]))
+    up_plot = {}
+    # for t1 in ["emission", "emission_avg", "emission_max"]:
+    for f in ["f1", "f15", "f2"]:
+        up[f, "emission_max"] = up_raw[f]["emission"].max(1)
+        up[f, "mcp"] = up_raw[f]["cost", "specific"].max(axis=1)
+        mcp_id = up_raw[f]["cost", "specific"].idxmax(axis=1)
+        emissions = up_raw[f]["emission", "specific"]
+        up[f, "emission_avg"] = (
+            up_raw[f]["emission", "absolute"]
+            .sum(axis=1)
+            .div(up_raw[f]["values", "absolute"].sum(axis=1))
+        )
+        up[f, "mcpe"] = pd.Series(
+            emissions.lookup(*zip(*pd.DataFrame(data=mcp_id).to_records()))
+        )
+    for t2 in ["mcpe", "emission_avg", "emission_max"]:
+        up_plot[t2] = {}
+        for f in ["f1", "f15", "f2"]:
+            up_plot[t2][f] = pd.DataFrame()
 
     for mf in sorted(my_filenames):
 
@@ -774,20 +812,22 @@ def fig_import_export_emissions_100PRZ_region():
             )
         )
         key = "w {0:02}, pv {1:02}".format(wind, solar)
+        print(key)
         my_df = results.get_multiregion_bus_balance(my_es)
-        imp = my_df["FHG", "in", "import", "electricity", "all"]
-        exp = my_df["FHG", "out", "export", "electricity", "all"]
-        for t2 in ["emission", "emission_avg", "emission_max"]:
-            for up in my_list:
-                prc = up_df["deflex_cbc", up, t2]
-                up_dict[t2][up].loc[key, "import"] = (
+        imp = my_df["FHG", "in", "source", "import", "electricity"]
+        exp = my_df["FHG", "out", "sink", "export", "electricity"]
+        up.set_index(imp.index, inplace=True)
+        for t2 in ["mcpe", "emission_avg", "emission_max"]:
+            for f in ["f1", "f15", "f2"]:
+                prc = up[f, t2]
+                up_plot[t2][f].loc[key, "import"] = (
                     (imp * prc).sum() / imp.sum() / prc.mean()
                 )
-                up_dict[t2][up].loc[key, "export"] = (
+                up_plot[t2][f].loc[key, "export"] = (
                     (exp * prc).sum() / exp.sum() / prc.mean()
                 )
     n2 = 0
-    for k1, v1 in up_dict.items():
+    for k1, v1 in up_plot.items():
         n1 = 0
         for k2, v2 in v1.items():
             print(k1, k2, n1, n2)
@@ -799,75 +839,132 @@ def fig_import_export_emissions_100PRZ_region():
     return "import_export_emission_100PRZ_region", None
 
 
-def fig_import_export_costs_100PRZ_region():
-    f, ax_ar = plt.subplots(1, 1, sharey=True, sharex=True, figsize=(15, 6))
-    my_filename = "market_clearing_price_{0}_{1}.csv"
-    my_path = os.path.join(cfg.get("paths", "scenario"), "deflex")
+def fig_import_export_costs_100prz_region():
+    plt.rcParams.update({"font.size": 14})
+    f, ax = plt.subplots(1, 1, figsize=(15, 6))
+    my_filename = "market_clearing_price_phd_c1.xls"
+    my_path = cfg.get("paths", "phd")
     up_fn = os.path.join(my_path, my_filename)
-    up_df = pd.read_csv(
-        up_fn.format(2014, "cbc"), index_col=[0], header=[0, 1, 2]
-    )
-    myp = "/home/uwe/extra/reegis/scenarios_lux/friedrichshagen/results_cbc"
+    up_df = pd.read_excel(up_fn, index_col=[0], header=[0])
+    res_path = os.path.join(my_path, "region", "results_cbc")
 
-    my_filenames = [x for x in os.listdir(myp) if ".esys" in x and "_pv" in x]
+    result = [x for x in os.listdir(res_path) if ".esys" in x and "_pv" in x]
 
     my_list = [
-        x
-        for x in up_df.columns.get_level_values(1).unique()
-        if "f10" in x or "f15" in x or "f20" in x
+        x for x in up_df.columns if "f10" in x or "f15" in x or "f20" in x
     ]
     my_list = [x for x in my_list if "de21" in x]
-    new_list = [
-        x for x in up_df.columns.get_level_values(1).unique() if "no" not in x
-    ]
+    new_list = [x for x in up_df.columns if "no" not in x]
     my_list += new_list
 
-    bil = pd.DataFrame()
-    for mf in sorted(my_filenames):
-
-        my_fn = os.path.join(myp, mf)
-        my_es = results.load_es(my_fn)
-        res = my_es.results["param"]
-        wind = int(
-            round(
-                [
-                    res[w]["scalars"]["nominal_value"]
-                    for w in res
-                    if w[0].label.subtag == "Wind" and w[1] is not None
-                ][0]
-            )
+    groups = (
+        "deflex_XX_Nc00_Li05_HP02_GT_{0}_de21",
+        "deflex_XX_Nc00_Li05_HP00_GT_{0}_de21",
+        "deflex_XX_Nc00_HP02_{0}_de21",
+        "deflex_XX_Nc00_HP00_{0}_de21",
+        "deflex_2014_de02",
+        "deflex_2014_de17",
+        "deflex_2014_de21",
+        "deflex_2014_de22",
+    )
+    print(result)
+    mf = [x for x in result if "wind27" in x][0]
+    # for mf in sorted(result):
+    my_fn = os.path.join(res_path, mf)
+    my_es = results.load_es(my_fn)
+    res = my_es.results["param"]
+    wind = int(
+        round(
+            [
+                res[w]["scalars"]["nominal_value"]
+                for w in res
+                if w[0].label.subtag == "Wind" and w[1] is not None
+            ][0]
         )
+    )
 
-        my_df = results.get_multiregion_bus_balance(my_es)
-        imp = my_df["FHG", "in", "import", "electricity", "all"]
-        exp = my_df["FHG", "out", "export", "electricity", "all"]
+    my_df = results.get_multiregion_bus_balance(my_es)
+    imp = my_df["FHG", "in", "source", "import", "electricity"]
+    exp = my_df["FHG", "out", "sink", "export", "electricity"]
 
-        pr = pd.DataFrame()
-        my_import = pd.DataFrame()
-        my_export = pd.DataFrame()
-        for up in my_list[0:3]:
-            prc = up_df["deflex_cbc", up, "mcp"]
-            pr.loc[up, "mean"] = prc.mean()
-            pr.loc[up, "import_s"] = (imp * prc).sum() / imp.sum() / prc.mean()
-            pr.loc[up, "export_s"] = (exp * prc).sum() / exp.sum() / prc.mean()
+    pr = pd.DataFrame()
+    up_df.set_index(imp.index, inplace=True)
+    my_import = pd.DataFrame()
+    my_export = pd.DataFrame()
+    my_list = {
+        x: x.replace("f15", "g15").replace("f1", "g10").replace("f2", "g20")
+        for x in my_list
+        if "without" not in x
+    }
+    # print(my_list)
+    for g in groups:
+        for f in ["f1", "f15", "f2"]:
+            up = g.format(f)
+            print(up)
+            name = up
+            prc = up_df[up]
+            pr.loc[name, "import"] = (imp * prc).sum() / imp.sum() / prc.mean()
+            pr.loc[name, "export"] = (exp * prc).sum() / exp.sum() / prc.mean()
 
-            # mean = (exp * prc).sum()/exp.sum()/prc.mean() - (imp * prc).sum()/imp.sum()/prc.mean()
-            # pr.loc[up, 'diff'] = mean * -1
+            mean = (exp * prc).sum() / exp.sum() / prc.mean() - (
+                imp * prc
+            ).sum() / imp.sum() / prc.mean()
+            pr.loc[name, "diff"] = mean * -1
+            pr.loc[name, "mean"] = prc.mean()
 
-            my_import[up] = imp.multiply(prc).resample("M").sum()
-            my_export[up] = exp.multiply(prc).resample("M").sum()
+            my_import[up] = imp.multiply(prc).sum()
+            my_export[up] = exp.multiply(prc).sum()
         # if wind == 0:
-        #     ax_ar[0] = pr.plot(kind='bar', secondary_y=['mean'], ax=ax_ar[0])
-        # ax_ar[0].right_ax.set_ylim(0, 1120)
-        if wind == 27:
-            ax_ar = pr.plot(kind="bar", secondary_y=["mean"], ax=ax_ar)
-            # plt.legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
-            # ax_ar[1].right_ax.set_ylim(0, 1120)
-        # Shrink current axis by 20%
-        #     box = ax_ar.get_position()
-        # ax_ar.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        #     ax_ar = pr.plot(kind="bar", secondary_y=["mean"], ax=ax_ar)
+        #     ax_ar.right_ax.set_ylim(0, 1120)
+        # if wind == 27:
+    print(pr)
+    ax = pr.plot(kind="bar", secondary_y=["mean"], ax=ax)
+    # plt.legend(loc="center left", bbox_to_anchor=(1.0, 0.5))
+    secondary_max = 75
+    ax.right_ax.set_ylim(0, secondary_max)
+    # Shrink current axis by 20%
+    # box = ax_ar.get_position()
+    # ax_ar.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
-        # Put a legend to the right of the current axis
-        # ax_ar.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    # Put a legend to the right of the current axis
+    # ax_ar.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    ax.set_ylim(0, 2.0)
+    plt.xticks(
+        list(range(16)),
+        ["1.0", "1.5", "2.0"] * 4 + ["de02", "de17", "de21", "de22"],
+        rotation="horizontal",
+        horizontalalignment="center",
+    )
+    for n in range(1, 5):
+        k = 3 * n - 0.5
+        plt.plot((k, k), (0, secondary_max), "k-.")
+    plt.text(
+        8.5,
+        66,
+        "Atomausstieg",
+        ha="center",
+        fontsize=15,
+        bbox={"facecolor": "white", "alpha": 1, "pad": 5, "linewidth": 0},
+    )
+    plt.text(
+        2.5,
+        62,
+        "Atomausstieg\nBraunkohle: -50%\nGasturbine: +30 GW",
+        ha="center",
+        fontsize=15,
+        bbox={"facecolor": "white", "alpha": 1, "pad": 5, "linewidth": 0},
+    )
+    for p, t in [
+        (1, "WP +20%"),
+        (7, "WP +20%"),
+        (4, "Bestand"),
+        (10, "Bestand"),
+        (13, "Basismodelle"),
+    ]:
+        plt.text(
+            p, 77, t, ha="center", fontsize=15,
+        )
+    plt.subplots_adjust(right=0.9, left=0.08, bottom=0.12, top=0.9)
 
     return "import_export_costs_100PRZ_region", None

@@ -292,9 +292,9 @@ def plot_power_lines(data, key, cmap_lines=None, cmap_bg=None, direction=True,
         label_max = float('inf')
 
     ax = polygons.plot(edgecolor='#9aa1a9', cmap=cmap_bg, column='color',
-                       ax=ax)
+                       ax=ax, aspect="equal")
     ax = lines.plot(cmap=cmap_lines, legend=legend, ax=ax, column=key, vmin=0,
-                    vmax=vmax)
+                    vmax=vmax, aspect="equal")
     for i, v in lines.iterrows():
         x1 = v['geometry'].coords[0][0]
         y1 = v['geometry'].coords[0][1]
