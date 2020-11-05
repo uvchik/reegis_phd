@@ -83,14 +83,16 @@ def download_base_scenarios(path):
 
     for d, url in urls.items():
         spath = os.path.join(path, d)
+        os.makedirs(spath, exist_ok=True)
         fn = os.path.join(spath, "phd_{0}_scenarios.zip".format(d))
+        
         if not os.path.isfile(fn):
             logging.info("Downloading '{0}'".format(os.path.basename(fn)))
             req = requests.get(url)
             with open(fn, "wb") as fout:
                 fout.write(req.content)
                 logging.info("{1} downloaded from {0}.".format(url, fn))
-        os.makedirs(spath, exist_ok=True)
+
         with ZipFile(fn, "r") as zip_ref:
             zip_ref.extractall(spath)
         logging.info("All {0} scenarios extracted to {1}".format(d, spath))
