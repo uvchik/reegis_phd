@@ -5,9 +5,9 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from reegis import geometries
 
-from my_reegis import config as cfg
-from my_reegis import reegis_plot as plot
-from my_reegis.figures import figures_base
+from reegis_phd import config as cfg
+from reegis_phd import reegis_plot as plot
+from reegis_phd.figures import figures_base
 
 
 def fig_model_regions():

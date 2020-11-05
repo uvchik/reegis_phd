@@ -1,5 +1,4 @@
 import datetime
-import locale
 import logging
 import os
 import shutil
@@ -32,9 +31,9 @@ from reegis import powerplants
 from reegis import storages
 from scenario_builder import feedin
 
-from my_reegis import data_analysis
-from my_reegis.figures.figures_base import create_subplot
-from my_reegis.figures.figures_base import show_download_image
+from reegis_phd import data_analysis
+from reegis_phd.figures.figures_base import create_subplot
+from reegis_phd.figures.figures_base import show_download_image
 
 
 def fig_patch_offshore(**kwargs):

@@ -4,31 +4,16 @@ import pandas as pd
 from berlin_hp import heat
 from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.sankey import Sankey
 from oemof import solph
 from reegis import config as cfg
-from reegis import energy_balance
 from reegis import geometries
-from reegis import inhabitants
 
-from .. import friedrichshagen_scenarios as fhg_sc
 from .. import reegis_plot as plot
 from .. import regional_results
-from .. import reproduce
 from .. import results
+from ..reproduce import get_costs_from_upstream_scenarios
 from .figures_base import NAMES
 from .figures_base import create_subplot
-
-
-def sankey_test():
-
-    Sankey(
-        flows=[1, -5727 / 22309, -14168 / 22309, -1682 / 22309, -727 / 22309],
-        labels=[" ", " ", " ", " ", " "],
-        orientations=[-1, 1, 0, -1, 1],
-    ).finish()
-    plt.title("The default settings produce a diagram like this.")
-    return "sankey_test", None
 
 
 def fig_anteil_import_stromverbrauch_berlin(**kwargs):
@@ -142,8 +127,6 @@ def fig_netzkapazitaet_und_auslastung_de22():
 
 
 def fig_veraenderung_energiefluesse_durch_kopplung():
-    year = 2014
-
     cm_gyr = LinearSegmentedColormap.from_list(
         "mycmap",
         [(0, "#aaaaaa"), (0.01, "green"), (0.5, "#d5b200"), (1, "red")],
@@ -177,8 +160,10 @@ def fig_veraenderung_energiefluesse_durch_kopplung():
 
     bpath = os.path.join(cfg.get("paths", "phd"), "base", "results_cbc")
     rpath = os.path.join(cfg.get("paths", "phd"), "region", "results_cbc")
-    namees1 = "deflex_2014_de22.esys"
-    namees2 = "c1_deflex_2014_de22_without_berlin_dcpl_berlin_hp_2014_single.esys"
+    namees1 = "c1_deflex_2014_de22.esys"
+    namees2 = (
+        "berlin_hp_2014_single_DCPL_c1_deflex_2014_de22_without_berlin.esys"
+    )
     my_es1 = results.load_es(os.path.join(bpath, namees1))
     my_es2 = results.load_es(os.path.join(rpath, namees2))
 
@@ -200,61 +185,6 @@ def fig_veraenderung_energiefluesse_durch_kopplung():
     plt.subplots_adjust(right=0.94, left=0, wspace=0, bottom=0.03, top=0.96)
 
     return "veraenderung_energiefluesse_durch_kopplung", None
-
-
-def fig_absolute_power_flows():
-    year = 2014
-
-    cm_gyr = LinearSegmentedColormap.from_list(
-        "mycmap",
-        [(0, "#aaaaaa"), (0.01, "green"), (0.5, "#d5b200"), (1, "red")],
-    )
-
-    sets = {
-        "fraction": {
-            "key": "es1",
-            "vmax": 500,
-            "label_min": 100,
-            "label_max": None,
-            "unit": "GWh",
-            "order": 0,
-            "direction": True,
-            "cmap_lines": cm_gyr,
-            "legend": False,
-            "unit_to_label": False,
-            "part_title": "es1",
-        },
-        "absolut": {
-            "key": "es2",
-            "vmax": 500,
-            "label_min": 100,
-            "unit": "GWh",
-            "order": 1,
-            "direction": True,
-            "cmap_lines": cm_gyr,
-            "legend": False,
-            "unit_to_label": False,
-            "part_title": "es2",
-        },
-    }
-
-    my_es1 = results.load_my_es("deflex", str(year), var="de22")
-    my_es2 = results.load_my_es("berlin_hp", str(year), var="de22")
-    transmission = results.compare_transmission(my_es1, my_es2).div(1)
-
-    f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
-    for k, v in sets.items():
-        v["ax"] = ax_ar[v.pop("order")]
-        v["ax"].set_title(v.pop("part_title"))
-        plot.plot_power_lines(transmission, **v)
-        plot.geopandas_colorbar_same_height(
-            f, v["ax"], 0, v["vmax"], v["cmap_lines"]
-        )
-        # v['ax'].set_title(v.pop('part_title'))
-        plt.title(v["unit"])
-    plt.subplots_adjust(right=0.97, left=0, wspace=0, bottom=0.03, top=0.96)
-
-    return "absolute_energiefluesse_vor_nach_kopplung", None
 
 
 def fig_deflex_de22_polygons(**kwargs):
@@ -294,21 +224,6 @@ def fig_deflex_de22_polygons(**kwargs):
 
     ax.set_axis_off()
     return "deflex_de22_polygons", None
-
-
-def fig_6_x_draft1(**kwargs):
-
-    ax = create_subplot((5, 5), **kwargs)
-
-    my_es1 = results.load_my_es("deflex", "2014", var="de21")
-    my_es2 = results.load_my_es("deflex", "2014", var="de22")
-    # my_es_2 = results.load_es(2014, 'de22', 'berlin_hp')
-    transmission = results.compare_transmission(my_es1, my_es2)
-
-    # PLOTS
-    transmission = transmission.div(1000)
-    transmission.plot(kind="bar", ax=ax)
-    return "name_6_x", None
 
 
 def fig_district_heating_areas(**kwargs):
@@ -370,31 +285,8 @@ def fig_district_heating_areas(**kwargs):
     return "distric_heating_areas", None
 
 
-def plot_upstream():
-    year = 2014
-    sc = fhg_sc.load_upstream_scenario_values()
-    cols = [
-        "deflex_{0}_de21_without_berlin",
-        "deflex_{0}_de22_without_berlin",
-        "deflex_{0}_de22",
-        "deflex_2014_de21",
-    ]
-    cols = [c.format(year) for c in cols]
-
-    ax = sc["deflex_2014_de22", "meritorder"].plot()
-    ax = sc["deflex_2014_de22_without_berlin", "meritorder"].plot(ax=ax)
-    ax = sc["deflex_2014_de21", "meritorder"].plot(ax=ax)
-    ax = sc["deflex_2014_de21_without_berlin", "meritorder"].plot(ax=ax)
-    ax.legend()
-    sc[cols].mean().unstack()[["levelized"]].plot(kind="bar")
-    print(sc[cols].mean().unstack()["meritorder"])
-    print(sc[cols].mean().unstack()["levelized"])
-    return "upstream", None
-
-
 def fig_show_de21_de22_without_berlin():
     plt.rcParams.update({"font.size": 13})
-    year = 2014
     figs = ("de21", "Berlin", "de22", "de21_without_berlin")
 
     y_annotate = {
@@ -407,7 +299,9 @@ def fig_show_de21_de22_without_berlin():
     title_str = {
         "de21": "DE01 in de21, Jahressumme: {0} GWh",
         "de22": "DE01 in de22, Jahressumme: {0} GWh",
-        "de21_without_berlin": "DE01 in de21 ohne Berlin, Jahressumme: {0} GWh",
+        "de21_without_berlin": (
+            "DE01 in de21 ohne Berlin, Jahressumme: {0} GWh"
+        ),
         "Berlin": "Berlin in berlin_hp, Jahressumme: {0} GWh",
     }
 
@@ -740,36 +634,29 @@ def fig_import_export_100prz_region():
 
 def fig_import_export_emissions_100prz_region():
     f, ax_ar = plt.subplots(3, 3, sharey=True, sharex=True, figsize=(15, 6))
-    # my_filename = "market_clearing_price_{0}_{1}.csv"
     my_path = os.path.join(cfg.get("paths", "phd"))
     up_raw = {}
-    # up_df = pd.read_csv(
-    #     up_fn.format(2014, "cbc"), index_col=[0], header=[0, 1, 2]
-    # )
     myp = os.path.join(my_path, "region", "results_cbc")
 
     my_filenames = [x for x in os.listdir(myp) if ".esys" in x and "_pv" in x]
 
-    # my_list = [
-    #     x
-    #     for x in up_df.columns.get_level_values(1).unique()
-    #     if "f10" in x or "f15" in x or "f20" in x
-    # ]
-    # my_list = [x for x in my_list if "de21" in x]
-    # my_list = [x for x in my_list if "Li1_HP0_" in x]
-
     for f in ["f1", "f15", "f2"]:
         fn_pattern = "deflex_XX_Nc00_HP00_{0}_de21.csv"
         fn = os.path.join(my_path, "values", fn_pattern.format(f))
+        if not os.path.isfile(fn):
+            in_fn = fn_pattern.format(f).replace(".csv", ".esys")
+            get_costs_from_upstream_scenarios(
+                my_path,
+                infile=in_fn,
+                all_values=True,
+                outfile=os.path.join(
+                    my_path, fn_pattern.replace(".csv", "_mcp.xls")
+                ).format(f),
+            )
         up_raw[f] = pd.read_csv(fn, index_col=[0], header=[0, 1, 2, 3, 4, 5])
-        # deflex_XX_Nc00_HP00_f2_de21.csv
-        # deflex_XX_Nc00_HP00_f15_de21.csv
 
-    bil = pd.DataFrame()
-    # print(up_df.columns.get_level_values(2).unique())
     up = pd.DataFrame(columns=pd.MultiIndex(levels=[[], []], codes=[[], []]))
     up_plot = {}
-    # for t1 in ["emission", "emission_avg", "emission_max"]:
     for f in ["f1", "f15", "f2"]:
         up[f, "emission_max"] = up_raw[f]["emission"].max(1)
         up[f, "mcp"] = up_raw[f]["cost", "specific"].max(axis=1)
@@ -842,9 +729,11 @@ def fig_import_export_emissions_100prz_region():
 def fig_import_export_costs_100prz_region():
     plt.rcParams.update({"font.size": 14})
     f, ax = plt.subplots(1, 1, figsize=(15, 6))
-    my_filename = "market_clearing_price_phd_c1.xls"
+    my_filename = "market_clearing_price_phd.xls"
     my_path = cfg.get("paths", "phd")
     up_fn = os.path.join(my_path, my_filename)
+    if not os.path.isfile(up_fn):
+        get_costs_from_upstream_scenarios(my_path, outfile=up_fn)
     up_df = pd.read_excel(up_fn, index_col=[0], header=[0])
     res_path = os.path.join(my_path, "region", "results_cbc")
 
@@ -872,16 +761,6 @@ def fig_import_export_costs_100prz_region():
     # for mf in sorted(result):
     my_fn = os.path.join(res_path, mf)
     my_es = results.load_es(my_fn)
-    res = my_es.results["param"]
-    wind = int(
-        round(
-            [
-                res[w]["scalars"]["nominal_value"]
-                for w in res
-                if w[0].label.subtag == "Wind" and w[1] is not None
-            ][0]
-        )
-    )
 
     my_df = results.get_multiregion_bus_balance(my_es)
     imp = my_df["FHG", "in", "source", "import", "electricity"]
@@ -891,12 +770,7 @@ def fig_import_export_costs_100prz_region():
     up_df.set_index(imp.index, inplace=True)
     my_import = pd.DataFrame()
     my_export = pd.DataFrame()
-    my_list = {
-        x: x.replace("f15", "g15").replace("f1", "g10").replace("f2", "g20")
-        for x in my_list
-        if "without" not in x
-    }
-    # print(my_list)
+
     for g in groups:
         for f in ["f1", "f15", "f2"]:
             up = g.format(f)
@@ -914,21 +788,11 @@ def fig_import_export_costs_100prz_region():
 
             my_import[up] = imp.multiply(prc).sum()
             my_export[up] = exp.multiply(prc).sum()
-        # if wind == 0:
-        #     ax_ar = pr.plot(kind="bar", secondary_y=["mean"], ax=ax_ar)
-        #     ax_ar.right_ax.set_ylim(0, 1120)
-        # if wind == 27:
+
     print(pr)
     ax = pr.plot(kind="bar", secondary_y=["mean"], ax=ax)
-    # plt.legend(loc="center left", bbox_to_anchor=(1.0, 0.5))
     secondary_max = 75
     ax.right_ax.set_ylim(0, secondary_max)
-    # Shrink current axis by 20%
-    # box = ax_ar.get_position()
-    # ax_ar.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-
-    # Put a legend to the right of the current axis
-    # ax_ar.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     ax.set_ylim(0, 2.0)
     plt.xticks(
         list(range(16)),

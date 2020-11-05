@@ -1,8 +1,8 @@
 import os
 import pandas as pd
 import numpy as np
-from my_reegis import config as cfg
-from my_reegis.figures import figures_base
+from reegis_phd import config as cfg
+from reegis_phd.figures import figures_base
 from matplotlib import pyplot as plt
 
 

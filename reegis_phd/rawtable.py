@@ -1,12 +1,12 @@
 import os
-# from my_reegis import results
+from reegis_phd import regional_results
 import pandas as pd
 # import my_reegis
 from oemof.tools import logger
 # import berlin_hp
 # import deflex
-import reegis as cfg
-from reegis import inhabitants, openego as oego, bmwi
+from reegis_phd import config as cfg
+from reegis import inhabitants, openego as oego, bmwi, geometries
 
 # from berlin_hp import friedrichshagen
 
@@ -18,8 +18,10 @@ def table_demand_federal_states(outpath):
     filename = 'lak_electricity_demand_federal_states.csv'
     lak = pd.read_csv(os.path.join(path, filename), index_col=[0, 1], sep=';')
     lak = lak.swaplevel()
-    ego = oego.get_ego_demand_by_federal_states(bmwi=False).groupby(
-        'federal_states').sum()['consumption']
+    federal_states = geometries.get_federal_states_polygon()
+    ego = oego.get_ego_demand_by_region(
+        federal_states, 'federal_states', grouped=True)
+
     ego_sum = ego.sum()
 
     lak = lak.rename(index=cfg.get_dict('STATES'))
@@ -30,8 +32,6 @@ def table_demand_federal_states(outpath):
         index=ego.index)
 
     new_table[('openEgo', ego_year)] = ego
-
-    print(new_table)
 
     for y in [2010, 2011, 2012, 2013, 2014]:
         key = ('lak', y)
@@ -112,7 +112,7 @@ def table_model_regions(path, year=2014):
 
 
 def berlin_ressources(path):
-    df = results.analyse_berlin_ressources_total()
+    df = regional_results.analyse_berlin_ressources_total()
     df = pd.concat([df], keys=['[TWh]'])
     for c in df.index.get_level_values(1):
         df.loc[('%', c), slice(None)] = round(
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     #                 os.path.dirname(my_reegis.__file__),
     #                 os.path.dirname(deflex.__file__)])
     p = '/home/uwe/'#chiba/Promotion/Monographie/tables'
-    table_demand_federal_states(p)
-    exit(0)
+    # table_demand_federal_states(p)
+    # exit(0)
     berlin_ressources(p)
-    table_model_regions(p)
+    # table_model_regions(p)

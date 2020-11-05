@@ -4,7 +4,7 @@ from matplotlib import image as mpimg
 from matplotlib import pyplot as plt
 from reegis.tools import download_file
 
-from my_reegis import config as cfg
+from reegis_phd import config as cfg
 
 NAMES = {
     "lignite": "Braunkohle",
