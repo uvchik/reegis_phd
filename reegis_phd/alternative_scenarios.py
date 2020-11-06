@@ -106,7 +106,7 @@ def add_simple_gas_turbine(sc, nom_val, efficiency=0.39):
         ] = "natural gas add"
 
 
-def create_scenario_xx_nc00_hp02(base_sc, subpath="new", factor=0.0):
+def create_scenario_xx_nc00_hp02(base_sc, path, factor=0.0):
     """remove nuclear
     # use massive heat_pumps
     """
@@ -122,13 +122,12 @@ def create_scenario_xx_nc00_hp02(base_sc, subpath="new", factor=0.0):
 
     more_heat_pumps(sc, heat_pump_fraction=0.2, cop=2)
 
-    path = os.path.join(os.path.dirname(sc.location), os.pardir, subpath)
     sc.to_excel(os.path.join(path, sc.name + ".xls"))
     # csv_path = os.path.join(path, "{0}_csv".format(name))
     # sc.to_csv(csv_path)
 
 
-def create_scenario_xx_nc00_hp00(base_sc, subpath="new", factor=0.0):
+def create_scenario_xx_nc00_hp00(base_sc, path, factor=0.0):
     """remove nuclear
     # use massive heat_pumps
     """
@@ -142,13 +141,12 @@ def create_scenario_xx_nc00_hp00(base_sc, subpath="new", factor=0.0):
 
     reduce_power_plants(sc, nuclear=0)
 
-    path = os.path.join(os.path.dirname(sc.location), os.pardir, subpath)
     sc.to_excel(os.path.join(path, sc.name + ".xls"))
     # csv_path = os.path.join(path, "{0}_csv".format(name))
     # sc.to_csv(csv_path)
 
 
-def create_scenario_xx_nc00_li05_hp02_gt(base_sc, subpath="new", factor=0.0):
+def create_scenario_xx_nc00_li05_hp02_gt(base_sc, path, factor=0.0):
     """remove nuclear
     # reduce lignite by 50%
     # use massive heat_pumps
@@ -193,14 +191,14 @@ def create_scenario_xx_nc00_li05_hp02_gt(base_sc, subpath="new", factor=0.0):
 
     more_heat_pumps(sc, heat_pump_fraction=0.2, cop=2)
 
-    path = os.path.join(os.path.dirname(sc.location), os.pardir, subpath)
+    path = os.path.join(os.path.dirname(sc.location), os.pardir, path)
     sc.to_excel(os.path.join(path, sc.name + ".xls"))
     # csv_path = os.path.join(path, "{0}_csv".format(name))
     # sc.to_csv(csv_path)
 
 
 def create_scenario_xx_nc00_li05_hp00_gt(
-    base_sc, subpath="alternative", factor=0.0
+    base_sc, path, factor=0.0
 ):
     """remove nuclear
     # reduce lignite by 50%
@@ -242,13 +240,12 @@ def create_scenario_xx_nc00_li05_hp00_gt(
 
     reduce_power_plants(sc, nuclear=0, lignite=0.5)
 
-    path = os.path.join(os.path.dirname(sc.location), os.pardir, subpath)
     sc.to_excel(os.path.join(path, sc.name + ".xls"))
     # csv_path = os.path.join(path, "{0}_csv".format(name))
     # sc.to_csv(csv_path)
 
 
-def simple_re_variant(base_sc, subpath, factor=0.0):
+def simple_re_variant(base_sc, path, factor=0.0):
     sc = copy.deepcopy(base_sc)
     sub = "de21_f{0}".format(str(factor).replace(".", ""))
     base = base_sc.table_collection["meta"].loc["name", "value"]
@@ -257,7 +254,6 @@ def simple_re_variant(base_sc, subpath, factor=0.0):
 
     increase_re_share(sc, factor)
 
-    path = os.path.join(os.path.dirname(sc.location), os.pardir, subpath)
     sc.to_excel(os.path.join(path, sc.name + ".xls"))
     # csv_path = os.path.join(path, "{0}_csv".format(name))
     # sc.to_csv(csv_path)

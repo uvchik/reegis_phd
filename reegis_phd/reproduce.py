@@ -1,11 +1,12 @@
 import logging
 import os
 from pprint import pprint
-import requests
 from zipfile import ZipFile
+
 import berlin_hp
 import deflex
 import pandas as pd
+import requests
 from oemof.tools import logger
 from reegis import config as cfg
 
@@ -54,13 +55,14 @@ def create_variant_extend_scenarios(fn, file_type):
     sc.map = sc.table_collection["meta"].loc["map"].value
     name = sc.table_collection["meta"].loc["name"].value
     sub_p = "extend_{0}".format(name)
+    path = os.path.join(os.path.dirname(sc.location), os.pardir, sub_p)
     for f in [1, 1.5, 2]:
-        alt.create_scenario_xx_nc00_li05_hp02_gt(sc, subpath=sub_p, factor=f)
-        alt.create_scenario_xx_nc00_li05_hp00_gt(sc, subpath=sub_p, factor=f)
-        alt.create_scenario_xx_nc00_hp02(sc, subpath=sub_p, factor=f)
-        alt.create_scenario_xx_nc00_hp00(sc, subpath=sub_p, factor=f)
-        alt.simple_re_variant(sc, subpath=sub_p, factor=f)
-    return sub_p
+        alt.create_scenario_xx_nc00_li05_hp02_gt(sc, path=path, factor=f)
+        alt.create_scenario_xx_nc00_li05_hp00_gt(sc, path=path, factor=f)
+        alt.create_scenario_xx_nc00_hp02(sc, path=path, factor=f)
+        alt.create_scenario_xx_nc00_hp00(sc, path=path, factor=f)
+        alt.simple_re_variant(sc, path=path, factor=f)
+    return path
 
 
 def create_variant_base_scenarios(scenarios, sub_path=None):
@@ -85,7 +87,7 @@ def download_base_scenarios(path):
         spath = os.path.join(path, d)
         os.makedirs(spath, exist_ok=True)
         fn = os.path.join(spath, "phd_{0}_scenarios.zip".format(d))
-        
+
         if not os.path.isfile(fn):
             logging.info("Downloading '{0}'".format(os.path.basename(fn)))
             req = requests.get(url)
@@ -156,8 +158,9 @@ def get_costs_from_upstream_scenarios(
     return result_file_mcp
 
 
-def reproduce_folder(path):
+def reproduce_scenario_results(path):
     extend_path = fetch_create_scenarios(path)
+
     base_path = os.path.join(path, "base")
 
     # Model deflex scenarios
@@ -210,4 +213,4 @@ def reproduce_folder(path):
 
 if __name__ == "__main__":
     logger.define_logging()
-    reproduce_folder(cfg.get("paths", "phd"))
+    reproduce_scenario_results(cfg.get("paths", "phd"))
