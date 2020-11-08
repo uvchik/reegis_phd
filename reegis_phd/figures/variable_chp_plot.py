@@ -84,7 +84,11 @@ def plot():
     Node.registry = energysystem
 
     full_filename = os.path.join(
-        os.getcwd(), "../data/figures/variable_chp.csv"
+        os.path.dirname(__file__),
+        os.pardir,
+        "data",
+        "figures",
+        "variable_chp.csv",
     )
     data = pd.read_csv(full_filename, sep=",").div(1000)
 
