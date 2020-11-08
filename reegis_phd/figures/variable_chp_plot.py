@@ -24,21 +24,20 @@ The oemof-visio provides the base for the created i/o plot.
     pip install git+https://github.com/oemof/oemof_visio.git
 
 5.1.2017 - uwe.krien@rl-institut.de
+10.8.2019 - uwe.krien@uni-bremen.de
 """
 
-__copyright__ = "oemof developer group"
-__license__ = "GPLv3"
+__copyright__ = "Uwe Krien"
+__license__ = "MIT"
 
 import logging
 import os
-import pandas as pd
-import matplotlib.pyplot as plt
-
-from oemof.network.network import Node
-from oemof.tools import logger
-from oemof import solph
 
 import oemof_visio as oev
+import pandas as pd
+from matplotlib import pyplot as plt
+from oemof import solph
+from oemof.network.network import Node
 
 
 def shape_legend(node, reverse=True, **kwargs):
@@ -52,6 +51,9 @@ def shape_legend(node, reverse=True, **kwargs):
         label = label.replace("(", "")
         label = label.replace("), flow)", "")
         label = label.replace(node, "")
+        label = label.replace("bedarf", "{0}bedarf".format(node))
+        label = label.replace("erzeugung", "{0}erzeugung".format(node))
+        label = label.replace("ae", "ä")
         label = label.replace(",", "")
         label = label.replace(" ", "")
         new_labels.append(label)
@@ -75,254 +77,295 @@ def shape_legend(node, reverse=True, **kwargs):
     return axes
 
 
-logger.define_logging()
-logging.info("Initialize the energy system")
-date_time_index = pd.date_range("5/5/2012", periods=192, freq="H")
-energysystem = solph.EnergySystem(timeindex=date_time_index)
-Node.registry = energysystem
+def plot():
+    logging.info("Initialize the energy system")
+    date_time_index = pd.date_range("5/5/2012", periods=192, freq="H")
+    energysystem = solph.EnergySystem(timeindex=date_time_index)
+    Node.registry = energysystem
 
-full_filename = os.path.join(os.getcwd(), "variable_chp.csv")
-data = pd.read_csv(full_filename, sep=",")
+    full_filename = os.path.join(
+        os.getcwd(), "../data/figures/variable_chp.csv"
+    )
+    data = pd.read_csv(full_filename, sep=",").div(1000)
 
-logging.info("Create oemof.solph objects")
+    logging.info("Create oemof.solph objects")
 
-bgas = solph.Bus(label="natural_gas")
-solph.Source(label="rgas", outputs={bgas: solph.Flow(variable_costs=50)})
+    bgas = solph.Bus(label="natural_gas")
+    solph.Source(label="rgas", outputs={bgas: solph.Flow(variable_costs=50)})
 
-bel = solph.Bus(label="electricity")
-bel2 = solph.Bus(label="electricity_2")
-bth = solph.Bus(label="heat")
-bth2 = solph.Bus(label="heat_2")
+    bel = solph.Bus(label="Strom")
+    bel2 = solph.Bus(label="Strom_2")
+    bth = solph.Bus(label="Waerme")
+    bth2 = solph.Bus(label="Waerme_2")
 
-solph.Sink(label="excess_bth_2", inputs={bth2: solph.Flow()})
-solph.Sink(label="excess_therm", inputs={bth: solph.Flow()})
-solph.Sink(label="excess_bel_2", inputs={bel2: solph.Flow()})
-solph.Sink(label="excess_elec", inputs={bel: solph.Flow()})
+    solph.Sink(label="excess_bth_2", inputs={bth2: solph.Flow()})
+    solph.Sink(label="Waermeerzeugung", inputs={bth: solph.Flow()})
+    solph.Sink(label="excess_bel_2", inputs={bel2: solph.Flow()})
+    solph.Sink(label="Stromerzeugung", inputs={bel: solph.Flow()})
 
-solph.Sink(
-    label="demand_elec",
-    inputs={bel: solph.Flow(fix=data["demand_el"], nominal_value=1)},
-)
-solph.Sink(
-    label="demand_el_2",
-    inputs={bel2: solph.Flow(fix=data["demand_el"], nominal_value=1)},
-)
+    solph.Sink(
+        label="Strombedarf",
+        inputs={bel: solph.Flow(fix=data["demand_el"], nominal_value=1)},
+    )
+    solph.Sink(
+        label="Strombedarf_2",
+        inputs={bel2: solph.Flow(fix=data["demand_el"], nominal_value=1)},
+    )
 
-solph.Sink(
-    label="demand_therm",
-    inputs={bth: solph.Flow(fix=data["demand_th"], nominal_value=741000)},
-)
-solph.Sink(
-    label="demand_th_2",
-    inputs={bth2: solph.Flow(fix=data["demand_th"], nominal_value=741000)},
-)
+    solph.Sink(
+        label="Waermebedarf",
+        inputs={bth: solph.Flow(fix=data["demand_th"], nominal_value=741000)},
+    )
+    solph.Sink(
+        label="Waermebedarf_2",
+        inputs={bth2: solph.Flow(fix=data["demand_th"], nominal_value=741000)},
+    )
 
-# This is just a dummy transformer with a nominal input of zero (for the plot)
-solph.Transformer(
-    label="fixed_chp_gas",
-    inputs={bgas: solph.Flow(nominal_value=0)},
-    outputs={bel: solph.Flow(), bth: solph.Flow()},
-    conversion_factors={bel: 0.3, bth: 0.5},
-)
+    # This is just a dummy transformer with a nominal input of zero
+    # (for the plot)
+    solph.Transformer(
+        label="KWK_GDT",
+        inputs={bgas: solph.Flow(nominal_value=0)},
+        outputs={bel: solph.Flow(), bth: solph.Flow()},
+        conversion_factors={bel: 0.3, bth: 0.5},
+    )
 
-solph.Transformer(
-    label="fixed_chp_gas_2",
-    inputs={bgas: solph.Flow(nominal_value=10e10)},
-    outputs={bel2: solph.Flow(), bth2: solph.Flow()},
-    conversion_factors={bel2: 0.3, bth2: 0.5},
-)
+    solph.Transformer(
+        label="KWK_GDT_2",
+        inputs={bgas: solph.Flow(nominal_value=10e10)},
+        outputs={bel2: solph.Flow(), bth2: solph.Flow()},
+        conversion_factors={bel2: 0.3, bth2: 0.5},
+    )
 
-solph.components.ExtractionTurbineCHP(
-    label="variable_chp_gas",
-    inputs={bgas: solph.Flow(nominal_value=10e10)},
-    outputs={bel: solph.Flow(), bth: solph.Flow()},
-    conversion_factors={bel: 0.3, bth: 0.5},
-    conversion_factor_full_condensation={bel: 0.5},
-)
+    solph.components.ExtractionTurbineCHP(
+        label="KWK_EKT",
+        inputs={bgas: solph.Flow(nominal_value=10e10)},
+        outputs={bel: solph.Flow(), bth: solph.Flow()},
+        conversion_factors={bel: 0.3, bth: 0.5},
+        conversion_factor_full_condensation={bel: 0.5},
+    )
 
-logging.info("Optimise the energy system")
-om = solph.Model(energysystem)
-logging.info("Solve the optimization problem")
-om.solve(solver="cbc", solve_kwargs={"tee": False})
+    logging.info("Optimise the energy system")
+    om = solph.Model(energysystem)
+    logging.info("Solve the optimization problem")
+    om.solve(solver="cbc", solve_kwargs={"tee": False})
 
-results = solph.processing.results(om)
+    results = solph.processing.results(om)
 
-##########################################################################
-# Plotting
-##########################################################################
+    ##########################################################################
+    # Plotting
+    ##########################################################################
 
-logging.info("Plot the results")
-smooth_plot = True
+    logging.info("Plot the results")
+    smooth_plot = True
 
-cdict = {
-    (("variable_chp_gas", "electricity"), "flow"): "#42c77a",
-    (("fixed_chp_gas_2", "electricity_2"), "flow"): "#20b4b6",
-    (("fixed_chp_gas", "electricity"), "flow"): "#20b4b6",
-    (("fixed_chp_gas", "heat"), "flow"): "#20b4b6",
-    (("variable_chp_gas", "heat"), "flow"): "#42c77a",
-    (("heat", "demand_therm"), "flow"): "#5b5bae",
-    (("heat_2", "demand_th_2"), "flow"): "#5b5bae",
-    (("electricity", "demand_elec"), "flow"): "#5b5bae",
-    (("electricity_2", "demand_el_2"), "flow"): "#5b5bae",
-    (("heat", "excess_therm"), "flow"): "#f22222",
-    (("heat_2", "excess_bth_2"), "flow"): "#f22222",
-    (("electricity", "excess_elec"), "flow"): "#f22222",
-    (("electricity_2", "excess_bel_2"), "flow"): "#f22222",
-    (("fixed_chp_gas_2", "heat_2"), "flow"): "#20b4b6",
-}
+    cdict = {
+        (("KWK_EKT", "Strom"), "flow"): "#42c77a",
+        (("KWK_GDT_2", "Strom_2"), "flow"): "#20b4b6",
+        (("KWK_GDT", "Strom"), "flow"): "#20b4b6",
+        (("KWK_GDT", "Waerme"), "flow"): "#20b4b6",
+        (("KWK_EKT", "Waerme"), "flow"): "#42c77a",
+        (("Waerme", "Waermebedarf"), "flow"): "#5b5bae",
+        (("Waerme_2", "Waermebedarf_2"), "flow"): "#5b5bae",
+        (("Strom", "Strombedarf"), "flow"): "#5b5bae",
+        (("Strom_2", "Strombedarf_2"), "flow"): "#5b5bae",
+        (("Waerme", "Waermeerzeugung"), "flow"): "#f22222",
+        (("Waerme_2", "excess_bth_2"), "flow"): "#f22222",
+        (("Strom", "Stromerzeugung"), "flow"): "#f22222",
+        (("Strom_2", "excess_bel_2"), "flow"): "#f22222",
+        (("KWK_GDT_2", "Waerme_2"), "flow"): "#20b4b6",
+    }
 
-fig = plt.figure(figsize=(18, 9))
-plt.rc("legend", **{"fontsize": 13})
-plt.rcParams.update({"font.size": 13})
-fig.subplots_adjust(
-    left=0.07, bottom=0.12, right=0.86, top=0.93, wspace=0.03, hspace=0.2
-)
+    fig = plt.figure(figsize=(18, 9))
+    plt.rc("legend", **{"fontsize": 13})
+    plt.rcParams.update({"font.size": 13})
+    fig.subplots_adjust(
+        left=0.05, bottom=0.07, right=0.87, top=0.95, wspace=0.03, hspace=0.2
+    )
 
-# subplot of electricity bus (fixed chp) [1]
-electricity_2 = solph.views.node(results, "electricity_2")
-x_length = len(electricity_2["sequences"].index)
-myplot = oev.plot.io_plot(
-    bus_label="electricity_2",
-    df=electricity_2["sequences"],
-    cdict=cdict,
-    smooth=smooth_plot,
-    line_kwa={"linewidth": 4},
-    ax=fig.add_subplot(3, 2, 1),
-    inorder=[(("fixed_chp_gas_2", "electricity_2"), "flow")],
-    outorder=[
-        (("electricity_2", "demand_el_2"), "flow"),
-        (("electricity_2", "excess_bel_2"), "flow"),
-    ],
-)
-myplot["ax"].set_ylabel("Power in MW")
-myplot["ax"].set_xlabel("")
-myplot["ax"].get_xaxis().set_visible(False)
-myplot["ax"].set_xlim(0, x_length)
-myplot["ax"].set_title("Electricity output (fixed chp)")
-myplot["ax"].legend_.remove()
+    # subplot of electricity bus (fixed chp) [1]
+    electricity_2 = solph.views.node(results, "Strom_2")
+    x_length = len(electricity_2["sequences"].index)
+    myplot = oev.plot.io_plot(
+        bus_label="Strom_2",
+        df=electricity_2["sequences"],
+        cdict=cdict,
+        smooth=smooth_plot,
+        line_kwa={"linewidth": 4},
+        ax=fig.add_subplot(4, 2, 1),
+        inorder=[(("KWK_GDT_2", "Strom_2"), "flow")],
+        outorder=[
+            (("Strom_2", "Strombedarf_2"), "flow"),
+            (("Strom_2", "excess_bel_2"), "flow"),
+        ],
+    )
+    myplot["ax"].set_ylabel("Leistung [GW]")
+    myplot["ax"].set_xlabel("")
+    myplot["ax"].get_xaxis().set_visible(False)
+    myplot["ax"].set_xlim(0, x_length)
+    myplot["ax"].set_title("Stromerzeugung Gegendruckturbine (GDT)")
+    myplot["ax"].legend_.remove()
 
-# subplot of electricity bus (variable chp) [2]
-electricity = solph.views.node(results, "electricity")
-myplot = oev.plot.io_plot(
-    bus_label="electricity",
-    df=electricity["sequences"],
-    cdict=cdict,
-    smooth=smooth_plot,
-    line_kwa={"linewidth": 4},
-    ax=fig.add_subplot(3, 2, 2),
-    inorder=[
-        (("fixed_chp_gas", "electricity"), "flow"),
-        (("variable_chp_gas", "electricity"), "flow"),
-    ],
-    outorder=[
-        (("electricity", "demand_elec"), "flow"),
-        (("electricity", "excess_elec"), "flow"),
-    ],
-)
-myplot["ax"].get_yaxis().set_visible(False)
-myplot["ax"].set_xlabel("")
-myplot["ax"].get_xaxis().set_visible(False)
-myplot["ax"].set_title("Electricity output (variable chp)")
-myplot["ax"].set_xlim(0, x_length)
-shape_legend("electricity", plotshare=1, **myplot)
+    # subplot of electricity bus (variable chp) [2]
+    electricity = solph.views.node(results, "Strom")
+    myplot = oev.plot.io_plot(
+        bus_label="Strom",
+        df=electricity["sequences"],
+        cdict=cdict,
+        smooth=smooth_plot,
+        line_kwa={"linewidth": 4},
+        ax=fig.add_subplot(4, 2, 2),
+        inorder=[
+            (("KWK_GDT", "Strom"), "flow"),
+            (("KWK_EKT", "Strom"), "flow"),
+        ],
+        outorder=[
+            (("Strom", "Strombedarf"), "flow"),
+            (("Strom", "Stromerzeugung"), "flow"),
+        ],
+    )
+    myplot["ax"].get_yaxis().set_visible(False)
+    myplot["ax"].set_xlabel("")
+    myplot["ax"].get_xaxis().set_visible(False)
+    myplot["ax"].set_title("Stromerzeugung Entnahmekondensationsturbine (EKT)")
+    myplot["ax"].set_xlim(0, x_length)
+    shape_legend("Strom", plotshare=1, **myplot)
 
-# subplot of heat bus (fixed chp) [3]
-heat_2 = solph.views.node(results, "heat_2")
-myplot = oev.plot.io_plot(
-    bus_label="heat_2",
-    df=heat_2["sequences"],
-    cdict=cdict,
-    smooth=smooth_plot,
-    line_kwa={"linewidth": 4},
-    ax=fig.add_subplot(3, 2, 3),
-    inorder=[(("fixed_chp_gas_2", "heat_2"), "flow")],
-    outorder=[
-        (("heat_2", "demand_th_2"), "flow"),
-        (("heat_2", "excess_bth_2"), "flow"),
-    ],
-)
-myplot["ax"].set_ylabel("Power in MW")
-myplot["ax"].set_ylim([0, 600000])
-myplot["ax"].get_xaxis().set_visible(False)
-myplot["ax"].set_title("Heat output (fixed chp)")
-myplot["ax"].set_xlim(0, x_length)
-myplot["ax"].legend_.remove()
+    # subplot of heat bus (fixed chp) [3]
+    heat_2 = solph.views.node(results, "Waerme_2")
+    myplot = oev.plot.io_plot(
+        bus_label="Waerme_2",
+        df=heat_2["sequences"],
+        cdict=cdict,
+        smooth=smooth_plot,
+        line_kwa={"linewidth": 4},
+        ax=fig.add_subplot(4, 2, 3),
+        inorder=[(("KWK_GDT_2", "Waerme_2"), "flow")],
+        outorder=[
+            (("Waerme_2", "Waermebedarf_2"), "flow"),
+            (("Waerme_2", "excess_bth_2"), "flow"),
+        ],
+    )
+    myplot["ax"].set_ylabel("Leistung [GW]")
+    myplot["ax"].set_ylim([0, 600])
+    myplot["ax"].get_xaxis().set_visible(False)
+    myplot["ax"].set_title("Wärmeerzeugung Gegendruckturbine (GDT)")
+    myplot["ax"].set_xlim(0, x_length)
+    myplot["ax"].legend_.remove()
 
-# subplot of heat bus (variable chp) [4]
-heat = solph.views.node(results, "heat")
-myplot = oev.plot.io_plot(
-    bus_label="heat",
-    df=heat["sequences"],
-    cdict=cdict,
-    smooth=smooth_plot,
-    line_kwa={"linewidth": 4},
-    ax=fig.add_subplot(3, 2, 4),
-    inorder=[
-        (("fixed_chp_gas", "heat"), "flow"),
-        (("variable_chp_gas", "heat"), "flow"),
-    ],
-    outorder=[
-        (("heat", "demand_therm"), "flow"),
-        (("heat", "excess_therm"), "flow"),
-    ],
-)
-myplot["ax"].set_ylim([0, 600000])
-myplot["ax"].get_yaxis().set_visible(False)
-myplot["ax"].get_xaxis().set_visible(False)
-myplot["ax"].set_title("Heat output (variable chp)")
-myplot["ax"].set_xlim(0, x_length)
-shape_legend("heat", plotshare=1, **myplot)
+    # subplot of heat bus (variable chp) [4]
+    heat = solph.views.node(results, "Waerme")
+    myplot = oev.plot.io_plot(
+        bus_label="Waerme",
+        df=heat["sequences"],
+        cdict=cdict,
+        smooth=smooth_plot,
+        line_kwa={"linewidth": 4},
+        ax=fig.add_subplot(4, 2, 4),
+        inorder=[
+            (("KWK_GDT", "Waerme"), "flow"),
+            (("KWK_EKT", "Waerme"), "flow"),
+        ],
+        outorder=[
+            (("Waerme", "Waermebedarf"), "flow"),
+            (("Waerme", "Waermeerzeugung"), "flow"),
+        ],
+    )
+    myplot["ax"].set_ylim([0, 600])
+    myplot["ax"].get_yaxis().set_visible(False)
+    myplot["ax"].get_xaxis().set_visible(False)
+    myplot["ax"].set_title("Wärmeerzeugung Entnahmekondensationsturbine (EKT)")
+    myplot["ax"].set_xlim(0, x_length)
+    shape_legend("Waerme", plotshare=1, **myplot)
 
-if smooth_plot:
-    style = None
-else:
-    style = "steps-mid"
+    if smooth_plot:
+        style = None
+    else:
+        style = "steps-mid"
 
-# subplot of efficiency (fixed chp) [5]
-fix_chp_gas2 = solph.views.node(results, "fixed_chp_gas_2")
-ngas = fix_chp_gas2["sequences"][(("natural_gas", "fixed_chp_gas_2"), "flow")]
-elec = fix_chp_gas2["sequences"][
-    (("fixed_chp_gas_2", "electricity_2"), "flow")
-]
-heat = fix_chp_gas2["sequences"][(("fixed_chp_gas_2", "heat_2"), "flow")]
-e_ef = elec.div(ngas)
-h_ef = heat.div(ngas)
-df = pd.DataFrame(pd.concat([h_ef, e_ef], axis=1))
-my_ax = df.reset_index(drop=True).plot(
-    drawstyle=style, ax=fig.add_subplot(3, 2, 5), linewidth=2
-)
-my_ax.set_ylabel("efficiency")
-my_ax.set_ylim([0, 0.55])
-my_ax.set_xlabel("May 2012")
-my_ax = oev.plot.set_datetime_ticks(
-    my_ax, df.index, tick_distance=24, date_format="%d", offset=12, tight=True
-)
-my_ax.set_title("Efficiency (fixed chp)")
-my_ax.legend_.remove()
+    # subplot of efficiency (fixed chp) [5]
+    fix_chp_gas2 = solph.views.node(results, "KWK_GDT_2")
+    ngas = fix_chp_gas2["sequences"][(("natural_gas", "KWK_GDT_2"), "flow")]
+    df = pd.DataFrame(pd.concat([ngas], axis=1))
+    my_ax = df.reset_index(drop=True).plot(
+        drawstyle=style, ax=fig.add_subplot(4, 2, 5), linewidth=2
+    )
+    my_ax.set_ylabel("Leistung [GW]")
+    my_ax.set_ylim([0, 1250])
+    my_ax.set_xlim(0, x_length)
+    my_ax.get_xaxis().set_visible(False)
+    my_ax.set_title("Brennstoffzufuhr Gegendruckturbine (GDT)")
+    my_ax.legend_.remove()
 
-# subplot of efficiency (variable chp) [6]
-var_chp_gas = solph.views.node(results, "variable_chp_gas")
-ngas = var_chp_gas["sequences"][(("natural_gas", "variable_chp_gas"), "flow")]
-elec = var_chp_gas["sequences"][(("variable_chp_gas", "electricity"), "flow")]
-heat = var_chp_gas["sequences"][(("variable_chp_gas", "heat"), "flow")]
-e_ef = elec.div(ngas)
-h_ef = heat.div(ngas)
-e_ef.name = "electricity           "
-h_ef.name = "heat"
-df = pd.DataFrame(pd.concat([h_ef, e_ef], axis=1))
-my_ax = df.reset_index(drop=True).plot(
-    drawstyle=style, ax=fig.add_subplot(3, 2, 6), linewidth=2
-)
-my_ax.set_ylim([0, 0.55])
-my_ax = oev.plot.set_datetime_ticks(
-    my_ax, df.index, tick_distance=24, date_format="%d", offset=12, tight=True
-)
-my_ax.get_yaxis().set_visible(False)
-my_ax.set_xlabel("May 2012")
+    # subplot of efficiency (variable chp) [6]
+    var_chp_gas = solph.views.node(results, "KWK_EKT")
+    ngas = var_chp_gas["sequences"][(("natural_gas", "KWK_EKT"), "flow")]
+    ngas.name = "Brennstoffzufuhr"
+    df = pd.DataFrame(pd.concat([ngas], axis=1))
+    my_ax = df.reset_index(drop=True).plot(
+        drawstyle=style, ax=fig.add_subplot(4, 2, 6), linewidth=2
+    )
+    my_ax.set_ylim([0, 1250])
+    my_ax.set_xlim(0, x_length)
+    my_ax.get_yaxis().set_visible(False)
+    my_ax.get_xaxis().set_visible(False)
 
-my_ax.set_title("Efficiency (variable chp)")
-my_box = my_ax.get_position()
-my_ax.set_position([my_box.x0, my_box.y0, my_box.width * 1, my_box.height])
-my_ax.legend(loc="center left", bbox_to_anchor=(1, 0.5), ncol=1)
+    my_ax.set_title("Brennstoffzufuhr  Entnahmekondensationsturbine (EKT))")
+    my_box = my_ax.get_position()
+    my_ax.set_position([my_box.x0, my_box.y0, my_box.width * 1, my_box.height])
+    my_ax.legend(loc="center left", bbox_to_anchor=(1, 0.5), ncol=1)
 
-plt.show()
+    # subplot of efficiency (fixed chp) [7]
+    fix_chp_gas2 = solph.views.node(results, "KWK_GDT_2")
+    ngas = fix_chp_gas2["sequences"][(("natural_gas", "KWK_GDT_2"), "flow")]
+    elec = fix_chp_gas2["sequences"][(("KWK_GDT_2", "Strom_2"), "flow")]
+    heat = fix_chp_gas2["sequences"][(("KWK_GDT_2", "Waerme_2"), "flow")]
+    e_ef = elec.div(ngas)
+    h_ef = heat.div(ngas)
+    df = pd.DataFrame(pd.concat([h_ef, e_ef], axis=1))
+    my_ax = df.reset_index(drop=True).plot(
+        drawstyle=style, ax=fig.add_subplot(4, 2, 7), linewidth=2
+    )
+    my_ax.set_ylabel("Wirkungsgrad")
+    my_ax.set_ylim([0, 0.55])
+    my_ax.set_xlabel("Mai 2012")
+    my_ax = oev.plot.set_datetime_ticks(
+        my_ax,
+        df.index,
+        tick_distance=24,
+        date_format="%d",
+        offset=12,
+        tight=True,
+    )
+    my_ax.set_title("Wirkungsgrad Gegendruckturbine (GDT)")
+    my_ax.legend_.remove()
+
+    # subplot of efficiency (variable chp) [8]
+    var_chp_gas = solph.views.node(results, "KWK_EKT")
+    ngas = var_chp_gas["sequences"][(("natural_gas", "KWK_EKT"), "flow")]
+    elec = var_chp_gas["sequences"][(("KWK_EKT", "Strom"), "flow")]
+    heat = var_chp_gas["sequences"][(("KWK_EKT", "Waerme"), "flow")]
+    e_ef = elec.div(ngas)
+    h_ef = heat.div(ngas)
+    e_ef.name = "Strom           "
+    h_ef.name = "Wärme"
+    df = pd.DataFrame(pd.concat([h_ef, e_ef], axis=1))
+    my_ax = df.reset_index(drop=True).plot(
+        drawstyle=style, ax=fig.add_subplot(4, 2, 8), linewidth=2
+    )
+    my_ax.set_ylim([0, 0.55])
+    my_ax = oev.plot.set_datetime_ticks(
+        my_ax,
+        df.index,
+        tick_distance=24,
+        date_format="%d",
+        offset=12,
+        tight=True,
+    )
+    my_ax.get_yaxis().set_visible(False)
+    my_ax.set_xlabel("Mai 2012")
+
+    my_ax.set_title("Wirkungsgrad  Entnahmekondensationsturbine (EKT))")
+    my_box = my_ax.get_position()
+    my_ax.set_position([my_box.x0, my_box.y0, my_box.width * 1, my_box.height])
+    my_ax.legend(loc="center left", bbox_to_anchor=(1, 0.5), ncol=1)

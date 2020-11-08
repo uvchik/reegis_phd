@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from reegis_phd import config as cfg
 from reegis_phd.figures import figures_base
+from reegis_phd.figures import variable_chp_plot
 from matplotlib import pyplot as plt
 
 
@@ -31,7 +32,8 @@ def fig_extraction_turbine_characteristics():
 
 
 def fig_extraction_turbine_and_fixed_chp():
-    pass
+    variable_chp_plot.plot()
+    return "Vergleich_KWK_im_Modell_EKT_GDT", None
 
 
 def fig_tespy_heat_pumps_cop():
