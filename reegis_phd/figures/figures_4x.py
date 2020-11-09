@@ -313,7 +313,7 @@ def fig_inhabitants():
 
 def fig_average_weather():
     plt.rcParams.update({"font.size": 15})
-    f, ax_ar = plt.subplots(1, 2, figsize=(14, 4), sharey=True)
+    f, ax_ar = plt.subplots(1, 2, figsize=(14, 4.5), sharey=True)
     my_cmap = LinearSegmentedColormap.from_list(
         "mycmap",
         [
@@ -388,7 +388,7 @@ def fig_average_weather():
         column="temp_air_avg",
         cmap="rainbow",
         vmin=7,
-        vmax=12,
+        vmax=11,
         ax=ax_ar[1],
         aspect="equal",
     )
@@ -400,12 +400,12 @@ def fig_average_weather():
     ax.set_axis_off()
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.2)
-    norm = Normalize(vmin=5, vmax=12)
+    norm = Normalize(vmin=5, vmax=11)
     n_cmap = cm.ScalarMappable(norm=norm, cmap="rainbow")
     n_cmap.set_array(np.array([]))
     cbar = plt.colorbar(n_cmap, ax=ax, extend="both", cax=cax)
     cbar.set_label("Temperatur [°C]", rotation=270, labelpad=30)
-    plt.subplots_adjust(left=0, top=0.97, bottom=0.03, right=0.95, wspace=0.1)
+    plt.subplots_adjust(left=0, top=0.97, bottom=0.03, right=0.93, wspace=0.1)
     return "average_weather", None
 
 
@@ -473,6 +473,7 @@ def fig_module_comparison():
 
 
 def fig_analyse_multi_files():
+    plt.rcParams.update({"font.size": 10})
     path = os.path.join(cfg.get("paths", "data_my_reegis"))
     fn = os.path.join(path, "multiyear_yield_sum.csv")
     df = pd.read_csv(fn, index_col=[0, 1])
@@ -641,6 +642,24 @@ def fig_polar_plot_pv_orientation():
         verticalalignment="bottom",
         bbox=bbox_props,
     )
+    print(az_upper)
+    print(t_upper)
+    ax.text(
+        238 / 180 * np.pi,
+        60,
+        "Ausrichtung (Süd=180°)",
+        rotation=50,
+        horizontalalignment="center",
+        verticalalignment="center",
+    )
+    ax.text(
+        65 / 180 * np.pi,
+        35,
+        "Neigungswinkel (horizontal=0°)",
+        rotation=0,
+        horizontalalignment="center",
+        verticalalignment="center",
+    )
 
     az = (
         np.array([az_lower, az_lower, az_upper, az_upper, az_lower])
@@ -655,7 +674,7 @@ def fig_polar_plot_pv_orientation():
     ax.set_thetamin(90)
     ax.set_thetamax(270)
     # Adjust margins
-    plt.subplots_adjust(right=0.94, left=0, bottom=-0.2, top=1.2)
+    plt.subplots_adjust(right=0.94, left=0, bottom=-0.15, top=1.2)
     return "polar_plot_pv_orientation.png", None
 
 
@@ -711,7 +730,10 @@ def fig_windzones():
 
 def fig_show_hydro_image():
     create_subplot((12, 4.4))
-    fn = os.path.join(cfg.get("paths", "figure_source"), "abflussregime.png")
+    file = "abflussregime.png"
+    fn = os.path.join(cfg.get("paths", "figure_source"), file)
+    fn_target = os.path.join(cfg.get("paths", "figures"), file)
+    shutil.copy(fn, fn_target)
     img = mpimg.imread(fn)
     plt.imshow(img)
     plt.axis("off")
@@ -759,7 +781,7 @@ def fig_compare_re_capacity_years():
         legend=True,
     )
 
-    my_re = entsoe.get_entsoe_renewable_data().div(1000)
+    my_re = entsoe.get_entsoe_renewable_data(version="2019-06-05").div(1000)
     my_re = my_re.resample("D").mean()
     print(my_re.index)
     rn = {
@@ -1250,6 +1272,7 @@ def fig_ego_demand_plot():
 
 
 def fig_compare_electricity_profile_berlin():
+    plt.rcParams.update({"font.size": 16})
     f, ax_ar = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
 
     year = 2014
@@ -1279,23 +1302,50 @@ def fig_compare_electricity_profile_berlin():
     ax = bln_vatten.loc[start:end].plot(ax=ax, x_compat=True)
     ax = bln_entsoe.loc[start:end].plot(ax=ax, x_compat=True)
     ax.set_title("Winterwoche (13. - 20. Januar)")
+    # ax.set_xticks()
+    ax.set_xticks(
+        [
+            n
+            for n in bln_vatten.index
+            if n.month == 1 and 20 > n.day > 12 and n.hour == 12
+        ]
+    )
     ax.set_xticklabels(
-        ["13", "14", "15", "16", "17", "18", "19", "20"], rotation=0
+        [
+            n.strftime("%d")
+            for n in bln_vatten.index
+            if n.month == 1 and 20 > n.day > 12 and n.hour == 12
+        ],
+        rotation=0,
+        horizontalalignment="center",
     )
     ax.set_xlabel("Januar 2014")
     ax.set_ylabel("[GW]")
-
+    ax.set_xlim(start, end - datetime.timedelta(hours=1))
     ax = ax_ar[1]
     start = datetime.datetime(year, 7, 14)
     end = datetime.datetime(year, 7, 21)
     ax = bln_vatten.loc[start:end].plot(ax=ax, x_compat=True)
     ax = bln_entsoe.loc[start:end].plot(ax=ax, x_compat=True)
     ax.set_title("Sommerwoche (14. - 20. Juli)")
+    ax.set_xticks(
+        [
+            n
+            for n in bln_vatten.index
+            if n.month == 7 and 21 > n.day > 13 and n.hour == 12
+        ]
+    )
     ax.set_xticklabels(
-        ["14", "15", "16", "17", "18", "19", "20", "21"], rotation=0
+        [
+            n.strftime("%d")
+            for n in bln_vatten.index
+            if n.month == 7 and 21 > n.day > 13 and n.hour == 12
+        ],
+        rotation=0,
+        horizontalalignment="center",
     )
     ax.set_xlabel("Juli 2014")
-
+    ax.set_xlim(start, end - datetime.timedelta(hours=2))
     ax = ax_ar[2]
     ax = (
         bln_vatten.resample("W").mean().plot(ax=ax, legend=True, x_compat=True)
@@ -1303,26 +1353,30 @@ def fig_compare_electricity_profile_berlin():
     ax = (
         bln_entsoe.resample("W").mean().plot(ax=ax, legend=True, x_compat=True)
     )
-    bln_reegis.resample("W").mean().plot(ax=ax, legend=True, x_compat=True)
-
+    ax = (
+        bln_reegis.resample("W").mean().plot(ax=ax, legend=True, x_compat=True)
+    )
     ax.set_title("Wochenmittel - 2014")
-    ax.set_xticklabels(
+    ax.set_xticks(
         [
-            "Feb",
-            "Mär",
-            "Apr",
-            "Mai",
-            "Jun",
-            "Jul",
-            "Aug",
-            "Sep",
-            "Okt",
-            "Nov",
-            "Dez",
-            "Jan",
+            n
+            for n in bln_vatten.index
+            if (n.month % 2) == 0 and n.day == 1 and n.hour == 1
         ]
     )
-    ax.set_xlabel("")
+    ax.set_xticklabels(
+        [
+            n.strftime("%b")
+            for n in bln_vatten.index
+            if (n.month % 2) == 0 and n.day == 1 and n.hour == 1
+        ],
+        rotation=0,
+        horizontalalignment="left",
+    )
+    dates = bln_vatten.resample("W").mean().index
+    print(dates)
+    ax.set_xlabel("2014")
+    ax.set_xlim(dates[0], dates[-2])
     plt.subplots_adjust(left=0.04, top=0.92, bottom=0.11, right=0.99)
 
     return "compare_electricity_profile_berlin", None
@@ -1364,6 +1418,7 @@ def fig_entsoe_scaled_year_plots():
 
 
 def fig_compare_entsoe_slp_germany():
+    plt.rcParams.update({"font.size": 16})
     logger.define_logging()
     my_year = 2014
     federal_states = geometries.get_germany_polygon(with_awz=True)
@@ -1384,7 +1439,7 @@ def fig_compare_entsoe_slp_germany():
 
     fig = plt.figure(figsize=(12, 5))
     fig.subplots_adjust(
-        wspace=0.05, left=0.07, right=0.98, bottom=0.1, top=0.95
+        wspace=0.05, left=0.07, right=0.98, bottom=0.11, top=0.95
     )
     slp_de_no_idx = slp_de.reset_index(drop=True)
     entsoe_no_idx = my_entsoe.reset_index(drop=True)
@@ -1398,28 +1453,28 @@ def fig_compare_entsoe_slp_germany():
     )
 
     my_ax1 = fig.add_subplot(1, 2, 1)
-    df.loc[22 * 24 : 28 * 24].plot(ax=my_ax1, linewidth=2, style=["-", "-"])
+    df.loc[22 * 24 : 28 * 24].div(1000).plot(ax=my_ax1, linewidth=2, style=["-", "-"])
     my_ax1.legend_.remove()
-    plt.ylim([30100, 90000])
+    plt.ylim([30.100, 90.000])
     plt.xlim([528, 28 * 24])
-    plt.ylabel("Mittlerer Stromverbrauch [kW]")
+    plt.ylabel("Mittlerer Stromverbrauch [MW]")
     plt.xticks(
         [528 + 12, 552 + 12, 576 + 12, 600 + 12, 624 + 12, 648 + 12],
-        ["Donnerstag", "Freitag", "Samstag", "Sonntag", "Montag", "Dienstag"],
+        ["Do", "Fr", "Sa", "So", "Mo", "Di"],
         rotation="horizontal",
         horizontalalignment="center",
     )
     plt.xlabel("23. - 28. Januar 2014")
     my_ax2 = fig.add_subplot(1, 2, 2)
-    df.loc[204 * 24 : 210 * 24].plot(
+    df.loc[204 * 24 : 210 * 24].div(1000).plot(
         ax=my_ax2, linewidth=2, style=["-", "-", "-."]
     )
-    plt.ylim([30100, 90000])
+    plt.ylim([30.100, 90.000])
     plt.xlim([204 * 24, 210 * 24])
     my_ax2.get_yaxis().set_visible(False)
     plt.xticks(
         [4908, 4932, 4956, 4980, 5004, 5028],
-        ["Donnerstag", "Freitag", "Samstag", "Sonntag", "Montag", "Dienstag"],
+        ["Do", "Fr", "Sa", "So", "Mo", "Di"],
         rotation="horizontal",
         horizontalalignment="center",
     )
@@ -1503,7 +1558,10 @@ def fig_compare_entsoe_slp_rolling_window():
 
 
 def fig_compare_entsoe_slp_annual_profile():
+    plt.rcParams.update({"font.size": 16})
     # locale.setlocale(locale.LC_ALL, "de_DE.utf8")
+    fig = plt.figure(figsize=(8, 5))
+    fig.subplots_adjust(left=0.14, right=0.97, bottom=0.11, top=0.98)
     logger.define_logging()
     my_year = 2014
     federal_states = geometries.get_federal_states_polygon()
@@ -1569,10 +1627,11 @@ def fig_compare_entsoe_slp_annual_profile():
 
 
 def fig_demand_share_of_sector_and_region():
+    plt.rcParams.update({"font.size": 16})
     year = 2014
-    fig = plt.figure(figsize=(12, 5))
+    fig = plt.figure(figsize=(16, 5))
     fig.subplots_adjust(
-        wspace=0.37, left=0.06, right=0.92, bottom=0.12, top=0.95
+        wspace=0.45, left=0.05, right=0.91, bottom=0.12, top=0.97
     )
     logger.define_logging()
     federal_states = geometries.get_federal_states_polygon()
@@ -1604,7 +1663,7 @@ def fig_demand_share_of_sector_and_region():
     ax1.legend(
         handles[::-1],
         labels[::-1],
-        loc="center left",
+        loc="upper left",
         bbox_to_anchor=(1, 0.87),
     )
     ax1.set_ylabel("Anteil")
@@ -1666,7 +1725,7 @@ def fig_demand_share_of_sector_and_region():
     ax2.legend(
         handles[::-1],
         labels[::-1],
-        loc="center left",
+        loc="upper left",
         bbox_to_anchor=(1, 0.87),
     )
     ax2.set_xlabel("")
@@ -1675,7 +1734,7 @@ def fig_demand_share_of_sector_and_region():
 
 
 def fig_compare_habitants_and_heat_electricity_share(**kwargs):
-    plt.rcParams.update({"font.size": 14})
+    plt.rcParams.update({"font.size": 16})
     ax = create_subplot((9, 4), **kwargs)
     eb = energy_balance.get_usage_balance(2014).swaplevel()
     blnc = eb.loc["total", ("electricity", "district heating")]
