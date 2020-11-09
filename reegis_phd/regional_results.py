@@ -6,36 +6,37 @@ from reegis import config as cfg
 
 def analyse_berlin_ressources():
     s = {}
+    de22 = "phd_deflex_2014_de22"
+    de22_wo = "phd_deflex_2014_de22_without_DE22"
+    berlin = "phd_berlin_hp_2014_single"
     scenarios = {
         "berlin_single": {
             "path": ["region"],
-            "file": "berlin_hp_2014_single",
+            "file": "{0}".format(berlin),
             "var": None,
             "region": "BE",
         },
         "berlin_deflex": {
             "path": ["region"],
-            "file": (
-                "berlin_hp_2014_single_DCPL_c1_deflex_2014_de22_without_berlin"
-            ),
+            "file": ("{0}_DCPL_{1}".format(berlin, de22_wo)),
             "var": "de22",
             "region": "BE",
         },
         "berlin_up_deflex": {
             "path": ["region"],
-            "file": "berlin_hp_2014_single_UP_deflex_2014_de22_without_DE22",
+            "file": "{0}_UP_{1}".format(berlin, de22_wo),
             "var": "single_up_deflex_2014_de22_without_berlin",
             "region": "BE",
         },
         "berlin_up_deflex_full": {
             "path": ["region"],
-            "file": "berlin_hp_2014_single_UP_deflex_2014_de22",
+            "file": "{0}_UP_{1}".format(berlin, de22),
             "var": "single_up_deflex_2014_de22",
             "region": "BE",
         },
         "deflex_de22": {
             "path": ["base"],
-            "file": "c1_deflex_2014_de22",
+            "file": "{0}".format(de22),
             "var": "de22",
             "region": "DE22",
         },

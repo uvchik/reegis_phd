@@ -101,7 +101,7 @@ def fig_netzkapazitaet_und_auslastung_de22():
         },
     }
     path = os.path.join(cfg.get("paths", "phd"), "base", "results_cbc")
-    my_es1 = results.load_es(os.path.join(path, "c1_deflex_2014_de21.esys"))
+    my_es1 = results.load_es(os.path.join(path, "phd_deflex_2014_de21.esys"))
     transmission = results.compare_transmission(my_es1, my_es1)
 
     # f, ax_ar = plt.subplots(1, 2, figsize=(15, 6))
@@ -160,10 +160,11 @@ def fig_veraenderung_energiefluesse_durch_kopplung():
 
     bpath = os.path.join(cfg.get("paths", "phd"), "base", "results_cbc")
     rpath = os.path.join(cfg.get("paths", "phd"), "region", "results_cbc")
-    namees1 = "c1_deflex_2014_de22.esys"
-    namees2 = (
-        "berlin_hp_2014_single_DCPL_c1_deflex_2014_de22_without_berlin.esys"
-    )
+    de22 = "phd_deflex_2014_de22"
+    de22_wo = "phd_deflex_2014_de22_without_DE22"
+    berlin = "phd_berlin_hp_2014_single"
+    namees1 = "{0}.esys".format(de22)
+    namees2 = "{0}_DCPL_{1}.esys".format(berlin, de22_wo)
     my_es1 = results.load_es(os.path.join(bpath, namees1))
     my_es2 = results.load_es(os.path.join(rpath, namees2))
 
@@ -330,12 +331,12 @@ def fig_show_de21_de22_without_berlin():
     base_path = os.path.join(cfg.get("paths", "phd"), "base", "results_cbc")
     reg_path = os.path.join(cfg.get("paths", "phd"), "region", "results_cbc")
     fn = {
-        "de21": os.path.join(base_path, "c1_deflex_2014_de21.esys"),
-        "de22": os.path.join(base_path, "c1_deflex_2014_de22.esys"),
+        "de21": os.path.join(base_path, "phd_deflex_2014_de21.esys"),
+        "de22": os.path.join(base_path, "phd_deflex_2014_de22.esys"),
         "de21_without_berlin": os.path.join(
-            base_path, "c1_deflex_2014_de21_without_berlin.esys"
+            base_path, "phd_deflex_2014_de21_without_berlin.esys"
         ),
-        "Berlin": os.path.join(reg_path, "berlin_hp_2014_single.esys"),
+        "Berlin": os.path.join(reg_path, "phd_berlin_hp_2014_single.esys"),
     }
 
     for var in ("de21", "de22", "de21_without_berlin"):
@@ -641,7 +642,7 @@ def fig_import_export_emissions_100prz_region():
     my_filenames = [x for x in os.listdir(myp) if ".esys" in x and "_pv" in x]
 
     for f in ["f1", "f15", "f2"]:
-        fn_pattern = "deflex_XX_Nc00_HP00_{0}_de21.csv"
+        fn_pattern = "phd_deflex_2014_de21_XX_Nc00_HP00_{0}.csv"
         fn = os.path.join(my_path, "values", fn_pattern.format(f))
         if not os.path.isfile(fn):
             in_fn = fn_pattern.format(f).replace(".csv", ".esys")
@@ -747,14 +748,14 @@ def fig_import_export_costs_100prz_region():
     my_list += new_list
 
     groups = (
-        "deflex_XX_Nc00_Li05_HP02_GT_{0}_de21",
-        "deflex_XX_Nc00_Li05_HP00_GT_{0}_de21",
-        "deflex_XX_Nc00_HP02_{0}_de21",
-        "deflex_XX_Nc00_HP00_{0}_de21",
-        "deflex_2014_de02",
-        "deflex_2014_de17",
-        "deflex_2014_de21",
-        "deflex_2014_de22",
+        "phd_deflex_2014_de21_XX_Nc00_Li05_HP02_GT_{0}",
+        "phd_deflex_2014_de21_XX_Nc00_Li05_HP00_GT_{0}",
+        "phd_deflex_2014_de21_XX_Nc00_HP02_{0}",
+        "phd_deflex_2014_de21_XX_Nc00_HP00_{0}",
+        "phd_deflex_2014_de02",
+        "phd_deflex_2014_de17",
+        "phd_deflex_2014_de21",
+        "phd_deflex_2014_de22",
     )
     print(result)
     mf = [x for x in result if "wind27" in x][0]

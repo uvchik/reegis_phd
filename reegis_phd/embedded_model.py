@@ -207,7 +207,7 @@ def main(year, fn_de, fn_be):
 
     n1 = os.path.basename(fn_de).split(".")[0]
     n2 = os.path.basename(fn_be).split(".")[0]
-    name = "{0}_dcpl_{1}".format(n1, n2)
+    name = "{1}_DCPL_{0}".format(n1, n2)
 
     sc_de = deflex.main.load_scenario(fn_de)
 
