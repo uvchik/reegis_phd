@@ -14,7 +14,7 @@ def fig_model_regions():
     """Plot one or more model regions in one plot."""
     maps = ["de02", "de17", "de21", "de22"]
     # maps = ["de22"]
-    add_title = False
+    add_title = True
 
     top = 1
     ax = None
@@ -39,7 +39,7 @@ def fig_model_regions():
         )
 
         plot.plot_regions(
-            map=de_map, ax=ax, legend=False, simple=0.005, offshore="auto"
+            rmap=de_map, ax=ax, legend=False, simple=0.005, offshore="auto"
         )
         for spine in plt.gca().spines.values():
             spine.set_visible(False)

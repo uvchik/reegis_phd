@@ -17,6 +17,7 @@ locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
 
 
 def plot_figure(number, save=False, path=None, show=False, **kwargs):
+    logging.info("***** PLOT FIGURE {0} ************".format(number))
     filename, fig_show = get_number_name()[number](**kwargs)
 
     if fig_show is not None:
@@ -109,5 +110,5 @@ if __name__ == "__main__":
     )
     p = cfg.get("paths", "figures")
     os.makedirs(p, exist_ok=True)
-    plot_all(save=True, path=p)
-    # plot_figure("3.4", save=True, show=True, path=p)
+    # plot_all(save=True, path=p)
+    plot_figure("5.1", save=True, show=True, path=p)
