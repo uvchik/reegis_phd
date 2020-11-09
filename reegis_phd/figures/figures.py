@@ -38,7 +38,7 @@ def plot_figure(number, save=False, path=None, show=False, **kwargs):
 
 
 def plot_all(
-    save=False, path=None, show=False, lower=0.0, upper=99.9, **kwargs
+    save=True, path=None, show=False, lower=0.0, upper=99.9, **kwargs
 ):
     for number in get_number_name().keys():
         if lower < float(number) < upper:
@@ -110,5 +110,5 @@ if __name__ == "__main__":
     )
     p = cfg.get("paths", "figures")
     os.makedirs(p, exist_ok=True)
-    # plot_all(save=True, path=p)
-    plot_figure("5.1", save=True, show=True, path=p)
+    plot_all(path=p)
+    # plot_figure("5.1", save=True, show=True, path=p)
