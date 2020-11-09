@@ -98,7 +98,7 @@ def fig_compare_de21_region_borders():
         data=data,
         legend=False,
         label_col="sp_id_1",
-        map=tso,
+        rmap=tso,
         data_col="value",
         cmap=cmap,
     )
