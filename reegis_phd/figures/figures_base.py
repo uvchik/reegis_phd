@@ -33,8 +33,8 @@ def show_download_image(name, file_types):
     plt.subplots_adjust(left=0, top=0.93, bottom=0, right=1)
 
     url = (
-        "https://raw.githubusercontent.com/reegis/my_reegis/master/"
-        "my_reegis/data/figures/{0}.{1}"
+        "https://raw.githubusercontent.com/uvchik/reegis_phd/master/"
+        "reegis_phd/data/figures/{0}.{1}"
     )
     fn = os.path.join(cfg.get("paths", "figures"), "{0}.{1}")
     for suffix in file_types:
