@@ -14,6 +14,8 @@ setup(
         "pandas >= 0.17.0",
         "requests",
         "matplotlib",
+        "demandlib",
+        "pytz",
         "numpy",
         "reegis",
         "deflex",
