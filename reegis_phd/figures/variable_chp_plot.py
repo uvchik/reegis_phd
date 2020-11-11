@@ -181,10 +181,10 @@ def plot():
     }
 
     fig = plt.figure(figsize=(18, 9))
-    plt.rc("legend", **{"fontsize": 13})
-    plt.rcParams.update({"font.size": 13})
+    plt.rc("legend", **{"fontsize": 16})
+    plt.rcParams.update({"font.size": 16})
     fig.subplots_adjust(
-        left=0.05, bottom=0.07, right=0.87, top=0.95, wspace=0.03, hspace=0.2
+        left=0.06, bottom=0.07, right=0.83, top=0.95, wspace=0.03, hspace=0.2
     )
 
     # subplot of electricity bus (fixed chp) [1]

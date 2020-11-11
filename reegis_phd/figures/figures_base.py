@@ -13,6 +13,7 @@ NAMES = {
     "hard_coal": "Steinkohle",
     "netto_import": "Stromimport",
     "other": "sonstige",
+    "heat_demand": "Wärmebedf."
     # 'nuclear': 'Atomkraft',
 }
 
@@ -38,7 +39,7 @@ def show_download_image(name, file_types):
     )
     fn = os.path.join(cfg.get("paths", "figures"), "{0}.{1}")
     for suffix in file_types:
-        download_file(fn.format(name, suffix), url.format(name, suffix))
+        download_file(fn.format(name, suffix), url.format(name, suffix), True)
     plt.title(
         "Image source downloaded to: {0}".format(fn.format(name, file_types[0]))
     )

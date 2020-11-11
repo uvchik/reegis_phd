@@ -38,16 +38,14 @@ ORDER_KEYS = [
 ]
 
 
-def geopandas_colorbar_same_height(f, ax, vmin, vmax, cmap):
+def geopandas_colorbar_same_height(f, ax, vmin, vmax, cmap, title=None):
     # Create colorbar
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.2)
-
     norm = Normalize(vmin=vmin, vmax=vmax)
     n_cmap = cm.ScalarMappable(norm=norm, cmap=cmap)
     n_cmap.set_array(np.array([]))
-
-    f.colorbar(n_cmap, cax=cax)
+    return f.colorbar(n_cmap, cax=cax)
 
 
 def add_geopandas_label_coordinates(

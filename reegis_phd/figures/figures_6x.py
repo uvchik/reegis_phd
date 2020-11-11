@@ -89,7 +89,7 @@ def fig_netzkapazitaet_und_auslastung_de22():
             "key": "es1_90+_usage",
             "vmax": 8760 / 2,
             "label_min": 10,
-            "unit": "",
+            "unit": "Stunden",
             "order": 1,
             "direction": False,
             "cmap_lines": cm_gyr,
@@ -170,7 +170,8 @@ def fig_veraenderung_energiefluesse_durch_kopplung():
 
     transmission = results.compare_transmission(my_es1, my_es2).div(1)
 
-    f, ax_ar = plt.subplots(1, len(sets), figsize=(8 * len(sets), 6))
+    # f, ax_ar = plt.subplots(1, len(sets), figsize=(8 * len(sets), 6))
+    f, ax_ar = plt.subplots(2, 1, figsize=(7.8, 10.6))
 
     for k, v in sets.items():
         if len(sets) == 1:
@@ -423,10 +424,18 @@ def fig_show_de21_de22_without_berlin():
 
 def berlin_resources_time_series():
     """Plot time series of resource usage."""
+    plt.rcParams.update({"font.size": 11})
     seq = regional_results.analyse_berlin_ressources()
-    types = ["lignite", "natural_gas", "oil", "hard_coal", "netto_import"]
+    types = [
+        "lignite",
+        "natural_gas",
+        "oil",
+        "hard_coal",
+        "netto_import",
+        "heat_demand",
+    ]
     rows = len(types)
-    f, ax_ar = plt.subplots(rows, 2, sharey="row", sharex=True, figsize=(9, 6))
+    f, ax_ar = plt.subplots(rows, 2, sharey="row", sharex=True, figsize=(9, 9))
     i = 0
     axr = None
     for c in types:
@@ -434,6 +443,8 @@ def berlin_resources_time_series():
             my_style = ["-", "-", "--"]
         else:
             my_style = None
+        print(c)
+        print(seq[c].columns)
         axl = (
             seq[
                 [
@@ -491,7 +502,7 @@ def berlin_resources_time_series():
                 ax.set_title("Monatsmittel", loc="center", y=1)
 
     plt.subplots_adjust(
-        right=0.96, left=0.07, bottom=0.13, top=0.95, wspace=0.06, hspace=0.2
+        right=0.96, left=0.07, bottom=0.13, top=0.95, wspace=0.08, hspace=0.2
     )
 
     handles, labels = axr.get_legend_handles_labels()
@@ -512,7 +523,8 @@ def berlin_resources_time_series():
 
 
 def fig_berlin_resources(**kwargs):
-    ax = create_subplot((7.8, 4), **kwargs)
+    plt.rcParams.update({"font.size": 16})
+    ax = create_subplot((10, 5), **kwargs)
 
     df = regional_results.analyse_berlin_ressources_total()
 
@@ -549,7 +561,8 @@ def fig_berlin_resources(**kwargs):
     locs, labels = plt.xticks()
     new_labels = []
     for label in labels:
-        new_labels.append(label.get_text().replace("_full", ""))
+        l = label.get_text().replace("_de", "\n_de")
+        new_labels.append(l)
     #     if 'up' in label.get_text():
     #         new_labels.append(label.get_text().replace('up_', 'up_\n'))
     #     else:
@@ -557,7 +570,7 @@ def fig_berlin_resources(**kwargs):
     plt.xticks(locs, new_labels, rotation=0)
 
     plt.ylabel("Energiemenge 2014 [TWh]")
-    plt.subplots_adjust(right=0.78, left=0.08, bottom=0.12, top=0.98)
+    plt.subplots_adjust(right=0.79, left=0.07, bottom=0.13, top=0.98)
     return "resource_use_berlin_reduced", None
 
 
@@ -634,7 +647,8 @@ def fig_import_export_100prz_region():
 
 
 def fig_import_export_emissions_100prz_region():
-    f, ax_ar = plt.subplots(3, 3, sharey=True, sharex=True, figsize=(15, 6))
+    plt.rcParams.update({"font.size": 15})
+    f, ax_ar = plt.subplots(3, 3, sharey=True, sharex=True, figsize=(15, 7))
     my_path = os.path.join(cfg.get("paths", "phd"))
     up_raw = {}
     myp = os.path.join(my_path, "region", "results_cbc")
@@ -714,16 +728,25 @@ def fig_import_export_emissions_100prz_region():
                 up_plot[t2][f].loc[key, "export"] = (
                     (exp * prc).sum() / exp.sum() / prc.mean()
                 )
+    labels = {
+        0: "Emissionen\n(teuerstes)",
+        1: "Emissionen\n(Mittelwert)",
+        2: "Emissionen\n(maximum)"
+    }
     n2 = 0
     for k1, v1 in up_plot.items():
         n1 = 0
         for k2, v2 in v1.items():
             print(k1, k2, n1, n2)
             v2.sort_index().plot(kind="bar", ax=ax_ar[n2, n1], legend=False)
-            ax_ar[n2, n1].set_title("{0}, {1}".format(k1, k2))
+            if n2 == 0:
+                ax_ar[n2, n1].set_title("EE x {0}".format(1 + n1/2))
+            if n1 == 0:
+                ax_ar[n2, n1].set_ylabel(labels[n2])
             n1 += 1
         n2 += 1
-    plt.legend()
+    plt.legend(bbox_to_anchor=(1.455, 1.7), loc="center right", ncol=1)
+    plt.subplots_adjust(right=0.89, left=0.065, bottom=0.2, top=0.95)
     return "import_export_emission_100PRZ_region", None
 
 
@@ -830,6 +853,6 @@ def fig_import_export_costs_100prz_region():
         plt.text(
             p, 77, t, ha="center", fontsize=15,
         )
-    plt.subplots_adjust(right=0.9, left=0.08, bottom=0.12, top=0.9)
+    plt.subplots_adjust(right=0.97, left=0.04, bottom=0.11, top=0.93)
 
     return "import_export_costs_100PRZ_region", None

@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from reegis_phd import results
 from reegis import config as cfg
+from oemof.solph import Sink
 
 
 def analyse_berlin_ressources():
@@ -54,10 +55,24 @@ def analyse_berlin_ressources():
         resource_balance = results.get_multiregion_bus_balance(
             es, "bus_commodity"
         )
+        result = es.results["Main"]
 
         s[k] = resource_balance[
             v["region"], "in", "source", "commodity"
         ].copy()
+
+        s[k]["heat_demand"] = pd.DataFrame(
+            {
+                n[1]: result[n]["sequences"]["flow"]
+                for n in result.keys()
+                if isinstance(n[1], Sink)
+                and n[1].label.tag == "heat"
+                and (
+                    "DE22" in n[1].label.region
+                    or "DE" not in n[1].label.region
+                )
+            }
+        ).sum(axis=1)
 
         if v["var"] is not None:
             elec_balance = results.get_multiregion_bus_balance(es)
