@@ -21,6 +21,7 @@ setup(
         "numpy == 1.19.4",
         "reegis{0}reegis/reegis/archive/phd.zip".format(github),
         "deflex{0}reegis/deflex/archive/phd.zip".format(github),
+        "berlin_hp{0}reegis/berlin_hp/archive/phd.zip".format(github),
         "geopandas == 0.8.1",
     ],
     extras_require={"dummy": ["oemof"]},
