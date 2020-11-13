@@ -49,10 +49,12 @@ def fig_tespy_heat_pumps_cop():
         fn = os.path.join(cfg.get("paths", "data_my_reegis"), filename)
         df = pd.read_csv(fn, index_col=0)
 
-        colormap = "Greys"
-        offset = 0.5
-        # colormap = "gist_rainbow"
-        # offset = 0
+        # Colors
+        # colormap = "Greys"
+        # offset = 0.5
+        colormap = "tab10"
+        offset = 0
+
         cmap = plt.get_cmap(colormap)
         nc = len(t_range)  # number of colors
         p = ((nc-1)/(1-offset))
