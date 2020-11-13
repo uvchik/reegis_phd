@@ -13,7 +13,7 @@ from reegis import config as cfg
 from reegis_phd import __file__ as my_regis_file
 from reegis_phd import alternative_scenarios as alt
 from reegis_phd import embedded_model as emb
-from reegis_phd import main
+from reegis_phd import main as phd_main
 
 SCENARIOS = {
     "berlin_single_2014": "berlin_hp_2014_single.xls",
@@ -174,7 +174,7 @@ def reproduce_scenario_results(path):
     berlin_hp.model_scenarios(sc["berlin"])
 
     # Model "Modellhagen" scenarios
-    main.modellhagen_re_variation(sc["modellhagen"])
+    phd_main.modellhagen_re_variation(sc["modellhagen"])
 
     # Model directly combined scenarios
     de = deflex.fetch_scenarios_from_dir(path=base_path, xls=True, csv=False)
@@ -211,6 +211,23 @@ def reproduce_scenario_results(path):
     )
 
 
+def main():
+    import sys
+    logger.define_logging(screen_level=logging.INFO)
+    cfg.init(
+        paths=[
+            os.path.dirname(berlin_hp.__file__),
+            os.path.dirname(deflex.__file__),
+            os.path.dirname(__file__),
+        ]
+    )
+    if len(sys.argv) > 1:
+        path = sys.argv[1]
+    else:
+        path = cfg.get("paths", "figures")
+    os.makedirs(path, exist_ok=True)
+    reproduce_scenario_results(path)
+
+
 if __name__ == "__main__":
-    logger.define_logging()
-    reproduce_scenario_results(cfg.get("paths", "phd"))
+    pass

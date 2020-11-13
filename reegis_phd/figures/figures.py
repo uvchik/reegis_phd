@@ -4,6 +4,7 @@ import os
 
 import berlin_hp
 import deflex
+from reegis_phd import __file__
 from matplotlib import pyplot as plt
 from oemof.tools import logger
 from reegis import config as cfg
@@ -18,6 +19,11 @@ locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
 
 def plot_figure(number, save=False, path=None, show=False, **kwargs):
     logging.info("***** PLOT FIGURE {0} ************".format(number))
+    if number not in get_number_name():
+        msg = (
+            "Figure {0} not found. Please choose from the following list: {1}"
+        )
+        raise ValueError(msg.format(number, list(get_number_name().keys())))
     filename, fig_show = get_number_name()[number](**kwargs)
 
     if fig_show is not None:
@@ -100,15 +106,38 @@ def get_number_name():
     }
 
 
-if __name__ == "__main__":
+def main():
+    import sys
+
     logger.define_logging(screen_level=logging.INFO)
     cfg.init(
         paths=[
             os.path.dirname(berlin_hp.__file__),
             os.path.dirname(deflex.__file__),
+            os.path.dirname(__file__),
         ]
     )
-    p = cfg.get("paths", "figures")
-    os.makedirs(p, exist_ok=True)
-    plot_all(path=p)
-    # plot_figure("5.1", save=True, show=True, path=p)
+    msg = "Unknown parameter: >>{0}<<. Only floats or 'all' are allowed."
+    arg1 = sys.argv[1]
+    if len(sys.argv) > 2:
+        path = sys.argv[2]
+    else:
+        path = cfg.get("paths", "figures")
+
+    try:
+        arg1 = float(arg1)
+    except ValueError:
+        arg1 = arg1
+
+    os.makedirs(path, exist_ok=True)
+    if isinstance(arg1, str):
+        if arg1 == "all":
+            plot_all(path=path)
+        else:
+            raise ValueError(msg.format(arg1))
+    elif isinstance(arg1, float):
+        plot_figure(str(arg1), save=True, show=True, path=path)
+
+
+if __name__ == "__main__":
+    pass
