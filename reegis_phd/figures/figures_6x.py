@@ -17,8 +17,8 @@ from .figures_base import create_subplot
 
 
 def fig_anteil_import_stromverbrauch_berlin(**kwargs):
-
-    ax = create_subplot((8.5, 5), **kwargs)
+    plt.rcParams.update({"font.size": 17})
+    ax = create_subplot((12.5, 5), **kwargs)
     fn_csv = os.path.join(
         os.path.dirname(__file__),
         "../data",
@@ -33,8 +33,10 @@ def fig_anteil_import_stromverbrauch_berlin(**kwargs):
     df["Erzeugung [TWh]"] = (df["elec_usage"] - df["elec_import"]).div(3600)
     df["Import [TWh]"] = df["elec_import"].div(3600)
 
-    df["Importanteil [%]"] = df["elec_import"] / df["elec_usage"] * 100
-    ax1 = df[["Jahr", "Importanteil [%]"]].plot(
+    df["Importanteil [%]\n(rechts)"] = (
+        df["elec_import"] / df["elec_usage"] * 100
+    )
+    ax1 = df[["Jahr", "Importanteil [%]\n(rechts)"]].plot(
         x="Jahr",
         linestyle="-",
         marker="o",
@@ -50,11 +52,10 @@ def fig_anteil_import_stromverbrauch_berlin(**kwargs):
         color=["#343e58", "#aebde3"],
     )
     ax1.set_ylim(0, 100)
-
     h0, l0 = ax.get_legend_handles_labels()
     h1, l1 = ax1.get_legend_handles_labels()
     ax.legend(h0 + h1, l0 + l1, bbox_to_anchor=(1.06, 0.8))
-    plt.subplots_adjust(right=0.74, left=0.05)
+    plt.subplots_adjust(right=0.71, left=0.05, bottom=0.13, top=0.96)
     return "anteil_import_stromverbrauch_berlin", None
 
 
@@ -575,9 +576,10 @@ def fig_berlin_resources(**kwargs):
 
 
 def fig_import_export_100prz_region():
-    plt.rcParams.update({"font.size": 13})
+    plt.rcParams.update({"font.size": 18})
     f, ax_ar = plt.subplots(1, 3, figsize=(15, 6))
-
+    # colors = ["#888888", "#333333"]  # greyscale
+    colors = None
     myp = os.path.join(cfg.get("paths", "phd"), "region", "results_cbc")
 
     my_filenames = [x for x in os.listdir(myp) if ".esys" in x and "_pv" in x]
@@ -618,7 +620,7 @@ def fig_import_export_100prz_region():
             bil["export"] = exp.resample("M").sum()
             bil["import"] = imp.resample("M").sum()
             ax_ar[1] = bil.reset_index(drop=True).plot(
-                ax=ax_ar[1], drawstyle="steps-mid", linewidth=2
+                ax=ax_ar[1], drawstyle="steps-mid", linewidth=2, color=colors
             )
             ax_ar[1].set_xlabel("2014\n\nWind: 0 MW, PV: 67 MWp")
             ax_ar[1].legend(loc="upper left")
@@ -626,28 +628,30 @@ def fig_import_export_100prz_region():
             bil["export"] = exp.resample("M").sum()
             bil["import"] = imp.resample("M").sum()
             ax_ar[2] = bil.reset_index(drop=True).plot(
-                ax=ax_ar[2], drawstyle="steps-mid", linewidth=2
+                ax=ax_ar[2], drawstyle="steps-mid", linewidth=2, color=colors
             )
             ax_ar[2].set_xlabel("2014\n\nWind: 39 MW, PV: 0 MWp")
-    ax_ar[0] = expdf.sort_index().plot(kind="bar", ax=ax_ar[0])
+    ax_ar[0] = expdf.sort_index().plot(kind="bar", ax=ax_ar[0], color=colors)
     ax_ar[0].set_ylabel("Energie [GWh]")
     for n in [1, 2]:
         ax_ar[n].set_ylim(0, 7)
         ax_ar[n].set_xlim(0, 11)
-        ax_ar[n].set_xticks(list(range(12)))
+        ax_ar[n].set_xticks([n * 2 for n in range(6)])
         ax_ar[n].set_xticklabels(
-            pd.date_range("2014", "2015", freq="MS").strftime("%b")[:-1]
+            pd.date_range("2014", "2015", freq="2MS").strftime("%b")[:-1]
         )
         # ,
         # rotation="horizontal",
         # horizontalalignment="center",
     # )
-    plt.subplots_adjust(right=0.98, left=0.06, bottom=0.2, top=0.96)
+    plt.subplots_adjust(right=0.99, left=0.055, bottom=0.27, top=0.98)
     return "import_export_100PRZ_region", None
 
 
 def fig_import_export_emissions_100prz_region():
-    plt.rcParams.update({"font.size": 15})
+    plt.rcParams.update({"font.size": 18})
+    # colors = ["#888888", "#333333"]  # greyscale
+    colors = None
     f, ax_ar = plt.subplots(3, 3, sharey=True, sharex=True, figsize=(15, 7))
     my_path = os.path.join(cfg.get("paths", "phd"))
     up_raw = {}
@@ -731,27 +735,28 @@ def fig_import_export_emissions_100prz_region():
     labels = {
         0: "Emissionen\n(teuerstes)",
         1: "Emissionen\n(Mittelwert)",
-        2: "Emissionen\n(maximum)"
+        2: "Emissionen\n(maximum)",
     }
     n2 = 0
     for k1, v1 in up_plot.items():
         n1 = 0
         for k2, v2 in v1.items():
             print(k1, k2, n1, n2)
-            v2.sort_index().plot(kind="bar", ax=ax_ar[n2, n1], legend=False)
+            v2.sort_index().plot(kind="bar", ax=ax_ar[n2, n1], legend=False,
+                                 color=colors)
             if n2 == 0:
-                ax_ar[n2, n1].set_title("EE x {0}".format(1 + n1/2))
+                ax_ar[n2, n1].set_title("EE x {0}".format(1 + n1 / 2))
             if n1 == 0:
                 ax_ar[n2, n1].set_ylabel(labels[n2])
             n1 += 1
         n2 += 1
     plt.legend(bbox_to_anchor=(1.455, 1.7), loc="center right", ncol=1)
-    plt.subplots_adjust(right=0.89, left=0.065, bottom=0.2, top=0.95)
+    plt.subplots_adjust(right=0.89, left=0.07, bottom=0.24, top=0.95)
     return "import_export_emission_100PRZ_region", None
 
 
 def fig_import_export_costs_100prz_region():
-    plt.rcParams.update({"font.size": 14})
+    plt.rcParams.update({"font.size": 18})
     f, ax = plt.subplots(1, 1, figsize=(15, 6))
     my_filename = "market_clearing_price_phd.xls"
     my_path = cfg.get("paths", "phd")
@@ -832,7 +837,7 @@ def fig_import_export_costs_100prz_region():
         66,
         "Atomausstieg",
         ha="center",
-        fontsize=15,
+        fontsize=18,
         bbox={"facecolor": "white", "alpha": 1, "pad": 5, "linewidth": 0},
     )
     plt.text(
@@ -840,7 +845,7 @@ def fig_import_export_costs_100prz_region():
         62,
         "Atomausstieg\nBraunkohle: -50%\nGasturbine: +30 GW",
         ha="center",
-        fontsize=15,
+        fontsize=18,
         bbox={"facecolor": "white", "alpha": 1, "pad": 5, "linewidth": 0},
     )
     for p, t in [
@@ -851,8 +856,8 @@ def fig_import_export_costs_100prz_region():
         (13, "Basismodelle"),
     ]:
         plt.text(
-            p, 77, t, ha="center", fontsize=15,
+            p, 77, t, ha="center", fontsize=18,
         )
-    plt.subplots_adjust(right=0.97, left=0.04, bottom=0.11, top=0.93)
+    plt.subplots_adjust(right=0.97, left=0.05, bottom=0.13, top=0.93)
 
     return "import_export_costs_100PRZ_region", None

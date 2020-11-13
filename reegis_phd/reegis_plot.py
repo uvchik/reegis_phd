@@ -507,8 +507,9 @@ def plot_regions(
         for o in offshore:
             polygons.loc[o, "onshore"] = 0
         # polygons.loc[polygons.numeric_id == 22, "onshore"] = 0.5
-        cmap = LinearSegmentedColormap.from_list(
-            "mycmap", [(0, "#a5bfdd"), (0.5, "red"), (1, "#badd69")]
+        if cmap is None:
+            cmap = LinearSegmentedColormap.from_list(
+                "mycmap", [(0, "#a5bfdd"), (0.5, "red"), (1, "#badd69")]
         )
         data_col = "onshore"
 
@@ -550,7 +551,7 @@ def plot_regions(
                 x.geometry.representative_point().x,
                 x.geometry.representative_point().y,
                 x[label_col],
-                size=9,
+                size=16,
                 ha="center",
                 va="center",
                 bbox=bb,

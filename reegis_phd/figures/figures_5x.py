@@ -37,9 +37,18 @@ def fig_model_regions():
                 suffix=".geojson", map=rmap, type="polygons"
             ),
         )
-
+        # greyscale
+        colormap = LinearSegmentedColormap.from_list(
+            "mycmap", [(0, "#dddddd"), (1, "#333333")]
+        )
+        # colormap = None
         plot.plot_regions(
-            rmap=de_map, ax=ax, legend=False, simple=0.005, offshore="auto"
+            rmap=de_map,
+            ax=ax,
+            legend=False,
+            simple=0.005,
+            offshore="auto",
+            cmap=colormap,
         )
         for spine in plt.gca().spines.values():
             spine.set_visible(False)
@@ -180,7 +189,7 @@ def fig_district_heating_areas(**kwargs):
             c[0],
             c[1],
             t,
-            size=10,
+            size=14,
             ha="center",
             va="center",
             bbox=dict(boxstyle="round", alpha=0.5, ec=(1, 1, 1), fc=(1, 1, 1)),

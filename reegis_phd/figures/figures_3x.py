@@ -38,7 +38,7 @@ def fig_extraction_turbine_and_fixed_chp():
 
 def fig_tespy_heat_pumps_cop():
     """From TESPy examples."""
-    plt.rcParams.update({"font.size": 16})
+    plt.rcParams.update({"font.size": 20})
     f, ax_ar = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(15, 5))
 
     t_range = [6, 9, 12, 15, 18, 21, 24]
@@ -49,15 +49,15 @@ def fig_tespy_heat_pumps_cop():
         fn = os.path.join(cfg.get("paths", "data_my_reegis"), filename)
         df = pd.read_csv(fn, index_col=0)
 
-        colors = [
-            "#00395b",
-            "#74adc1",
-            "#b54036",
-            "#ec6707",
-            "#bfbfbf",
-            "#999999",
-            "#010101",
-        ]
+        colormap = "Greys"
+        offset = 0.5
+        # colormap = "gist_rainbow"
+        # offset = 0
+        cmap = plt.get_cmap(colormap)
+        nc = len(t_range)  # number of colors
+        p = ((nc-1)/(1-offset))
+        colors_bw = [cmap(i/p+offset) for i in range(nc)]
+
         plt.sca(ax_ar[n])
         i = 0
         for t in t_range:
@@ -65,10 +65,10 @@ def fig_tespy_heat_pumps_cop():
                 q_range / 200e3,
                 df.loc[t],
                 "-x",
-                Color=colors[i],
+                Color=colors_bw[i],
                 label="$T_{resvr}$ = " + str(t) + " °C",
-                markersize=7,
-                linewidth=2,
+                MarkerSize=7,
+                LineWidth=2,
             )
             i += 1
 

@@ -233,8 +233,9 @@ def fig_storage_capacity(**kwargs):
 
     fs.drop(["N0", "N1", "O0", "P0"], inplace=True)
     fs["energy"] = fs["energy"].div(1000)
-
-    ax = fs.plot(column="energy", cmap="YlGn", ax=ax, aspect="equal")
+    # colormap = "YlGn"
+    colormap = "Greys"
+    ax = fs.plot(column="energy", cmap=colormap, ax=ax, aspect="equal")
     ax = fs.boundary.plot(ax=ax, color="#777777", aspect="equal")
     coords = {
         "NI": (9.7, 52.59423440995961),
@@ -269,7 +270,7 @@ def fig_storage_capacity(**kwargs):
 
 
 def fig_inhabitants():
-    plt.rcParams.update({"font.size": 15})
+    plt.rcParams.update({"font.size": 18})
     f, ax_ar = plt.subplots(1, 2, figsize=(16, 5.6))
     df = pd.DataFrame()
     for year in range(2011, 2018):
@@ -306,13 +307,13 @@ def fig_inhabitants():
     n_cmap.set_array(np.array([]))
     cbar = plt.colorbar(n_cmap, ax=ax_ar[1], extend="max", cax=cax)
     cbar.set_label("Einwohner pro km²", rotation=270, labelpad=30)
-    plt.subplots_adjust(left=0.07, top=0.98, bottom=0.06, right=0.96)
+    plt.subplots_adjust(left=0.09, top=0.98, bottom=0.06, right=0.93)
     # plt.xticks(rotation=0)
     return "inhabitants_by_ferderal_states", None
 
 
 def fig_average_weather():
-    plt.rcParams.update({"font.size": 15})
+    plt.rcParams.update({"font.size": 20})
     f, ax_ar = plt.subplots(1, 2, figsize=(14, 4.5), sharey=True)
     my_cmap = LinearSegmentedColormap.from_list(
         "mycmap",
@@ -747,7 +748,7 @@ def fig_show_hydro_image():
 
 def fig_compare_re_capacity_years():
     # from reegis import bmwi
-    plt.rcParams.update({"font.size": 14})
+    plt.rcParams.update({"font.size": 18})
     f, ax_ar = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(15, 5))
 
     years = [2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019]
@@ -831,8 +832,20 @@ def fig_compare_re_capacity_years():
 
 
 def fig_compare_full_load_hours():
-    plt.rcParams.update({"font.size": 14})
+    plt.rcParams.update({"font.size": 18})
     f, ax_ar = plt.subplots(2, 2, sharex=True, figsize=(15, 7))
+
+    # # colors greyscale
+    # wind1 = "#999999"
+    # wind2 = "#333333"
+    # solar1 = "#999999"
+    # solar2 = "#333333"
+
+    # colors
+    wind1 = "#4254ff"
+    wind2 = "#1b2053"
+    solar1 = "#ffba00"
+    solar2 = "#ff7000"
 
     fn = os.path.join(
         cfg.get("paths", "data_my_reegis"),
@@ -849,24 +862,16 @@ def fig_compare_full_load_hours():
 
     ax_ar[0, 0] = flh[
         [("Wind (BDEW)", "2012"), ("Wind (reegis)", "2012")]
-    ].plot(
-        kind="bar", ax=ax_ar[0, 0], color=["#4254ff", "#1b2053"], legend=False
-    )
+    ].plot(kind="bar", ax=ax_ar[0, 0], color=[wind1, wind2], legend=False)
     ax_ar[0, 1] = flh[
         [("Wind (BDEW)", "2014"), ("Wind (reegis)", "2014")]
-    ].plot(
-        kind="bar", ax=ax_ar[0, 1], color=["#4254ff", "#1b2053"], legend=False
-    )
+    ].plot(kind="bar", ax=ax_ar[0, 1], color=[wind1, wind2], legend=False)
     ax_ar[1, 0] = flh[
         [("Solar (BDEW)", "2012"), ("Solar (reegis)", "2012")]
-    ].plot(
-        kind="bar", ax=ax_ar[1, 0], color=["#ffba00", "#ff7000"], legend=False
-    )
+    ].plot(kind="bar", ax=ax_ar[1, 0], color=[solar1, solar2], legend=False)
     ax_ar[1, 1] = flh[
         [("Solar (BDEW)", "2014"), ("Solar (reegis)", "2014")]
-    ].plot(
-        kind="bar", ax=ax_ar[1, 1], color=["#ffba00", "#ff7000"], legend=False
-    )
+    ].plot(kind="bar", ax=ax_ar[1, 1], color=[solar1, solar2], legend=False)
     ax_ar[0, 0].set_title("2012")
     ax_ar[0, 1].set_title("2014")
     ax_ar[0, 1].legend(
@@ -875,17 +880,17 @@ def fig_compare_full_load_hours():
     ax_ar[1, 1].legend(
         loc="upper left", bbox_to_anchor=(1, 1), labels=["BDEW", "reegis"]
     )
-    ax_ar[0, 0].set_ylabel("Volllaststunden Windkraft")
-    ax_ar[1, 0].set_ylabel("Volllaststunden Photovoltaik")
+    ax_ar[0, 0].set_ylabel("Volllaststunden\nWindkraft")
+    ax_ar[1, 0].set_ylabel("Volllaststunden\nPhotovoltaik")
 
     plt.subplots_adjust(
-        right=0.89, left=0.07, bottom=0.11, top=0.94, wspace=0.16
+        right=0.871, left=0.098, bottom=0.11, top=0.94, wspace=0.16, hspace=0.1
     )
     return "compare_full_load_hours", None
 
 
 def fig_compare_feedin_solar():
-    plt.rcParams.update({"font.size": 14})
+    plt.rcParams.update({"font.size": 18})
     f, ax_ar = plt.subplots(2, 1, sharey=True, figsize=(15, 6))
 
     # Get feedin time series from reegis
@@ -980,9 +985,10 @@ def fig_compare_feedin_solar():
         datetime.datetime(2014, 6, 25),
         datetime.datetime(2014, 6, 29),
     ]
+    ax.set_xticks([pandas_datetime for pandas_datetime in dates])
     labels = [pandas_datetime.strftime("%d. %b.") for pandas_datetime in dates]
     labels[0] = ""
-    ax.set_xticklabels(labels, ha="center")
+    ax.set_xticklabels(labels, ha="center", rotation=0)
 
     # xticks for December
     dates = [
@@ -995,9 +1001,10 @@ def fig_compare_feedin_solar():
         datetime.datetime(2014, 12, 25),
         datetime.datetime(2014, 12, 29),
     ]
+    ax2.set_xticks([pandas_datetime for pandas_datetime in dates])
     labels = [pandas_datetime.strftime("%d. %b.") for pandas_datetime in dates]
     labels[0] = ""
-    ax2.set_xticklabels(labels, ha="center")
+    ax2.set_xticklabels(labels, ha="center", rotation=0)
 
     ax.legend(labels=["OPSD", "reegis"])
     ax.set_xlabel("")
@@ -1008,7 +1015,7 @@ def fig_compare_feedin_solar():
     # Plot Text
     x0 = datetime.datetime(2014, 12, 1, 5, 0)
     x1 = datetime.datetime(2014, 12, 1, 8, 0)
-    x2 = datetime.datetime(2014, 12, 2, 14, 0)
+    x2 = datetime.datetime(2014, 12, 3, 1, 0)
 
     start = datetime.datetime(2014, 1, 1)
     end = datetime.datetime(2015, 1, 1)
@@ -1037,11 +1044,11 @@ def fig_compare_feedin_solar():
             w = "bold"
         else:
             w = "normal"
-        ax2.text(c[0], c[1], c[2], weight=w, size=12, ha="left", va="center")
+        ax2.text(c[0], c[1], c[2], weight=w, size=16, ha="left", va="center")
 
     # Plot Box
     x3 = mdates.date2num(x0)
-    b = patches.Rectangle((x3, 0.5), 2.9, 0.57, color="#cccccc")
+    b = patches.Rectangle((x3, 0.5), 3.9, 0.57, color="#cccccc")
     ax2.add_patch(b)
     ax2.add_patch(patches.Shadow(b, -0.05, -0.01))
 
@@ -1060,7 +1067,7 @@ def fig_compare_feedin_wind_scaled():
 
 
 def fig_compare_feedin_wind(scale_reegis):
-    plt.rcParams.update({"font.size": 14})
+    plt.rcParams.update({"font.size": 18})
     f, ax_ar = plt.subplots(2, 1, sharey=True, figsize=(15, 6))
 
     # colors
@@ -1171,9 +1178,10 @@ def fig_compare_feedin_wind(scale_reegis):
         datetime.datetime(2014, 6, 25),
         datetime.datetime(2014, 6, 29),
     ]
+    ax.set_xticks([pandas_datetime for pandas_datetime in dates])
     labels = [pandas_datetime.strftime("%d. %b.") for pandas_datetime in dates]
     labels[0] = ""
-    ax.set_xticklabels(labels, ha="center")
+    ax.set_xticklabels(labels, ha="center", rotation=0)
 
     # xticks for December
     dates = [
@@ -1186,9 +1194,10 @@ def fig_compare_feedin_wind(scale_reegis):
         datetime.datetime(2014, 12, 25),
         datetime.datetime(2014, 12, 29),
     ]
+    ax2.set_xticks([pandas_datetime for pandas_datetime in dates])
     labels = [pandas_datetime.strftime("%d. %b.") for pandas_datetime in dates]
     labels[0] = ""
-    ax2.set_xticklabels(labels, ha="center")
+    ax2.set_xticklabels(labels, ha="center", rotation=0)
 
     ax.legend(labels=["OPSD", "reegis"])
     ax.set_xlabel("")
@@ -1199,7 +1208,7 @@ def fig_compare_feedin_wind(scale_reegis):
     # Plot Text
     x0 = datetime.datetime(2014, 6, 1, 5, 0)
     x1 = datetime.datetime(2014, 6, 1, 8, 0)
-    x2 = datetime.datetime(2014, 6, 2, 14, 0)
+    x2 = datetime.datetime(2014, 6, 3, 1, 0)
 
     start = datetime.datetime(2014, 1, 1)
     end = datetime.datetime(2015, 1, 1)
@@ -1230,11 +1239,11 @@ def fig_compare_feedin_wind(scale_reegis):
             w = "bold"
         else:
             w = "normal"
-        ax.text(c[0], c[1], c[2], weight=w, size=12, ha="left", va="center")
+        ax.text(c[0], c[1], c[2], weight=w, size=18, ha="left", va="center")
 
     # Plot Box
     x3 = mdates.date2num(x0)
-    b = patches.Rectangle((x3, 0.5), 2.9, 0.57, color="#cccccc")
+    b = patches.Rectangle((x3, 0.5), 4.4, 0.57, color="#cccccc")
     ax.add_patch(b)
     ax.add_patch(patches.Shadow(b, -0.05, -0.01))
 
@@ -1275,6 +1284,16 @@ def fig_compare_electricity_profile_berlin():
     plt.rcParams.update({"font.size": 16})
     f, ax_ar = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
 
+    # # colors greyscale
+    # v = "0.1"
+    # e = "0.4"
+    # e2 = "0.3"
+
+    # no greyscale
+    v = None
+    e = None
+    e2 = None
+
     year = 2014
     federal_states = geometries.get_federal_states_polygon()
     fn = "berlin_electricity_data_2014_berlin.csv"
@@ -1299,8 +1318,8 @@ def fig_compare_electricity_profile_berlin():
     start = datetime.datetime(year, 1, 13)
     end = datetime.datetime(year, 1, 20)
 
-    ax = bln_vatten.loc[start:end].plot(ax=ax, x_compat=True)
-    ax = bln_entsoe.loc[start:end].plot(ax=ax, x_compat=True)
+    ax = bln_vatten.loc[start:end].plot(ax=ax, x_compat=True, linewidth=3, c=v)
+    ax = bln_entsoe.loc[start:end].plot(ax=ax, x_compat=True, linewidth=3, c=e)
     ax.set_title("Winterwoche (13. - 20. Januar)")
     # ax.set_xticks()
     ax.set_xticks(
@@ -1325,8 +1344,8 @@ def fig_compare_electricity_profile_berlin():
     ax = ax_ar[1]
     start = datetime.datetime(year, 7, 14)
     end = datetime.datetime(year, 7, 21)
-    ax = bln_vatten.loc[start:end].plot(ax=ax, x_compat=True)
-    ax = bln_entsoe.loc[start:end].plot(ax=ax, x_compat=True)
+    ax = bln_vatten.loc[start:end].plot(ax=ax, x_compat=True, linewidth=3, c=v)
+    ax = bln_entsoe.loc[start:end].plot(ax=ax, x_compat=True, linewidth=3, c=e)
     ax.set_title("Sommerwoche (14. - 20. Juli)")
     ax.set_xticks(
         [
@@ -1348,13 +1367,19 @@ def fig_compare_electricity_profile_berlin():
     ax.set_xlim(start, end - datetime.timedelta(hours=2))
     ax = ax_ar[2]
     ax = (
-        bln_vatten.resample("W").mean().plot(ax=ax, legend=True, x_compat=True)
+        bln_vatten.resample("W")
+        .mean()
+        .plot(ax=ax, legend=True, x_compat=True, linewidth=3, c=v)
     )
     ax = (
-        bln_entsoe.resample("W").mean().plot(ax=ax, legend=True, x_compat=True)
+        bln_entsoe.resample("W")
+        .mean()
+        .plot(ax=ax, legend=True, x_compat=True, linewidth=3, c=e)
     )
     ax = (
-        bln_reegis.resample("W").mean().plot(ax=ax, legend=True, x_compat=True)
+        bln_reegis.resample("W")
+        .mean()
+        .plot(ax=ax, legend=True, x_compat=True, linewidth=3, c=e2)
     )
     ax.set_title("Wochenmittel - 2014")
     ax.set_xticks(
@@ -1419,7 +1444,12 @@ def fig_entsoe_scaled_year_plots():
 
 def fig_compare_entsoe_slp_germany():
     plt.rcParams.update({"font.size": 16})
-    logger.define_logging()
+
+    # # colors greyscale
+    # colors = ["#999999", "#333333"]
+
+    colors = None
+
     my_year = 2014
     federal_states = geometries.get_germany_polygon(with_awz=True)
     name = "germany"
@@ -1453,7 +1483,9 @@ def fig_compare_entsoe_slp_germany():
     )
 
     my_ax1 = fig.add_subplot(1, 2, 1)
-    df.loc[22 * 24 : 28 * 24].div(1000).plot(ax=my_ax1, linewidth=2, style=["-", "-"])
+    df.loc[22 * 24 : 28 * 24].div(1000).plot(
+        ax=my_ax1, linewidth=3, style=["-", "-"], color=colors
+    )
     my_ax1.legend_.remove()
     plt.ylim([30.100, 90.000])
     plt.xlim([528, 28 * 24])
@@ -1467,7 +1499,7 @@ def fig_compare_entsoe_slp_germany():
     plt.xlabel("23. - 28. Januar 2014")
     my_ax2 = fig.add_subplot(1, 2, 2)
     df.loc[204 * 24 : 210 * 24].div(1000).plot(
-        ax=my_ax2, linewidth=2, style=["-", "-", "-."]
+        ax=my_ax2, linewidth=3, style=["-", "-", "-."], color=colors
     )
     plt.ylim([30.100, 90.000])
     plt.xlim([204 * 24, 210 * 24])
@@ -1484,6 +1516,7 @@ def fig_compare_entsoe_slp_germany():
 
 
 def fig_compare_entsoe_slp_rolling_window():
+    plt.rcParams.update({"font.size": 16})
     logger.define_logging()
     my_year = 2014
     federal_states = geometries.get_federal_states_polygon()
@@ -1510,7 +1543,7 @@ def fig_compare_entsoe_slp_rolling_window():
 
     fig, ax_ar = plt.subplots(1, 2, sharey=True, figsize=(12, 5))
     fig.subplots_adjust(
-        wspace=0.05, left=0.07, right=0.98, bottom=0.1, top=0.95
+        wspace=0.05, left=0.09, right=0.96, bottom=0.12, top=0.95
     )
     slp_de_no_idx = slp_de.reset_index(drop=True)
     entsoe_no_idx = my_entsoe.reset_index(drop=True)
@@ -1553,13 +1586,29 @@ def fig_compare_entsoe_slp_rolling_window():
     ax_ar[1].set_xlabel("24. Juli 2014")
     ax_ar[1].set_xticks([4895, 4901, 4907, 4913, 4919])
     ax_ar[1].set_xticklabels(["00:00", "06:00", "12:00", "18:00", "00:00"])
-    plt.legend(facecolor="white", framealpha=1, shadow=True)
+    plt.legend(
+        facecolor="white",
+        framealpha=1,
+        shadow=True,
+        loc="upper right",
+        bbox_to_anchor=(1.1, 1),
+        ncol=2,
+    )
     return "demand_SLP_geglättet_vs_ENTSOE", None
 
 
 def fig_compare_entsoe_slp_annual_profile():
     plt.rcParams.update({"font.size": 16})
     # locale.setlocale(locale.LC_ALL, "de_DE.utf8")
+
+    # no greyscale
+    # s = "0.1"
+    # e = "0.4"
+
+    # no greyscale
+    s = None
+    e = None
+
     fig = plt.figure(figsize=(8, 5))
     fig.subplots_adjust(left=0.14, right=0.97, bottom=0.11, top=0.98)
     logger.define_logging()
@@ -1588,10 +1637,10 @@ def fig_compare_entsoe_slp_annual_profile():
     slp_de_month = slp_de.resample("M").mean()
     entsoe_month = my_entsoe.resample("M").mean()
     slp_ax = slp_de_month.reset_index(drop=True).plot(
-        label="Standardlastprofil", linewidth=3
+        label="Standardlastprofil", linewidth=3, c=s,
     )
     entsoe_month.reset_index(drop=True).plot(
-        ax=slp_ax, label="Entsoe-Profil", linewidth=3
+        ax=slp_ax, label="Entsoe-Profil", linewidth=3, c=e,
     )
 
     e_avg = entsoe_month.mean()
@@ -1627,11 +1676,11 @@ def fig_compare_entsoe_slp_annual_profile():
 
 
 def fig_demand_share_of_sector_and_region():
-    plt.rcParams.update({"font.size": 16})
+    plt.rcParams.update({"font.size": 20})
     year = 2014
     fig = plt.figure(figsize=(16, 5))
     fig.subplots_adjust(
-        wspace=0.45, left=0.05, right=0.91, bottom=0.12, top=0.97
+        wspace=0.538, left=0.062, right=0.888, bottom=0.14, top=0.926
     )
     logger.define_logging()
     federal_states = geometries.get_federal_states_polygon()
@@ -1720,7 +1769,9 @@ def fig_demand_share_of_sector_and_region():
     ax2 = fig.add_subplot(1, 2, 2)
     elec_demand = elec_demand[["mix", "h0", "g0", "l0", "ind"]]
     print(elec_demand)
-    ax2 = elec_demand.plot(style=["k-.", "-", "-", "-", "-"], ax=ax2)
+    ax2 = elec_demand.reset_index(drop=True).plot(
+        style=["k-.", "-", "-", "-", "-"], ax=ax2, xticks=[], linewidth=3
+    )
     handles, labels = ax2.get_legend_handles_labels()
     ax2.legend(
         handles[::-1],
@@ -1728,6 +1779,16 @@ def fig_demand_share_of_sector_and_region():
         loc="upper left",
         bbox_to_anchor=(1, 0.87),
     )
+
+    ax2.set_xticks(
+        [n for n in elec_demand.reset_index().index if (n % 2) == 0]
+    )
+    ax2.set_xticklabels(
+        [n.strftime("%b") for n in elec_demand.index if (n.month % 2) != 0],
+        rotation=0,
+        horizontalalignment="left",
+    )
+    ax2.set_xlim(0, 11)
     ax2.set_xlabel("")
     ax2.set_ylabel("Abweichung vom Jahresmittel [%]")
     return "demand_composing_the_mixed_profile", None
