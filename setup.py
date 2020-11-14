@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 from setuptools import setup
+import os
 
 
 github = "@https://github.com/"
@@ -29,6 +30,18 @@ setup(
         "console_scripts": [
             "phd_figures = reegis_phd.figures.figures:main",
             "reproduce_phd_optimisation = reegis_phd.reproduce:main",
+        ]
+    },
+    package_data={
+        "reegis_phd": [
+            os.path.join("data", "static", "*.csv"),
+            os.path.join("data", "static", "*.txt"),
+            os.path.join("data", "geometries", "*.csv"),
+            os.path.join("data", "geometries", "*.geojson"),
+            os.path.join("data", "figures", "*.svg"),
+            os.path.join("data", "figures", "*.png"),
+            os.path.join("data", "figures", "*.graphml"),
+            "*.ini",
         ]
     },
 )
