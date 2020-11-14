@@ -31,6 +31,7 @@ setup(
         "deflex{0}reegis/deflex/archive/phd.zip".format(github),
         "berlin_hp{0}reegis/berlin_hp/archive/phd.zip".format(github),
         "geopandas == 0.8.1",
+        "scenario_builder{0}reegis/scenario_builder/archive/phd.zip".format(github),
     ],
     extras_require={"dummy": ["oemof"]},
     entry_points={
