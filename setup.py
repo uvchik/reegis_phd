@@ -1,7 +1,11 @@
 #! /usr/bin/env python
 
-from setuptools import setup
+from setuptools import setup, find_packages
 import os
+
+
+def read(fname):
+    return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
 github = "@https://github.com/"
@@ -11,6 +15,9 @@ setup(
     author="Uwe Krien",
     author_email="uwe.krien@rl-institut.de",
     description="A reegis heat and power model of Berlin.",
+    long_description=read("README.rst"),
+    long_description_content_type="text/x-rst",
+    packages=find_packages(),
     package_dir={"my_reegis": "my_reegis"},
     install_requires=[
         "oemof.solph == 0.4.1",
