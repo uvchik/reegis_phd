@@ -4,7 +4,7 @@ from matplotlib import image as mpimg
 from matplotlib import pyplot as plt
 from reegis.tools import download_file
 
-from my_reegis import config as cfg
+from reegis_phd import config as cfg
 
 NAMES = {
     "lignite": "Braunkohle",
@@ -13,6 +13,7 @@ NAMES = {
     "hard_coal": "Steinkohle",
     "netto_import": "Stromimport",
     "other": "sonstige",
+    "heat_demand": "Wärmebedf."
     # 'nuclear': 'Atomkraft',
 }
 
@@ -33,12 +34,12 @@ def show_download_image(name, file_types):
     plt.subplots_adjust(left=0, top=0.93, bottom=0, right=1)
 
     url = (
-        "https://raw.githubusercontent.com/reegis/my_reegis/master/"
-        "my_reegis/data/figures/{0}.{1}"
+        "https://raw.githubusercontent.com/uvchik/reegis_phd/master/"
+        "reegis_phd/data/figures/{0}.{1}"
     )
     fn = os.path.join(cfg.get("paths", "figures"), "{0}.{1}")
     for suffix in file_types:
-        download_file(fn.format(name, suffix), url.format(name, suffix))
+        download_file(fn.format(name, suffix), url.format(name, suffix), True)
     plt.title(
         "Image source downloaded to: {0}".format(fn.format(name, file_types[0]))
     )

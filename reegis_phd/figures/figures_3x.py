@@ -1,8 +1,9 @@
 import os
 import pandas as pd
 import numpy as np
-from my_reegis import config as cfg
-from my_reegis.figures import figures_base
+from reegis_phd import config as cfg
+from reegis_phd.figures import figures_base
+from reegis_phd.figures import variable_chp_plot
 from matplotlib import pyplot as plt
 
 
@@ -31,12 +32,13 @@ def fig_extraction_turbine_characteristics():
 
 
 def fig_extraction_turbine_and_fixed_chp():
-    pass
+    variable_chp_plot.plot()
+    return "Vergleich_KWK_im_Modell_EKT_GDT", None
 
 
 def fig_tespy_heat_pumps_cop():
     """From TESPy examples."""
-    plt.rcParams.update({"font.size": 16})
+    plt.rcParams.update({"font.size": 20})
     f, ax_ar = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(15, 5))
 
     t_range = [6, 9, 12, 15, 18, 21, 24]
@@ -47,15 +49,17 @@ def fig_tespy_heat_pumps_cop():
         fn = os.path.join(cfg.get("paths", "data_my_reegis"), filename)
         df = pd.read_csv(fn, index_col=0)
 
-        colors = [
-            "#00395b",
-            "#74adc1",
-            "#b54036",
-            "#ec6707",
-            "#bfbfbf",
-            "#999999",
-            "#010101",
-        ]
+        # Colors
+        # colormap = "Greys"
+        # offset = 0.5
+        colormap = "tab10"
+        offset = 0
+
+        cmap = plt.get_cmap(colormap)
+        nc = len(t_range)  # number of colors
+        p = ((nc-1)/(1-offset))
+        colors_bw = [cmap(i/p+offset) for i in range(nc)]
+
         plt.sca(ax_ar[n])
         i = 0
         for t in t_range:
@@ -63,10 +67,10 @@ def fig_tespy_heat_pumps_cop():
                 q_range / 200e3,
                 df.loc[t],
                 "-x",
-                Color=colors[i],
+                Color=colors_bw[i],
                 label="$T_{resvr}$ = " + str(t) + " °C",
-                markersize=7,
-                linewidth=2,
+                MarkerSize=7,
+                LineWidth=2,
             )
             i += 1
 

@@ -5,16 +5,16 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from reegis import geometries
 
-from my_reegis import config as cfg
-from my_reegis import reegis_plot as plot
-from my_reegis.figures import figures_base
+from reegis_phd import config as cfg
+from reegis_phd import reegis_plot as plot
+from reegis_phd.figures import figures_base
 
 
 def fig_model_regions():
     """Plot one or more model regions in one plot."""
     maps = ["de02", "de17", "de21", "de22"]
     # maps = ["de22"]
-    add_title = False
+    add_title = True
 
     top = 1
     ax = None
@@ -37,9 +37,18 @@ def fig_model_regions():
                 suffix=".geojson", map=rmap, type="polygons"
             ),
         )
-
+        # greyscale
+        colormap = LinearSegmentedColormap.from_list(
+            "mycmap", [(0, "#dddddd"), (1, "#333333")]
+        )
+        # colormap = None
         plot.plot_regions(
-            map=de_map, ax=ax, legend=False, simple=0.005, offshore="auto"
+            rmap=de_map,
+            ax=ax,
+            legend=False,
+            simple=0.005,
+            offshore="auto",
+            cmap=colormap,
         )
         for spine in plt.gca().spines.values():
             spine.set_visible(False)
@@ -98,7 +107,7 @@ def fig_compare_de21_region_borders():
         data=data,
         legend=False,
         label_col="sp_id_1",
-        map=tso,
+        rmap=tso,
         data_col="value",
         cmap=cmap,
     )
@@ -180,7 +189,7 @@ def fig_district_heating_areas(**kwargs):
             c[0],
             c[1],
             t,
-            size=10,
+            size=14,
             ha="center",
             va="center",
             bbox=dict(boxstyle="round", alpha=0.5, ec=(1, 1, 1), fc=(1, 1, 1)),
