@@ -8,7 +8,7 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
-github = "@https://github.com/"
+g = "@https://github.com/"
 setup(
     name="my_reegis",
     version="0.0.1",
@@ -24,14 +24,15 @@ setup(
         "pandas == 1.1.4",
         "requests == 2.25",
         "matplotlib == 3.3.3",
-        "demandlib{0}oemof/demandlib/archive/v0.1.7b1.zip".format(github),
+        "demandlib{0}oemof/demandlib/archive/v0.1.7b1.zip".format(g),
         "pytz == 2020.4",
         "numpy == 1.19.4",
-        "reegis{0}reegis/reegis/archive/phd.zip".format(github),
-        "deflex{0}reegis/deflex/archive/phd.zip".format(github),
-        "berlin_hp{0}reegis/berlin_hp/archive/phd.zip".format(github),
+        "reegis{0}reegis/reegis/archive/phd.zip".format(g),
+        "deflex{0}reegis/deflex/archive/phd.zip".format(g),
+        "berlin_hp{0}reegis/berlin_hp/archive/phd.zip".format(g),
         "geopandas == 0.8.1",
-        "scenario_builder{0}reegis/scenario_builder/archive/phd.zip".format(github),
+        "scenario_builder{0}reegis/scenario_builder/archive/phd.zip".format(g),
+        "oemof-visio{0}oemof/oemof-visio/archive/v0.0.1b1.zip".format(g),
     ],
     extras_require={"dummy": ["oemof"]},
     entry_points={
