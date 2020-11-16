@@ -25,6 +25,7 @@ setup(
         "requests == 2.25",
         "matplotlib == 3.3.3",
         "graphviz == 0.15",
+        "descartes == 1.1.0",
         "demandlib{0}oemof/demandlib/archive/v0.1.7b1.zip".format(g),
         "pytz == 2020.4",
         "numpy == 1.19.4",
