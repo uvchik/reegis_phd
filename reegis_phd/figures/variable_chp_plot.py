@@ -87,7 +87,7 @@ def plot():
         os.path.dirname(__file__),
         os.pardir,
         "data",
-        "figures",
+        "static",
         "variable_chp.csv",
     )
     data = pd.read_csv(full_filename, sep=",").div(1000)
