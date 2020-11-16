@@ -182,7 +182,7 @@ def modellhagen_scenario_with_nodes(
     return sc
 
 
-def modellhagen_re_variation(path, log_file=None):
+def modellhagen_re_variation(path, cpu_fraction, log_file=None):
     path = [p for p in path if "E100RE" in p][0]
     sc = berlin_hp.BerlinScenario(name="modellhagen", debug=False)
     sc.load_excel(path)
@@ -195,7 +195,7 @@ def modellhagen_re_variation(path, log_file=None):
         solar = demand / pv_flh * frac / 10
         wind = demand / wind_flh * (1 - frac / 10)
         scenarios_re.append((path, solar, wind))
-    model_multi_scenarios(scenarios_re, cpu_fraction=0.7)
+    model_multi_scenarios(scenarios_re, cpu_fraction=cpu_fraction)
 
 
 def model_multi_scenarios(variations, cpu_fraction=0.2, log_file=None):
@@ -207,7 +207,7 @@ def model_multi_scenarios(variations, cpu_fraction=0.2, log_file=None):
         Multiple scenarios to be modelled in parallel.
     cpu_fraction : float
         Fraction of available cpu cores to use for the parallel modelling.
-        A resulting dezimal number of cores will be rounded up to an integer.
+        A resulting decimal number of cores will be rounded up to an integer.
     log_file : str
         Filename to store the log file.
 

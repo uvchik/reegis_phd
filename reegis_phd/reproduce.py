@@ -158,7 +158,7 @@ def get_costs_from_upstream_scenarios(
     return result_file_mcp
 
 
-def reproduce_scenario_results(path):
+def reproduce_scenario_results(path, cpu_fraction):
     extend_path = fetch_create_scenarios(path)
 
     base_path = os.path.join(path, "base")
@@ -167,14 +167,18 @@ def reproduce_scenario_results(path):
     sc = deflex.fetch_scenarios_from_dir(path=path, xls=True, recursive=True)
     sc = split_scenarios(sc)
     logd = os.path.join(path, "log_deflex.csv")
-    deflex.model_multi_scenarios(sc["deflex"], cpu_fraction=0.7, log_file=logd)
+    deflex.model_multi_scenarios(
+        sc["deflex"], cpu_fraction=cpu_fraction, log_file=logd
+    )
 
     # Model berlin scenarios
     region_path = os.path.dirname(sc["berlin"][0])
     berlin_hp.model_scenarios(sc["berlin"])
 
     # Model "Modellhagen" scenarios
-    phd_main.modellhagen_re_variation(sc["modellhagen"])
+    phd_main.modellhagen_re_variation(
+        sc["modellhagen"], cpu_fraction=cpu_fraction
+    )
 
     # Model directly combined scenarios
     de = deflex.fetch_scenarios_from_dir(path=base_path, xls=True, csv=False)
@@ -186,7 +190,10 @@ def reproduce_scenario_results(path):
     log_dcpl = os.path.join(path, "log_combined.csv")
     logging.info("Coupling {0} with {1}".format(sc["berlin"], sc["deflex"]))
     emb.model_multi_scenarios(
-        sc["deflex"], sc["berlin"], cpu_fraction=0.6, log_file=log_dcpl,
+        sc["deflex"],
+        sc["berlin"],
+        cpu_fraction=cpu_fraction,
+        log_file=log_dcpl,
     )
 
     # Model upstream combination of scenarios
@@ -205,7 +212,7 @@ def reproduce_scenario_results(path):
     emb.model_multi_scenarios(
         sc["deflex"],
         sc["berlin"],
-        cpu_fraction=0.8,
+        cpu_fraction=cpu_fraction,
         log_file=log_up,
         upstream=mcp_file,
     )
@@ -213,6 +220,7 @@ def reproduce_scenario_results(path):
 
 def main():
     import sys
+
     logger.define_logging(screen_level=logging.INFO)
     cfg.init(
         paths=[
@@ -221,12 +229,15 @@ def main():
             os.path.dirname(__file__),
         ]
     )
-    if len(sys.argv) > 1:
-        path = sys.argv[1]
+
+    cpu_fraction = sys.argv[1]
+
+    if len(sys.argv) > 2:
+        path = sys.argv[2]
     else:
-        path = cfg.get("paths", "figures")
+        path = cfg.get("paths", "phd")
     os.makedirs(path, exist_ok=True)
-    reproduce_scenario_results(path)
+    reproduce_scenario_results(path, cpu_fraction)
 
 
 if __name__ == "__main__":
