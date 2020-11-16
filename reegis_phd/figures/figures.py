@@ -1,14 +1,16 @@
 import locale
 import logging
 import os
+from zipfile import ZipFile
 
 import berlin_hp
 import deflex
-from reegis_phd import __file__
+import requests
 from matplotlib import pyplot as plt
 from oemof.tools import logger
 from reegis import config as cfg
 
+from reegis_phd import __file__
 from reegis_phd.figures import figures_3x as fig3x
 from reegis_phd.figures import figures_4x as fig4x
 from reegis_phd.figures import figures_5x as fig5x
@@ -17,13 +19,47 @@ from reegis_phd.figures import figures_6x as fig6x
 locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
 
 
+def download_scenario_results(path):
+    url = "https://osf.io/rptve/download"
+
+    ppath = os.path.join(path, "phd")
+
+    if os.path.isdir(ppath) and len(os.listdir(ppath)) > 0:
+        return ppath
+
+    os.makedirs(ppath, exist_ok=True)
+    fn = os.path.join(path, "phd_scenario_results.zip")
+
+    if not os.path.isfile(fn):
+        logging.info("Downloading '{0}'".format(os.path.basename(fn)))
+        req = requests.get(url)
+        with open(fn, "wb") as fout:
+            fout.write(req.content)
+            logging.info("{1} downloaded from {0}.".format(url, fn))
+
+    with ZipFile(fn, "r") as zip_ref:
+        zip_ref.extractall(path)
+    logging.info("Scenarios results extracted to {0}".format(ppath))
+    return ppath
+
+
 def plot_figure(number, save=False, path=None, show=False, **kwargs):
     logging.info("***** PLOT FIGURE {0} ************".format(number))
+
+    if path is None:
+        path = cfg.get("paths", "local_root")
+
+    fpath = os.path.join(path, "figures")
+
     if number not in get_number_name():
         msg = (
             "Figure {0} not found. Please choose from the following list: {1}"
         )
         raise ValueError(msg.format(number, list(get_number_name().keys())))
+    elif float(number) > 6.1:
+        ppath = download_scenario_results(path)
+        cfg.tmp_set("paths", "phd", ppath)
+
     filename, fig_show = get_number_name()[number](**kwargs)
 
     if fig_show is not None:
@@ -33,9 +69,8 @@ def plot_figure(number, save=False, path=None, show=False, **kwargs):
         filename = filename + ".svg"
 
     if save is True:
-        if path is None:
-            path = ""
-        fn = os.path.join(path, filename)
+        os.makedirs(fpath, exist_ok=True)
+        fn = os.path.join(fpath, filename)
         logging.info("Save figure as {0}".format(fn))
         plt.savefig(fn)
     logging.info("Plot")
