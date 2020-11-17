@@ -51,6 +51,7 @@ def plot_figure(number, save=False, path=None, show=False, **kwargs):
 
     fpath = os.path.join(path, "figures")
     cfg.tmp_set("paths", "figures", fpath)
+    os.makedirs(fpath, exist_ok=True)
 
     if number not in get_number_name():
         msg = (
@@ -70,7 +71,6 @@ def plot_figure(number, save=False, path=None, show=False, **kwargs):
         filename = filename + ".svg"
 
     if save is True:
-        os.makedirs(fpath, exist_ok=True)
         fn = os.path.join(fpath, filename)
         logging.info("Save figure as {0}".format(fn))
         plt.savefig(fn)
