@@ -120,6 +120,9 @@ requirements beforehand.
 
     sudo apt-get install python3-dev proj-bin libproj-dev libgeos-dev python3-tk libspatialindex-dev virtualenv
 
+For other operating systems follow the installation instructions of each
+package.
+
 
 Basic usage
 ===========
@@ -207,14 +210,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-Install reegis on a Linux system (Debian stable):
-
-.. code-block::
-
-    sudo apt-get install python3-dev proj-bin libproj-dev libgeos-dev python3-tk libspatialindex-dev virtualenv
-
-    virtualenv -p /usr/bin/python3 your_env_name
-    source your_env_name/bin/activate
-
-    pip install cython descartes oemof windpowerlib reegis deflex berlin_hp
