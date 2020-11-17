@@ -50,6 +50,7 @@ def plot_figure(number, save=False, path=None, show=False, **kwargs):
         path = cfg.get("paths", "local_root")
 
     fpath = os.path.join(path, "figures")
+    cfg.tmp_set("paths", "figures", fpath)
 
     if number not in get_number_name():
         msg = (
