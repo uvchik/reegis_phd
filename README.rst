@@ -1,6 +1,10 @@
 This package contains all scripts to reproduce the phd-work of Uwe Krien:
 
-LINK/REFERENCE TO PHD + DOI
+`The pdf-Document of the thesis (german).
+<https://github.com/uvchik/reegis_phd/blob/master/monographie_krien_Bewertungskriterien_Regionalmodell.pdf>`_
+
+.. image:: https://zenodo.org/badge/137771506.svg
+   :target: https://zenodo.org/badge/latestdoi/137771506
 
 .. contents::
     :depth: 1
@@ -180,19 +184,6 @@ The default path is ``$HOME/reegis``, to use a different path type:
 .. code-block::
 
     reproduce_phd_optimisation 0.01 /your/path/for/the/results
-
-
-Citing the work
-===============
-
-reegis_phd-Software package:
-
-.. image:: https://zenodo.org/badge/137771506.svg
-   :target: https://zenodo.org/badge/latestdoi/137771506
-
-PhD-work (german)
-
-...
 
 License
 ============
