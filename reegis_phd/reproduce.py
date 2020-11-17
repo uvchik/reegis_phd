@@ -230,7 +230,7 @@ def main():
         ]
     )
 
-    cpu_fraction = sys.argv[1]
+    cpu_fraction = float(sys.argv[1])
 
     if len(sys.argv) > 2:
         path = sys.argv[2]

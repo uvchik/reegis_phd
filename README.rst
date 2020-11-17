@@ -1,10 +1,10 @@
 This package contains all scripts to reproduce the phd-work of Uwe Krien:
 
-`The pdf-Document of the thesis (german).
-<https://github.com/uvchik/reegis_phd/blob/master/monographie_krien_Bewertungskriterien_Regionalmodell.pdf>`_
-
 .. image:: https://zenodo.org/badge/137771506.svg
    :target: https://zenodo.org/badge/latestdoi/137771506
+
+`The pdf-Document of the thesis (german).
+<https://github.com/uvchik/reegis_phd/blob/master/monographie_krien_Bewertungskriterien_Regionalmodell.pdf>`_
 
 .. contents::
     :depth: 1
