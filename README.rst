@@ -187,13 +187,12 @@ Citing the work
 
 reegis_phd-Software package:
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3572594.svg
-   :target: https://doi.org/10.5281/zenodo.3572594
+.. image:: https://zenodo.org/badge/137771506.svg
+   :target: https://zenodo.org/badge/latestdoi/137771506
 
 PhD-work (german)
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3572594.svg
-   :target: https://doi.org/10.5281/zenodo.3572594
+...
 
 License
 ============
