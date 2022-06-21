@@ -28,7 +28,7 @@ setup(
         "descartes == 1.1.0",
         "demandlib{0}oemof/demandlib/archive/v0.1.7b1.zip".format(g),
         "pytz == 2020.4",
-        "numpy == 1.19.4",
+        "numpy == 1.22.0",
         "reegis{0}reegis/reegis/archive/phd.zip".format(g),
         "deflex{0}reegis/deflex/archive/phd.zip".format(g),
         "berlin_hp{0}reegis/berlin_hp/archive/phd.zip".format(g),
