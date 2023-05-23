@@ -22,7 +22,7 @@ setup(
     install_requires=[
         "oemof.solph == 0.4.1",
         "pandas == 1.1.4",
-        "requests == 2.25",
+        "requests == 2.31.0",
         "matplotlib == 3.3.3",
         "graphviz == 0.15",
         "descartes == 1.1.0",
